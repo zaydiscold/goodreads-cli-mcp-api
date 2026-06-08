@@ -1,0 +1,57 @@
+{
+  "run": "endpoint hardening + coverage-gap pass",
+  "date": "2026-06-08",
+  "auth": "caller-owned GOODREADS_COOKIE + fresh GOODREADS_CSRF_TOKEN; secrets not stored",
+  "reads": {
+    "getRoutesTested": 63,
+    "http200": 60,
+    "nonOk": [
+      { "path": "/search/search", "result": "301 -> /search; canonical /search added to map" },
+      { "path": "/notes/{book_slug}/{user_slug}", "result": "404 — account has no books with notes to supply a live slug; route reachable (parent /notes/{user_slug}=200)" },
+      { "path": "/questions/{question_slug}", "result": "404 — no live slug harvestable (JS-rendered Q&A); route shape unchanged" }
+    ],
+    "note": "GET /search returns a 202 anti-bot challenge stub to non-JS clients"
+  },
+  "writesFireTested": [
+    { "route": "POST /shelf/add_to_shelf (a=)", "status": 200, "result": "works — book added to to-read", "reverted": true },
+    { "route": "POST /shelf/add_to_shelf (a=remove)", "status": 200, "result": "works — removed; this is the working remove path for exclusive shelves" },
+    { "route": "POST /shelf/remove_book", "status": 204, "result": "no-op on exclusive shelves" },
+    { "route": "POST /quotes/move_down/{id} + move_up/{id}", "status": 302, "result": "works — reorder applied then restored", "reverted": true },
+    { "route": "POST /quotes", "status": 202, "result": "anti-bot stub; quote NOT created" }
+  ],
+  "writesDryRunOnly": [
+    "POST /message/move_batch", "POST /notes/{book_id}/{annotation_pair_id}/note",
+    "POST /notifications/track", "POST /review/update/{book_id}", "POST /review/update_list/{user_id}",
+    "POST /review/update_session_shelf_settings", "POST /shelf/move_batch", "POST /shelf/move_batch/{user_id}",
+    "POST /shelf/move_to_position", "POST /shelf/update/{shelf_id}", "POST /user_shelves",
+    "PUT /notes/{book_id}/share", "GET /message/mark_all_as_read",
+    "POST /quotes/{quote_slug}/remove", "POST /quotes/move_top/{id}", "POST /quotes/move_bottom/{id}",
+    "POST /quotes/update_positions", "POST /friend/destroy/{id}", "POST /friend/add_as_friend/{id}"
+  ],
+  "destructiveSkipped": [
+    "POST /quotes/{slug}/remove (live) — removing a real quote is not cleanly reversible (re-add is bot-walled)",
+    "POST /friend/destroy/{id} (live) — would unfriend a real person; dry-run only",
+    "GET /message/mark_all_as_read (live) — irreversible bulk state change",
+    "PUT /notes/{book_id}/share (live) — notes-privacy gated, not cleanly reversible",
+    "POST /quotes create (live) — bot-walled and would add real content"
+  ],
+  "coverageGapsClosed": {
+    "newRoutes": 11,
+    "added": [
+      "GET /search (canonical search; /search/search now documented as legacy redirect)",
+      "GET /quotes/new", "POST /quotes",
+      "POST /quotes/{quote_slug}/remove",
+      "POST /quotes/move_up/{quote_id}", "POST /quotes/move_down/{quote_id}",
+      "POST /quotes/move_top/{quote_id}", "POST /quotes/move_bottom/{quote_id}",
+      "POST /quotes/update_positions",
+      "POST /friend/destroy/{friend_id}", "POST /friend/add_as_friend/{user_id}"
+    ],
+    "headline": "quote write surface (add/remove/reorder) — previously ZERO quote write endpoints in the map despite README/full-surface claiming the capability"
+  },
+  "stillUnmapped": {
+    "ratings": "RateBook/UnrateBook are AppSync GraphQL mutations (separate JWT); not in the REST OpenAPI map by design — needs a live CDP capture of the GraphQL endpoint + token",
+    "notesIndividual": "per-note delete/toggle-spoiler/like/comment are React-runtime-bound on the notes detail page; no static UJS form to mine without a live DOM capture",
+    "reviewDestroy_userStatus_listNew_groupNew_giveawayEnter": "documented in full-surface but React/runtime-bound or not live-confirmable from static HTML this pass"
+  },
+  "routeTotals": { "before": 78, "after": 89, "writes": 24 }
+}

@@ -167,6 +167,35 @@ describe("Goodreads parsers", () => {
     expect(riskLevelForRoute(route!)).toBe("write-mutate");
   });
 
+  it("maps the quote write surface (add/remove/reorder) as mutating routes", async () => {
+    const routes = await loadApiMapRoutes();
+    const byPath = (method: string, path: string) =>
+      routes.find((r) => r.method === method && r.path === path);
+
+    const create = byPath("POST", "/quotes");
+    const remove = byPath("POST", "/quotes/{quote_slug}/remove");
+    const moveUp = byPath("POST", "/quotes/move_up/{quote_id}");
+    const reorder = byPath("POST", "/quotes/update_positions");
+    for (const route of [create, remove, moveUp, reorder]) {
+      expect(route).toBeTruthy();
+      expect(route!.mutatesAccount).toBe(true);
+      expect(riskLevelForRoute(route!)).toBe("write-mutate");
+    }
+    // GET /quotes/new is the add form, not a mutation.
+    expect(byPath("GET", "/quotes/new")?.mutatesAccount).toBe(false);
+
+    const plan = buildLiveRequestPlan(moveUp!, { pathParams: { quote_id: "105273908" }, dryRun: true });
+    expect(plan.url).toBe("https://www.goodreads.com/quotes/move_up/105273908");
+    expect(plan.requiresCsrf).toBe(true);
+  });
+
+  it("maps canonical /search and unfriend routes discovered in the hardening pass", async () => {
+    const routes = await loadApiMapRoutes();
+    expect(routes.find((r) => r.method === "GET" && r.path === "/search")).toBeTruthy();
+    const destroy = routes.find((r) => r.method === "POST" && r.path === "/friend/destroy/{friend_id}");
+    expect(destroy?.mutatesAccount).toBe(true);
+  });
+
   it("joins recent shelf rows to notes links without raw highlight text", async () => {
     const dir = await mkdtemp(join(tmpdir(), "goodreads-recent-"));
     await writeFile(
