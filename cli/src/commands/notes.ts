@@ -80,5 +80,42 @@ export function notesCommand(): Command {
       );
     });
 
+  command
+    .command("hide")
+    .description("Execute the approved notes-hide workflow. Requires --execute, exact approved book id, and GOODREADS_ALLOW_NOTES_PUBLICIZE=1.")
+    .requiredOption("--book-id <id>", "Goodreads book id.")
+    .option("--approved-book-id <id>", "Book id approved for hiding.", (value, previous: string[] = []) => [...previous, value], [])
+    .option("--execute", "Actually send PUT /notes/{book_id}/share with visible=false.", false)
+    .option("--dry-run", "Preview the request even if execute gates are present.", false)
+    .option("--json", "Emit JSON.", true)
+    .action(async (options: { bookId: string; approvedBookId: string[]; execute?: boolean; dryRun?: boolean }) => {
+      const route = await notesShareRoute();
+      const approval = checkPublicizeApproval({
+        bookId: options.bookId,
+        approvedBookIds: options.approvedBookId ?? [],
+        execute: Boolean(options.execute)
+      });
+      const requestPlan = buildLiveRequestPlan(route, {
+        pathParams: { book_id: options.bookId },
+        form: { visible: "false" },
+        dryRun: !options.execute || options.dryRun || approval.blockers.length > 0
+      });
+      if (!options.execute || options.dryRun || approval.blockers.length > 0) {
+        printJson(envelope({ approval, requestPlan, submitted: false }, { warnings: approval.blockers, confidence: "high" }));
+        return;
+      }
+
+      emitLiveMutationWarning(route);
+      const result = await executeLiveRequest(route, { pathParams: { book_id: options.bookId }, form: { visible: "false" }, dryRun: false });
+      printJson(
+        envelope({
+          approval,
+          submitted: true,
+          result,
+          verificationRequired: "Reload the notes detail page and verify visible count equals zero before claiming success."
+        })
+      );
+    });
+
   return command;
 }

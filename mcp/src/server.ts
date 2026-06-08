@@ -160,6 +160,30 @@ server.registerTool(
 );
 
 server.registerTool(
+  "goodreads_notes_hide",
+  {
+    title: "Goodreads Notes Hide",
+    description: "Hide all notes/highlights for a book via PUT /notes/{book_id}/share with visible=false. Requires GOODREADS_COOKIE + GOODREADS_CSRF_TOKEN. Defaults to dry-run.",
+    annotations: toolAnnotations(false, "write-mutate"),
+    inputSchema: {
+      bookId: z.string(),
+      dryRun: z.boolean().default(true)
+    }
+  },
+  async ({ bookId, dryRun }) => {
+    const route = (await loadApiMapRoutes()).find(
+      (r) => `${r.method} ${r.path}` === "PUT /notes/{book_id}/share"
+    );
+    if (!route) throw new Error("PUT /notes/{book_id}/share is missing from the api-map");
+    if (dryRun) {
+      return jsonResponse({ ...buildLiveRequestPlan(route, { pathParams: { book_id: bookId }, form: { visible: "false" }, dryRun: true }), riskLevel: "write-mutate" });
+    }
+    emitLiveMutationWarning(route);
+    return jsonResponse(await executeLiveRequest(route, { pathParams: { book_id: bookId }, form: { visible: "false" }, dryRun: false }));
+  }
+);
+
+server.registerTool(
   "goodreads_recent_reading_list",
   {
     title: "Goodreads Recent Reading List",

@@ -565,9 +565,11 @@ paths:
   /notes/{book_id}/share:
     put:
       tags: [notes]
-      summary: Bulk publicize notes/highlights for a book.
+      summary: Bulk publicize or hide notes/highlights for a book.
       description: |
-        Observed through the "Make all N visible" button. This is a real account mutation.
+        Observed through the "Make all N visible" and "Hide all" buttons.
+        This is a real account mutation. Send form body `visible=true` to publicize
+        or `visible=false` to hide. Verified via live CDP network capture 2026-06-08.
         Use dry-run by default and verify on reload by counting `.js-readingNote[data-visible=true]`.
       parameters:
         - name: book_id
@@ -580,6 +582,18 @@ paths:
               value: 218134959
             girlBeneathTheSea:
               value: 48526390
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                visible:
+                  type: string
+                  enum: ["true", "false"]
+                  description: Set to "true" to make all annotations visible, "false" to hide all.
+              required: [visible]
       x-observed:
         artifact: goodreads/proofs/notes-publicize-writes-2026-05-22.json
         status: 200

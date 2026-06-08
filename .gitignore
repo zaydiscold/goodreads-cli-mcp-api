@@ -7,3 +7,4 @@ fixtures/private-cdp-*/
 fixtures/parsed/
 *.log
 .DS_Store
+fixtures/
