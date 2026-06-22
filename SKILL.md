@@ -18,9 +18,10 @@ triggers:
 
 Drive your Goodreads account from the terminal. Amazon killed the public API in December 2020 — this CLI drives the undocumented web surface via a hand-mapped OpenAPI spec, CDP-captured routes, and live-verified write endpoints.
 
-**Repo:** `zaydiscold/goodreads-cli` at `~/Desktop/goodreads-cli`
+**Repo:** `zaydiscold/goodreads-cli-mcp-api` at `~/Desktop/CLIs/goodreads-cli`
 **Auth:** `~/.goodreads/auth.sh` (chmod 600, source before use)
-**MCP:** 11 tools wired into Hermes as `goodreads_*`
+**MCP:** 28 tools wired into Hermes as `goodreads_*` (live truth: `tools/list`) — full CLI parity via one shared engine
+**Dev runbook:** [`AGENTS.md`](./AGENTS.md) — repo layout, build/test, the shared-engine + parity invariant
 
 ## 1. Auth Setup
 
@@ -67,7 +68,11 @@ echo y | hermes mcp add goodreads \
   --env "GOODREADS_ALLOW_NOTES_PUBLICIZE=1"
 ```
 
-11 MCP tools: `api_map_routes`, `route_search`, `browser_routes`, `bookshelf_move_plan`, `notes_publicize_plan`, `notes_hide`, `recent_reading_list`, `recent_reading_notes`, `recent_reading_publicize_plan`, `request_execute`, `dynamic_inventory_guidance`.
+28 MCP tools (live truth: `tools/list`) — full CLI parity via one shared engine, all prefixed `goodreads_`:
+
+- **Reads:** `api_map_routes`, `route_search`, `browser_routes`, `shelves_discover`, `books_list`, `books_export`, `book_show`, `comments_list`, `messages_folders`, `messages_list`, `annotations_list`, `notes_inspect`, `recent_reading_list`, `recent_reading_notes`, `dynamic_inventory_guidance`.
+- **Plans (never submit):** `notes_publicize_plan`, `recent_reading_publicize_plan`, `annotations_thoughts_plan`, `bookshelf_move_plan`, `write_plan_notes_publicize`, `request_plan`.
+- **Writes (dry-run by default; gated):** `notes_publicize`, `notes_hide`, `recent_reading_publicize`, `quotes_add`, `quotes_remove`, `quotes_reorder`, `request_execute`.
 
 ## 3. Notes Publicize/Hide
 
@@ -169,5 +174,5 @@ ssh mothership "claude --dangerously-skip-permissions -p '...'"
 If you discover an endpoint not in `api-map/`:
 1. Add to `api-map/openapi/` and `api-map/markdown/`
 2. Write parser, fixture, test, or live-safe proof
-3. Open PR to `zaydiscold/goodreads-cli` main
+3. Open PR to `zaydiscold/goodreads-cli-mcp-api` main
 4. Tag `@ColdCooks`

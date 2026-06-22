@@ -21,7 +21,7 @@ export function parseMessagePage(html: string): MessagePageParse {
       messageId: href.match(/\/message\/show\/(\d+)/)?.[1] ?? null,
       href,
       labelLength: label.length,
-      hasVisibleLabel: label.length > 0
+      hasVisibleLabel: label.length > 0,
     });
   });
 
@@ -38,7 +38,7 @@ export function parseMessagePage(html: string): MessagePageParse {
     forms.push({
       method: (form.attr("method") ?? "get").toLowerCase(),
       action,
-      inputNames: [...inputNames].sort()
+      inputNames: [...inputNames].sort(),
     });
   });
 
@@ -47,6 +47,6 @@ export function parseMessagePage(html: string): MessagePageParse {
     title: cleanText($("title").first().text()) || null,
     folders: [...folders.entries()].map(([slug, href]) => ({ slug, href })),
     messageLinks,
-    forms
+    forms,
   };
 }

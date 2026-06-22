@@ -1,8 +1,11 @@
 import { Command } from "commander";
-import { envelope, planBookshelfMove, planNotesPublicize, printJson } from "../lib.js";
+import { bookshelfMovePlan, writePlanNotesPublicize } from "../engine.js";
+import { printJson } from "../lib.js";
 
 export function writePlanCommand(): Command {
-  const command = new Command("write-plan").description("Print dry-run plans for account mutations.");
+  const command = new Command("write-plan").description(
+    "Print dry-run plans for account mutations.",
+  );
 
   const books = new Command("books").description("Book/shelf mutation plans.");
   books
@@ -12,7 +15,7 @@ export function writePlanCommand(): Command {
     .requiredOption("--to-shelf <slug>", "Discovered target shelf slug.")
     .requiredOption("--user <id>", "Goodreads numeric user id from the current account/page.")
     .action((options: { reviewId: string; toShelf: string; user: string }) => {
-      printJson(envelope(planBookshelfMove(options)));
+      printJson(bookshelfMovePlan(options));
     });
 
   const notes = new Command("notes").description("Notes/highlights mutation plans.");
@@ -23,7 +26,7 @@ export function writePlanCommand(): Command {
     .option("--book-slug <slug>", "Goodreads notes detail book slug for reload verification.")
     .option("--user-slug <slug>", "Goodreads user slug for reload verification.")
     .action((options: { bookId: string; bookSlug?: string; userSlug?: string }) => {
-      printJson(envelope(planNotesPublicize(options)));
+      printJson(writePlanNotesPublicize(options));
     });
 
   command.addCommand(books);

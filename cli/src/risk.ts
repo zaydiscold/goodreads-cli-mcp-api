@@ -12,6 +12,6 @@ export function emitLiveMutationWarning(route: GoodreadsRoute): void {
   const level = riskLevelForRoute(route);
   if (level !== "write-mutate" && level !== "write-destructive") return;
   process.stderr.write(
-    `[WRITES TO LIVE GOODREADS] this will modify your Goodreads account: ${level} ${route.method} ${route.path} (${route.id})\n`
+    `[WRITES TO LIVE GOODREADS] this will modify your Goodreads account: ${level} ${route.method} ${route.path} (${route.id})\n`,
   );
 }

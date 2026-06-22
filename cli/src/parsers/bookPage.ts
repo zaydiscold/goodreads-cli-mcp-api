@@ -25,7 +25,8 @@ export function parseBookPage(html: string): BookPageParse {
       const parsed = JSON.parse(raw) as unknown;
       const records = Array.isArray(parsed) ? parsed : [parsed];
       for (const record of records) {
-        if (record && typeof record === "object") jsonLdBooks.push(record as Record<string, unknown>);
+        if (record && typeof record === "object")
+          jsonLdBooks.push(record as Record<string, unknown>);
       }
     } catch {
       // Ignore malformed embedded JSON-LD.
@@ -35,7 +36,9 @@ export function parseBookPage(html: string): BookPageParse {
   const primary = jsonLdBooks.find((record) => record["@type"] === "Book") ?? jsonLdBooks[0] ?? {};
   const authorRaw = primary.author;
   const authors = (Array.isArray(authorRaw) ? authorRaw : [authorRaw])
-    .filter((author): author is Record<string, unknown> => Boolean(author) && typeof author === "object")
+    .filter(
+      (author): author is Record<string, unknown> => Boolean(author) && typeof author === "object",
+    )
     .map((author) => (typeof author.name === "string" ? author.name : null))
     .filter((name): name is string => Boolean(name));
 
@@ -56,7 +59,7 @@ export function parseBookPage(html: string): BookPageParse {
   const typenameCounts = new Map<string, number>();
   if (nextData) summarizeTypenames(nextData, typenameCounts);
   const sortedTypenames = Object.fromEntries(
-    [...typenameCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 40)
+    [...typenameCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 40),
   );
 
   return {
@@ -82,10 +85,10 @@ export function parseBookPage(html: string): BookPageParse {
       reviewCount:
         typeof aggregate.reviewCount === "number" || typeof aggregate.reviewCount === "string"
           ? aggregate.reviewCount
-          : null
+          : null,
     },
     hasNextData: nextData !== null,
     nextDataTopLevelKeys: nextData ? Object.keys(nextData).sort() : [],
-    nextDataTypenames: sortedTypenames
+    nextDataTypenames: sortedTypenames,
   };
 }

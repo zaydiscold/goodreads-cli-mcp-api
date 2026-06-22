@@ -1,7 +1,6 @@
 import { Command } from "commander";
-import { fetchText, goodreadsUrl } from "../client/http.js";
-import { envelope, printJson, readText } from "../lib.js";
-import { parseBookPage } from "../parsers/bookPage.js";
+import { bookShow } from "../engine.js";
+import { printJson } from "../lib.js";
 
 interface BookOptions {
   fixture?: string;
@@ -20,11 +19,7 @@ export function bookCommand(): Command {
     .option("--base-url <url>", "Goodreads base URL.", "https://www.goodreads.com")
     .option("--json", "Emit JSON.", true)
     .action(async (slugOrId: string | undefined, options: BookOptions) => {
-      const html = options.fixture
-        ? await readText(options.fixture)
-        : await fetchText(goodreadsUrl(`/book/show/${slugOrId}`, options.baseUrl));
-      const parsed = parseBookPage(html);
-      printJson(envelope(parsed, { confidence: parsed.jsonLdBook.name ? "high" : "medium" }));
+      printJson(await bookShow({ slugOrId, fixture: options.fixture, baseUrl: options.baseUrl }));
     });
 
   return command;

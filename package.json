@@ -7,10 +7,17 @@
     "build": "pnpm --filter @zaydiscold/goodreads-cli build && pnpm --filter @zaydiscold/goodreads-mcp build",
     "test": "pnpm --filter @zaydiscold/goodreads-cli test",
     "typecheck": "pnpm --filter @zaydiscold/goodreads-cli typecheck && pnpm --filter @zaydiscold/goodreads-cli build && pnpm --filter @zaydiscold/goodreads-mcp typecheck",
+    "lint": "eslint cli/src mcp/src",
+    "lint:fix": "eslint cli/src mcp/src --fix",
+    "format": "prettier --write cli/src mcp/src",
     "cli": "pnpm --filter @zaydiscold/goodreads-cli cli"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
+    "@typescript-eslint/eslint-plugin": "^8.61.1",
+    "@typescript-eslint/parser": "^8.61.1",
+    "eslint": "^10.5.0",
+    "prettier": "^3.8.4",
     "typescript": "^5.8.0",
     "vitest": "^4.0.0"
   }

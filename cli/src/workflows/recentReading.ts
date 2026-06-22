@@ -1,10 +1,10 @@
 import { existsSync } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { notesVerifyRoute } from "../lib.js";
 import { parseNotesPage } from "../parsers/notesPage.js";
-import { parseShelfHtml } from "../parsers/shelfHtml.js";
-import type { NotesPageParse, PaginationSummary, ShelfBookRow, ShelfHtmlParse, ShelfInventoryItem } from "../types/index.js";
+import { readShelfPagesFromFixtureDir, summarizeShelfPages } from "../shelf.js";
+import type { NotesPageParse, ShelfBookRow } from "../types/index.js";
 
 export const NOTES_PUBLICIZE_ENV_GATE = "GOODREADS_ALLOW_NOTES_PUBLICIZE";
 
@@ -33,69 +33,10 @@ export interface PublicizeApprovalCheck {
   blockers: string[];
 }
 
-function pageNumber(parsed: ShelfHtmlParse): number {
-  return parsed.currentPage ?? 1;
-}
-
-async function readShelfPagesFromFixtureDir(dir: string, shelf: string): Promise<ShelfHtmlParse[]> {
-  let files: string[];
-  try {
-    files = await readdir(dir);
-  } catch {
-    return [];
-  }
-  const candidates = files
-    .filter(
-      (file) =>
-        file === `shelf-${shelf}.html` ||
-        file === `${shelf}-shelf.html` ||
-        file.match(new RegExp(`^shelf-${shelf}-page\\d+\\.html$`)) ||
-        file.match(new RegExp(`^${shelf}-shelf-page\\d+\\.html$`))
-    )
-    .sort((a, b) => {
-      const pageA = Number(a.match(/page(\d+)/)?.[1] ?? "1");
-      const pageB = Number(b.match(/page(\d+)/)?.[1] ?? "1");
-      return pageA - pageB;
-    });
-  return Promise.all(candidates.map(async (file) => parseShelfHtml(await readFile(join(dir, file), "utf8"))));
-}
-
-function summarizeShelfPages(pages: ShelfHtmlParse[]): {
-  rows: ShelfBookRow[];
-  pagination: PaginationSummary;
-  shelfInventory: ShelfInventoryItem[];
-} {
-  const rowMap = new Map<string, ShelfBookRow>();
-  const declaredCounts = new Set<number>();
-  const pagesSeen = new Set<number>();
-  const shelfInventory = new Map<string, ShelfInventoryItem>();
-
-  for (const page of pages) {
-    if (page.declaredBookCount !== null) declaredCounts.add(page.declaredBookCount);
-    pagesSeen.add(pageNumber(page));
-    for (const shelf of page.shelfInventory) shelfInventory.set(shelf.slug, shelf);
-    for (const row of page.rows) {
-      const key = row.reviewId ?? row.bookId ?? row.bookHref ?? row.title;
-      if (key) rowMap.set(key, row);
-    }
-  }
-
-  const declaredCount = declaredCounts.size === 1 ? [...declaredCounts][0] ?? null : null;
-  const rows = [...rowMap.values()];
-  return {
-    rows,
-    shelfInventory: [...shelfInventory.values()],
-    pagination: {
-      mode: "auto",
-      pagesSeen: [...pagesSeen].sort((a, b) => a - b),
-      declaredCount,
-      parsedCount: rows.length,
-      complete: declaredCount !== null && rows.length === declaredCount
-    }
-  };
-}
-
-async function parseNotesIndex(fixtureDir: string, explicitFixture?: string): Promise<NotesPageParse | null> {
+async function parseNotesIndex(
+  fixtureDir: string,
+  explicitFixture?: string,
+): Promise<NotesPageParse | null> {
   const candidates = explicitFixture
     ? [explicitFixture]
     : [join(fixtureDir, "notes-index.html"), join(fixtureDir, "notes.html")];
@@ -108,7 +49,10 @@ export async function buildRecentReadingList(options: RecentReadingOptions) {
   const shelves = [...new Set(options.shelves)];
   const warnings: string[] = [];
   const perShelf = [];
-  const booksByKey = new Map<string, ShelfBookRow & { shelves: string[]; commentRoute: string | null }>();
+  const booksByKey = new Map<
+    string,
+    ShelfBookRow & { shelves: string[]; commentRoute: string | null }
+  >();
 
   for (const shelf of shelves) {
     const pages = await readShelfPagesFromFixtureDir(options.fixtureDir, shelf);
@@ -117,7 +61,11 @@ export async function buildRecentReadingList(options: RecentReadingOptions) {
       continue;
     }
     const result = summarizeShelfPages(pages);
-    perShelf.push({ shelf, pagination: result.pagination, discoveredShelves: result.shelfInventory });
+    perShelf.push({
+      shelf,
+      pagination: result.pagination,
+      discoveredShelves: result.shelfInventory,
+    });
     if (!result.pagination.complete) warnings.push(`Shelf '${shelf}' is incomplete.`);
 
     for (const row of result.rows) {
@@ -130,7 +78,7 @@ export async function buildRecentReadingList(options: RecentReadingOptions) {
         booksByKey.set(key, {
           ...row,
           shelves: [shelf],
-          commentRoute: null
+          commentRoute: null,
         });
       }
     }
@@ -140,7 +88,7 @@ export async function buildRecentReadingList(options: RecentReadingOptions) {
     shelves,
     perShelf,
     books: [...booksByKey.values()].slice(0, options.limit),
-    warnings
+    warnings,
   };
 }
 
@@ -158,7 +106,7 @@ export async function buildRecentReadingNotes(options: RecentReadingNotesOptions
   }
 
   const books = recent.books.map((book) => {
-    const notesLink = book.bookId ? linksByBookId.get(book.bookId) ?? null : null;
+    const notesLink = book.bookId ? (linksByBookId.get(book.bookId) ?? null) : null;
     return {
       ...book,
       notes: {
@@ -166,12 +114,12 @@ export async function buildRecentReadingNotes(options: RecentReadingNotesOptions
         notesHref: notesLink?.href ?? null,
         notesBookSlug: notesLink?.bookSlug ?? null,
         notesUserSlug: notesLink?.userSlug ?? null,
-        detailStatus: notesLink ? "detail-not-loaded" : "no-index-match"
+        detailStatus: notesLink ? "detail-not-loaded" : "no-index-match",
       },
       comments: {
         routeAvailable: Boolean(book.bookId || book.reviewId),
-        defaultRouteTemplate: "/comment/list/{user_slug}"
-      }
+        defaultRouteTemplate: "/comment/list/{user_slug}",
+      },
     };
   });
 
@@ -183,15 +131,17 @@ export async function buildRecentReadingNotes(options: RecentReadingNotesOptions
           noteBookLinkCount: notesIndex.noteBookLinks.length,
           noteCount: notesIndex.noteCount,
           visibleNoteCount: notesIndex.visibleNoteCount,
-          hiddenNoteCount: notesIndex.hiddenNoteCount
+          hiddenNoteCount: notesIndex.hiddenNoteCount,
         }
       : null,
     books,
-    warnings
+    warnings,
   };
 }
 
-export async function buildRecentReadingPublicizePlan(options: RecentReadingNotesOptions & { approvedBookIds: string[] }) {
+export async function buildRecentReadingPublicizePlan(
+  options: RecentReadingNotesOptions & { approvedBookIds: string[] },
+) {
   const joined = await buildRecentReadingNotes(options);
   const approved = new Set(options.approvedBookIds);
   return {
@@ -204,22 +154,30 @@ export async function buildRecentReadingPublicizePlan(options: RecentReadingNote
         approved: book.bookId ? approved.has(book.bookId) : false,
         method: "PUT",
         route: `/notes/${book.bookId}/share`,
-        verifyRoute: book.notes.notesBookSlug && book.notes.notesUserSlug ? `/notes/${book.notes.notesBookSlug}/${book.notes.notesUserSlug}` : null,
+        verifyRoute:
+          book.notes.notesBookSlug && book.notes.notesUserSlug
+            ? `/notes/${book.notes.notesBookSlug}/${book.notes.notesUserSlug}`
+            : null,
         dryRun: true,
         executeGate: {
           executeFlag: "--execute",
           env: NOTES_PUBLICIZE_ENV_GATE,
-          approvedBookId: book.bookId
+          approvedBookId: book.bookId,
         },
-        proofPolicy: "Write sanitized counts/status/timing only; never raw highlight text, comments, cookies, CSRF tokens, or private URLs."
-      }))
+        proofPolicy:
+          "Write sanitized counts/status/timing only; never raw highlight text, comments, cookies, CSRF tokens, or private URLs.",
+      })),
   };
 }
 
 export async function buildNotesPublicizeWorkflowPlan(options: NotesPublicizeWorkflowOptions) {
-  const detail = options.detailFixture ? parseNotesPage(await readFile(options.detailFixture, "utf8")) : null;
+  const detail = options.detailFixture
+    ? parseNotesPage(await readFile(options.detailFixture, "utf8"))
+    : null;
   const detailBookSlug =
-    detail?.noteBookLinks.find((link) => link.bookId === options.bookId)?.bookSlug ?? detail?.noteBookLinks[0]?.bookSlug ?? null;
+    detail?.noteBookLinks.find((link) => link.bookId === options.bookId)?.bookSlug ??
+    detail?.noteBookLinks[0]?.bookSlug ??
+    null;
   const verifyBookSlug = options.bookSlug ?? detailBookSlug ?? undefined;
   const approved = Boolean(options.approvedBookIds?.includes(options.bookId));
   const visible = detail?.visibleNoteCount ?? null;
@@ -227,7 +185,8 @@ export async function buildNotesPublicizeWorkflowPlan(options: NotesPublicizeWor
   const alreadyFullyVisible = total !== null && total > 0 && visible === total;
   const shelfGateDetected = Boolean(detail?.shelfGateDetected);
   const blockers: string[] = [];
-  if (shelfGateDetected) blockers.push("notes detail page appears shelf-gated; do not auto-add shelves");
+  if (shelfGateDetected)
+    blockers.push("notes detail page appears shelf-gated; do not auto-add shelves");
   if (!approved) blockers.push("book id is not in the explicit approved-book-id list");
 
   return {
@@ -237,7 +196,9 @@ export async function buildNotesPublicizeWorkflowPlan(options: NotesPublicizeWor
     route: `/notes/${options.bookId}/share`,
     method: "PUT",
     verifyRouteTemplate: "/notes/{book_slug}/{user_slug}",
-    verifyRoute: options.userSlug ? notesVerifyRoute({ bookSlug: verifyBookSlug, userSlug: options.userSlug }) : null,
+    verifyRoute: options.userSlug
+      ? notesVerifyRoute({ bookSlug: verifyBookSlug, userSlug: options.userSlug })
+      : null,
     verifyBookSlugKnown: Boolean(verifyBookSlug),
     dryRun: true,
     approved,
@@ -249,7 +210,7 @@ export async function buildNotesPublicizeWorkflowPlan(options: NotesPublicizeWor
           notePersistEndpointCount: detail.notePersistEndpointCount,
           spoilerToggleCount: detail.spoilerToggleCount,
           shelfGateDetected: detail.shelfGateDetected,
-          alreadyFullyVisible
+          alreadyFullyVisible,
         }
       : null,
     action: alreadyFullyVisible ? "noop-already-public" : "publicize-notes",
@@ -262,8 +223,8 @@ export async function buildNotesPublicizeWorkflowPlan(options: NotesPublicizeWor
       "PUT /notes/{book_id}/share",
       "reload /notes/{book_slug}/{user_slug}",
       "verify visible count equals total count",
-      "write sanitized proof"
-    ]
+      "write sanitized proof",
+    ],
   };
 }
 
@@ -284,6 +245,6 @@ export function checkPublicizeApproval(options: {
     approved,
     executeRequested: options.execute,
     envGatePresent,
-    blockers
+    blockers,
   };
 }
