@@ -4,7 +4,7 @@ import type { ShelfRssItem, ShelfRssParse } from "../types/index.js";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
-  trimValues: true
+  trimValues: true,
 });
 
 function value(input: unknown): string | null {
@@ -40,7 +40,7 @@ export function parseShelfRss(xml: string): ShelfRssParse {
       hasBookDescription: Boolean(description),
       bookDescriptionLength: description?.length ?? 0,
       hasUserReview: Boolean(review),
-      userReviewLength: review?.length ?? 0
+      userReviewLength: review?.length ?? 0,
     };
   });
 
@@ -50,7 +50,7 @@ export function parseShelfRss(xml: string): ShelfRssParse {
     itemCount: items.length,
     items,
     signals: {
-      rssMayCapAt100: items.length === 100
-    }
+      rssMayCapAt100: items.length === 100,
+    },
   };
 }

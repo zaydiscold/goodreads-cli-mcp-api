@@ -8,6 +8,7 @@
   },
   "exports": {
     ".": "./dist/index.js",
+    "./engine": "./dist/engine.js",
     "./lib": "./dist/lib.js",
     "./live": "./dist/client/live.js",
     "./risk": "./dist/risk.js",

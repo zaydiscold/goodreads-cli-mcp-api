@@ -36,7 +36,10 @@ function renderPath(route: GoodreadsRoute, pathParams: Record<string, string>): 
   });
 }
 
-export function buildLiveRequestPlan(route: GoodreadsRoute, options: LiveExecuteOptions = {}): LiveRequestPlan {
+export function buildLiveRequestPlan(
+  route: GoodreadsRoute,
+  options: LiveExecuteOptions = {},
+): LiveRequestPlan {
   const renderedPath = renderPath(route, options.pathParams ?? {});
   const url = new URL(renderedPath, options.baseUrl ?? "https://www.goodreads.com");
   for (const [key, value] of Object.entries(options.query ?? {})) {
@@ -59,26 +62,31 @@ export function buildLiveRequestPlan(route: GoodreadsRoute, options: LiveExecute
       cookieEnv: "GOODREADS_COOKIE",
       csrfEnv: "GOODREADS_CSRF_TOKEN",
       cookiePresent: Boolean(process.env.GOODREADS_COOKIE),
-      csrfPresent: Boolean(process.env.GOODREADS_CSRF_TOKEN)
+      csrfPresent: Boolean(process.env.GOODREADS_CSRF_TOKEN),
     },
-    bodyMode: hasJson ? "json" : hasForm ? "form" : "none"
+    bodyMode: hasJson ? "json" : hasForm ? "form" : "none",
   };
 }
 
-export async function executeLiveRequest(route: GoodreadsRoute, options: LiveExecuteOptions = {}): Promise<unknown> {
+export async function executeLiveRequest(
+  route: GoodreadsRoute,
+  options: LiveExecuteOptions = {},
+): Promise<unknown> {
   const plan = buildLiveRequestPlan(route, options);
   if (options.dryRun) return plan;
   if (plan.requiresCookie && !process.env.GOODREADS_COOKIE) {
     throw new Error("GOODREADS_COOKIE is required for live Goodreads mutations");
   }
   if (plan.requiresCsrf && !process.env.GOODREADS_CSRF_TOKEN && !options.form?.authenticity_token) {
-    throw new Error("GOODREADS_CSRF_TOKEN or form authenticity_token is required for live Goodreads mutations");
+    throw new Error(
+      "GOODREADS_CSRF_TOKEN or form authenticity_token is required for live Goodreads mutations",
+    );
   }
 
   let body: BodyInit | undefined;
   const headers: Record<string, string> = {
-    "user-agent": "goodreads-cli/0.1.0 (+https://github.com/zaydiscold/goodreads-cli)",
-    accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8"
+    "user-agent": "goodreads-cli/0.1.0 (+https://github.com/zaydiscold/goodreads-cli-mcp-api)",
+    accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
   };
   if (process.env.GOODREADS_COOKIE) headers.cookie = process.env.GOODREADS_COOKIE;
   if (process.env.GOODREADS_CSRF_TOKEN) headers["x-csrf-token"] = process.env.GOODREADS_CSRF_TOKEN;
@@ -105,6 +113,6 @@ export async function executeLiveRequest(route: GoodreadsRoute, options: LiveExe
     contentType,
     bodyShape: contentType.includes("json") ? "json" : "text",
     byteLength: text.length,
-    privacy: "response body omitted by default; use browser fixtures/parsers for redacted content"
+    privacy: "response body omitted by default; use browser fixtures/parsers for redacted content",
   };
 }

@@ -51,7 +51,7 @@ export function parseShelfHtml(html: string): ShelfHtmlParse {
       count,
       href,
       kind: slug === "#ALL#" ? "account_all_books" : "account_shelf",
-      isObservedForThisAccount: true
+      isObservedForThisAccount: true,
     });
   });
 
@@ -74,9 +74,14 @@ export function parseShelfHtml(html: string): ShelfHtmlParse {
       bookId,
       title: shortText(bookLink.text()),
       bookHref,
-      author: shortText(row.find(".field.author a, td.author a, a.authorName, .authorName").first().text()),
-      ratingText: shortText(row.find(".field.rating, td.rating, .staticStars, .stars").first().text(), 80),
-      shelfText: shortText(row.find(".field.shelves, td.shelves, .shelfName").first().text(), 120)
+      author: shortText(
+        row.find(".field.author a, td.author a, a.authorName, .authorName").first().text(),
+      ),
+      ratingText: shortText(
+        row.find(".field.rating, td.rating, .staticStars, .stars").first().text(),
+        80,
+      ),
+      shelfText: shortText(row.find(".field.shelves, td.shelves, .shelfName").first().text(), 120),
     });
   });
 
@@ -89,7 +94,7 @@ export function parseShelfHtml(html: string): ShelfHtmlParse {
     pageLinks.push({
       page,
       label: cleanText($(element).text()),
-      href
+      href,
     });
   });
 
@@ -100,6 +105,6 @@ export function parseShelfHtml(html: string): ShelfHtmlParse {
     currentPage,
     pageLinks,
     shelfInventory,
-    rows
+    rows,
   };
 }

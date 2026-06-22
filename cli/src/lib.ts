@@ -39,7 +39,7 @@ export function envelope<T>(
     warnings?: string[];
     accountUserId?: string;
     accountUserSlug?: string;
-  } = {}
+  } = {},
 ): CommandEnvelope<T> {
   return {
     source: "goodreads-web",
@@ -48,7 +48,7 @@ export function envelope<T>(
     generatedAt: nowIso(),
     confidence: options.confidence ?? "high",
     warnings: options.warnings ?? [],
-    data
+    data,
   };
 }
 
@@ -78,7 +78,9 @@ export function repoRootFromCli(): string {
     if (parent === current) break;
     current = parent;
   }
-  throw new Error("Could not locate repo root with api-map/openapi/undocumented/goodreads-web.yaml");
+  throw new Error(
+    "Could not locate repo root with api-map/openapi/undocumented/goodreads-web.yaml",
+  );
 }
 
 export function printJson(value: unknown): void {
@@ -181,13 +183,13 @@ export async function loadApiMapRoutes(): Promise<GoodreadsRoute[]> {
             .map((parameter) => ({
               name: parameter.name ?? "",
               in: parameter.in ?? null,
-              required: Boolean(parameter.required)
+              required: Boolean(parameter.required),
             }))
             .filter((parameter) => parameter.name.length > 0),
           mutatesAccount,
-          requiresApproval: mutatesAccount
+          requiresApproval: mutatesAccount,
         } satisfies GoodreadsRoute;
-      })
+      }),
   );
   return routes.sort((a, b) => a.id.localeCompare(b.id));
 }
@@ -224,7 +226,8 @@ export function summarizeBrowserRoutes(routes: GoodreadsBrowserRoute[]): Record<
     byMethod,
     byStatus,
     byResourceType,
-    privacy: "headers, bodies, cookies, localStorage, sessionStorage, raw account URLs, private messages, and highlight text were not stored"
+    privacy:
+      "headers, bodies, cookies, localStorage, sessionStorage, raw account URLs, private messages, and highlight text were not stored",
   };
 }
 
@@ -236,7 +239,11 @@ function searchTerms(query: string): string[] {
     .filter((term) => term.length >= 3 && !stop.has(term));
 }
 
-export function searchApiRoutes(routes: GoodreadsRoute[], query: string, limit = 20): GoodreadsRoute[] {
+export function searchApiRoutes(
+  routes: GoodreadsRoute[],
+  query: string,
+  limit = 20,
+): GoodreadsRoute[] {
   const terms = searchTerms(query);
   if (terms.length === 0) return [];
   return routes
@@ -248,7 +255,7 @@ export function searchApiRoutes(routes: GoodreadsRoute[], query: string, limit =
         route.summary ?? "",
         route.description ?? "",
         route.tags.join(" "),
-        route.parameters.map((parameter) => parameter.name).join(" ")
+        route.parameters.map((parameter) => parameter.name).join(" "),
       ]
         .join(" ")
         .toLowerCase();
@@ -275,10 +282,10 @@ export function planBookshelfMove(options: { reviewId: string; toShelf: string; 
       authenticity_token: "<from-current-page>",
       view: "table",
       "edit[shelf]": options.toShelf,
-      [`reviews[${options.reviewId}]`]: options.reviewId
+      [`reviews[${options.reviewId}]`]: options.reviewId,
     },
     verify: `/review/list/${user}?shelf=${encodeURIComponent(options.toShelf)}`,
-    warning: "Do not execute until an approved shelf write-capture pass exists."
+    warning: "Do not execute until an approved shelf write-capture pass exists.",
   };
 }
 
@@ -286,7 +293,11 @@ export function notesVerifyRoute(options: { bookSlug?: string; userSlug?: string
   return `/notes/${options.bookSlug ?? "<book-slug>"}/${options.userSlug ?? "<user-slug>"}`;
 }
 
-export function planNotesPublicize(options: { bookId: string; bookSlug?: string; userSlug?: string }) {
+export function planNotesPublicize(options: {
+  bookId: string;
+  bookSlug?: string;
+  userSlug?: string;
+}) {
   return {
     dryRun: true,
     mutatesAccount: true,
@@ -295,6 +306,7 @@ export function planNotesPublicize(options: { bookId: string; bookSlug?: string;
     verifyRouteTemplate: "/notes/{book_slug}/{user_slug}",
     approvedWriteProof: "Only approved for pasted pages from the 2026-05-22 run.",
     verify: notesVerifyRoute({ bookSlug: options.bookSlug, userSlug: options.userSlug }),
-    warning: "Reload the notes page and verify .js-readingNote[data-visible=true] before claiming success."
+    warning:
+      "Reload the notes page and verify .js-readingNote[data-visible=true] before claiming success.",
   };
 }

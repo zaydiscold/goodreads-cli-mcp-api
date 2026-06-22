@@ -1,7 +1,6 @@
 import { Command } from "commander";
-import { fetchText, goodreadsUrl } from "../client/http.js";
-import { envelope, printJson, readText } from "../lib.js";
-import { parseShelfHtml } from "../parsers/shelfHtml.js";
+import { shelvesDiscover } from "../engine.js";
+import { printJson } from "../lib.js";
 
 interface ShelvesOptions {
   fixture?: string;
@@ -11,7 +10,9 @@ interface ShelvesOptions {
 }
 
 export function shelvesCommand(): Command {
-  const command = new Command("shelves").description("Discover account-specific Goodreads shelf inventory.");
+  const command = new Command("shelves").description(
+    "Discover account-specific Goodreads shelf inventory.",
+  );
 
   command
     .command("discover")
@@ -21,28 +22,12 @@ export function shelvesCommand(): Command {
     .option("--base-url <url>", "Goodreads base URL.", "https://www.goodreads.com")
     .option("--json", "Emit JSON.", true)
     .action(async (options: ShelvesOptions) => {
-      if (!options.fixture && !options.user) {
-        throw new Error("--user is required unless --fixture is supplied");
-      }
-      const html = options.fixture
-        ? await readText(options.fixture)
-        : await fetchText(goodreadsUrl(`/review/list/${options.user}`, options.baseUrl));
-      const parsed = parseShelfHtml(html);
-      const warnings: string[] = [];
-      if (parsed.shelfInventory.length === 0) {
-        warnings.push("No shelf inventory was discovered. The page may be private, logged out, or structurally changed.");
-      }
       printJson(
-        envelope(
-          {
-            shelves: parsed.shelfInventory,
-            page: {
-              title: parsed.title,
-              declaredBookCount: parsed.declaredBookCount
-            }
-          },
-          { warnings, confidence: parsed.shelfInventory.length > 0 ? "high" : "low" }
-        )
+        await shelvesDiscover({
+          fixture: options.fixture,
+          user: options.user,
+          baseUrl: options.baseUrl,
+        }),
       );
     });
 

@@ -2,7 +2,11 @@ import * as cheerio from "cheerio";
 import { cleanText } from "../lib.js";
 import type { NotesPageParse } from "../types/index.js";
 
-function parseNotesHref(href: string): { bookSlug: string | null; bookId: string | null; userSlug: string | null } {
+function parseNotesHref(href: string): {
+  bookSlug: string | null;
+  bookId: string | null;
+  userSlug: string | null;
+} {
   const match = href.match(/\/notes\/([^/?#]+)\/([^/?#]+)/);
   const bookSlug = match?.[1] ?? null;
   const userSlug = match?.[2] ?? null;
@@ -15,17 +19,19 @@ export function parseNotesPage(html: string): NotesPageParse {
   const notes: NotesPageParse["notes"] = [];
   const visibleCounts = new Map<string, number>();
 
-  $(".js-readingNote, [data-note-persist-endpoint], [data-annotation-pair-id]").each((_, element) => {
-    const node = $(element);
-    const visible = node.attr("data-visible") ?? null;
-    visibleCounts.set(String(visible), (visibleCounts.get(String(visible)) ?? 0) + 1);
-    notes.push({
-      annotationPairId: node.attr("data-annotation-pair-id") ?? null,
-      visible,
-      notePersistEndpoint: node.attr("data-note-persist-endpoint") ?? null,
-      hasSpoilerToggle: node.find("input[type='checkbox'], .js-spoiler").length > 0
-    });
-  });
+  $(".js-readingNote, [data-note-persist-endpoint], [data-annotation-pair-id]").each(
+    (_, element) => {
+      const node = $(element);
+      const visible = node.attr("data-visible") ?? null;
+      visibleCounts.set(String(visible), (visibleCounts.get(String(visible)) ?? 0) + 1);
+      notes.push({
+        annotationPairId: node.attr("data-annotation-pair-id") ?? null,
+        visible,
+        notePersistEndpoint: node.attr("data-note-persist-endpoint") ?? null,
+        hasSpoilerToggle: node.find("input[type='checkbox'], .js-spoiler").length > 0,
+      });
+    },
+  );
 
   const noteBookLinks: NotesPageParse["noteBookLinks"] = [];
   $("a[href*='/notes/']").each((_, element) => {
@@ -39,7 +45,7 @@ export function parseNotesPage(html: string): NotesPageParse {
       bookSlug: parsedHref.bookSlug,
       bookId: parsedHref.bookId,
       userSlug: parsedHref.userSlug,
-      labelLength: label.length
+      labelLength: label.length,
     });
   });
 
@@ -47,7 +53,9 @@ export function parseNotesPage(html: string): NotesPageParse {
   const hiddenNoteCount = notes.filter((note) => note.visible === "false").length;
   const notePersistEndpointCount = notes.filter((note) => note.notePersistEndpoint).length;
   const spoilerToggleCount = notes.filter((note) => note.hasSpoilerToggle).length;
-  const shelfGateDetected = /add\s+to\s+shelf|shelf\s+gate|must\s+add/i.test(cleanText($("body").text()));
+  const shelfGateDetected = /add\s+to\s+shelf|shelf\s+gate|must\s+add/i.test(
+    cleanText($("body").text()),
+  );
 
   return {
     kind: "notes_page",
@@ -60,6 +68,6 @@ export function parseNotesPage(html: string): NotesPageParse {
     shelfGateDetected,
     visibleCounts: Object.fromEntries(visibleCounts.entries()),
     notes,
-    noteBookLinks
+    noteBookLinks,
   };
 }

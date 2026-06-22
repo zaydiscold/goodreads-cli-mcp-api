@@ -4,7 +4,7 @@
 // If you discover an endpoint on Goodreads that is NOT in api-map/:
 //   1. Add it to api-map/openapi/ + api-map/markdown/.
 //   2. Write a parser/test or live-safe proof that validates response shape.
-//   3. Open a pull request to zaydiscold/goodreads-cli main.
+//   3. Open a pull request to zaydiscold/goodreads-cli-mcp-api main.
 //   4. Tag @ColdCooks in the PR description so Zayd sees it.
 //
 // If the endpoint is undocumented, document the discovery method in
@@ -29,7 +29,9 @@ const program = new Command();
 
 program
   .name("goodreads-cli")
-  .description("Live-capable Goodreads API map CLI. Dynamic account inventory, paginated exports, and opt-in dry-run writes.")
+  .description(
+    "Live-capable Goodreads API map CLI. Dynamic account inventory, paginated exports, and opt-in dry-run writes.",
+  )
   .version("0.1.0");
 
 program.addCommand(apiMapCommand());
