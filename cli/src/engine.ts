@@ -6,6 +6,8 @@
 // is what guarantees CLI<->MCP parity — neither surface re-implements logic,
 // so they cannot drift. The CAPABILITIES registry below is the contract the
 // parity test enforces.
+import { readdir } from "node:fs/promises";
+import { join } from "node:path";
 import { fetchText, goodreadsUrl } from "./client/http.js";
 import {
   buildLiveRequestPlan,
@@ -433,8 +435,6 @@ export async function booksExport(options: {
 }): Promise<Envelope> {
   const dir = options.fixtureDir;
   if (!dir) throw new Error("a fixture directory is required for books export");
-  const { readdir } = await import("node:fs/promises");
-  const { join } = await import("node:path");
   let shelves = parseCsv(options.shelves);
   if (shelves.length === 0) {
     const files = await readdir(dir);
