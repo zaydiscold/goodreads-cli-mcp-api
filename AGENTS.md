@@ -99,6 +99,20 @@ live writes: `GOODREADS_COOKIE`, `GOODREADS_CSRF_TOKEN`, and
 `GOODREADS_ALLOW_NOTES_PUBLICIZE=1` for the notes workflow. See
 [`SKILL.md`](./SKILL.md) §1–§2 for the CDP auth-extraction flow.
 
+## Naming convention & lineage
+
+**Convention (shared across the personal CLI repos).** The GitHub slug is `<venue>-cli-mcp-api` and the
+README H1 reads **"<Venue> CLI (MCP + API)"** — e.g. Goodreads CLI (MCP + API), Robinhood CLI (MCP + API),
+plus the AllTrails / GoDaddy / Squarespace siblings. The npm package and bin names stay
+`@zaydiscold/<venue>-cli` / `<venue>-cli`; only the GitHub slug and the README title carry the
+`(MCP + API)` branding, and GitHub auto-redirects the old slugs.
+
+**Lineage — Printing Press is a starting point, not a cage.** The CLI + skill + MCP trio pattern is
+borrowed from [Matt Van Horn's Printing Press](https://github.com/mvanhorn/cli-printing-press), and these
+repos use it as a *seed* — not a spec we only follow. The API map here is hand-extended well past anything
+a generator produced, and we may spin up separate repos to keep building on top of what's here rather than
+conforming back to the generator. The map is the product; Printing Press just gave us a good place to start.
+
 ## House rules
 
 - Keep fixtures and any raw captures in the gitignored `fixtures/` — promote only
