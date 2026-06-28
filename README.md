@@ -52,6 +52,8 @@ That invariant is enforced by code, not vigilance: a `CAPABILITIES` registry in 
 
 Live tool truth is always `tools/list` (currently **28 tools**), never a hardcoded number.
 
+For cron-based automation on WSL, see [`wsl-sync.sh`](./wsl-sync.sh) — a daily sync script that pulls reading data to your Windows Desktop.
+
 ## Command tour — what answers what
 
 All reads run live and free. All writes default to a dry-run; the notes workflow needs the three explicit gates below.
