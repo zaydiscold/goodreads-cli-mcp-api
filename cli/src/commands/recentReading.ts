@@ -11,16 +11,21 @@ interface BaseOptions {
   fixtureDir?: string;
   shelves?: string;
   limit?: string;
-  json?: boolean;
 }
 
 interface NotesOptions extends BaseOptions {
   notesIndexFixture?: string;
 }
 
-interface PublicizeOptions extends NotesOptions {
+interface PublicizePlanOptions extends NotesOptions {
+  approvedBookId: string[];
+}
+
+interface PublicizeOptions {
+  bookId: string;
   approvedBookId: string[];
   execute?: boolean;
+  dryRun?: boolean;
 }
 
 function limitValue(value: string | undefined): number {
@@ -40,74 +45,67 @@ function fixtureDirValue(value: string | undefined): string {
   return value;
 }
 
-export function recentReadingCommand(): Command {
-  const command = new Command("recent-reading").description(
-    "Join current/recent shelf books to notes/highlights metadata.",
+function appendValue(value: string, previous: string[] = []): string[] {
+  return [...previous, value];
+}
+
+function fixtureOptions(command: Command, includeNotesIndex: boolean): Command {
+  command.requiredOption(
+    "--fixture-dir <dir>",
+    includeNotesIndex
+      ? "Directory containing shelf and notes HTML fixtures."
+      : "Directory containing shelf HTML fixtures.",
   );
-
-  command
-    .command("list")
-    .description(
-      "List current/recent shelf books from authenticated HTML fixtures without hardcoded account defaults.",
-    )
-    .requiredOption("--fixture-dir <dir>", "Directory containing shelf HTML fixtures.")
-    .option("--shelves <csv>", "Shelf slugs to join after discovery.", "currently-reading,read")
-    .option("--limit <n>", "Maximum books to emit.", "25")
-    .option("--json", "Emit JSON.", true)
-    .action(async (options: BaseOptions) => {
-      printJson(
-        await recentReadingList({
-          fixtureDir: fixtureDirValue(options.fixtureDir),
-          shelves: shelvesValue(options.shelves),
-          limit: limitValue(options.limit),
-        }),
-      );
-    });
-
-  command
-    .command("notes")
-    .description(
-      "Join current/recent books to notes/highlights links and visibility metadata without raw highlight text.",
-    )
-    .requiredOption("--fixture-dir <dir>", "Directory containing shelf and notes HTML fixtures.")
-    .option(
+  if (includeNotesIndex) {
+    command.option(
       "--notes-index-fixture <path>",
       "Explicit notes index fixture. Defaults to notes-index.html or notes.html in fixture dir.",
-    )
+    );
+  }
+  return command
     .option("--shelves <csv>", "Shelf slugs to join after discovery.", "currently-reading,read")
     .option("--limit <n>", "Maximum books to emit.", "25")
-    .option("--json", "Emit JSON.", true)
-    .action(async (options: NotesOptions) => {
-      printJson(
-        await recentReadingNotes({
-          fixtureDir: fixtureDirValue(options.fixtureDir),
-          notesIndexFixture: options.notesIndexFixture,
-          shelves: shelvesValue(options.shelves),
-          limit: limitValue(options.limit),
-        }),
-      );
-    });
+    .option("--json", "Emit JSON.", true);
+}
 
-  command
-    .command("publicize-plan")
-    .description(
-      "Plan notes/highlights publicization for recent/current books. This never submits Goodreads writes.",
-    )
-    .requiredOption("--fixture-dir <dir>", "Directory containing shelf and notes HTML fixtures.")
-    .option(
-      "--notes-index-fixture <path>",
-      "Explicit notes index fixture. Defaults to notes-index.html or notes.html in fixture dir.",
-    )
-    .option("--shelves <csv>", "Shelf slugs to join after discovery.", "currently-reading,read")
-    .option("--limit <n>", "Maximum books to consider.", "25")
-    .option(
-      "--approved-book-id <id>",
-      "Book id approved for publicizing.",
-      (value, previous: string[] = []) => [...previous, value],
-      [],
-    )
-    .option("--json", "Emit JSON.", true)
-    .action(async (options: PublicizeOptions) => {
+function listCommand(): Command {
+  const command = new Command("list").description(
+    "List current/recent shelf books from authenticated HTML fixtures without hardcoded account defaults.",
+  );
+  return fixtureOptions(command, false).action(async (options: BaseOptions) => {
+    printJson(
+      await recentReadingList({
+        fixtureDir: fixtureDirValue(options.fixtureDir),
+        shelves: shelvesValue(options.shelves),
+        limit: limitValue(options.limit),
+      }),
+    );
+  });
+}
+
+function notesCommand(): Command {
+  const command = new Command("notes").description(
+    "Join current/recent books to notes/highlights links and visibility metadata without raw highlight text.",
+  );
+  return fixtureOptions(command, true).action(async (options: NotesOptions) => {
+    printJson(
+      await recentReadingNotes({
+        fixtureDir: fixtureDirValue(options.fixtureDir),
+        notesIndexFixture: options.notesIndexFixture,
+        shelves: shelvesValue(options.shelves),
+        limit: limitValue(options.limit),
+      }),
+    );
+  });
+}
+
+function publicizePlanCommand(): Command {
+  const command = new Command("publicize-plan").description(
+    "Plan notes/highlights publicization for recent/current books. This never submits Goodreads writes.",
+  );
+  return fixtureOptions(command, true)
+    .option("--approved-book-id <id>", "Book id approved for publicizing.", appendValue, [])
+    .action(async (options: PublicizePlanOptions) => {
       printJson(
         await recentReadingPublicizePlan({
           fixtureDir: fixtureDirValue(options.fixtureDir),
@@ -118,39 +116,35 @@ export function recentReadingCommand(): Command {
         }),
       );
     });
+}
 
-  command
-    .command("publicize")
+function publicizeCommand(): Command {
+  return new Command("publicize")
     .description(
       "Execute approved notes/highlights publicization for recent/current books. Requires exact approval gates.",
     )
     .requiredOption("--book-id <id>", "Exact Goodreads book id to publicize.")
-    .option(
-      "--approved-book-id <id>",
-      "Book id approved for publicizing.",
-      (value, previous: string[] = []) => [...previous, value],
-      [],
-    )
+    .option("--approved-book-id <id>", "Book id approved for publicizing.", appendValue, [])
     .option("--execute", "Actually send the Goodreads notes-publicize request.", false)
     .option("--dry-run", "Preview the request even if execute gates are present.", false)
     .option("--json", "Emit JSON.", true)
-    .action(
-      async (options: {
-        bookId: string;
-        approvedBookId: string[];
-        execute?: boolean;
-        dryRun?: boolean;
-      }) => {
-        printJson(
-          await recentReadingPublicize({
-            bookId: options.bookId,
-            approvedBookIds: options.approvedBookId ?? [],
-            execute: options.execute,
-            dryRun: options.dryRun,
-          }),
-        );
-      },
-    );
+    .action(async (options: PublicizeOptions) => {
+      printJson(
+        await recentReadingPublicize({
+          bookId: options.bookId,
+          approvedBookIds: options.approvedBookId ?? [],
+          execute: options.execute,
+          dryRun: options.dryRun,
+        }),
+      );
+    });
+}
 
-  return command;
+export function recentReadingCommand(): Command {
+  return new Command("recent-reading")
+    .description("Join current/recent shelf books to notes/highlights metadata.")
+    .addCommand(listCommand())
+    .addCommand(notesCommand())
+    .addCommand(publicizePlanCommand())
+    .addCommand(publicizeCommand());
 }

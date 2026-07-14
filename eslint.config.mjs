@@ -17,5 +17,15 @@ export default [
       "prefer-const": "warn",
       "no-empty": ["warn", { allowEmptyCatch: true }]
     }
+  },
+  {
+    files: ["cli/src/**/*.ts", "mcp/src/**/*.ts"],
+    rules: {
+      complexity: ["error", 20],
+      "max-lines-per-function": [
+        "error",
+        { max: 80, skipBlankLines: true, skipComments: true, IIFEs: true }
+      ]
+    }
   }
 ];

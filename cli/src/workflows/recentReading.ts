@@ -170,24 +170,52 @@ export async function buildRecentReadingPublicizePlan(
   };
 }
 
-export async function buildNotesPublicizeWorkflowPlan(options: NotesPublicizeWorkflowOptions) {
-  const detail = options.detailFixture
-    ? parseNotesPage(await readFile(options.detailFixture, "utf8"))
-    : null;
-  const detailBookSlug =
-    detail?.noteBookLinks.find((link) => link.bookId === options.bookId)?.bookSlug ??
+async function loadNotesDetail(fixture: string | undefined): Promise<NotesPageParse | null> {
+  if (!fixture) return null;
+  return parseNotesPage(await readFile(fixture, "utf8"));
+}
+
+function notesDetailBookSlug(detail: NotesPageParse | null, bookId: string): string | null {
+  return (
+    detail?.noteBookLinks.find((link) => link.bookId === bookId)?.bookSlug ??
     detail?.noteBookLinks[0]?.bookSlug ??
-    null;
+    null
+  );
+}
+
+function isFullyVisible(detail: NotesPageParse | null): boolean {
+  if (!detail || detail.noteCount < 1) return false;
+  return detail.visibleNoteCount === detail.noteCount;
+}
+
+function workflowBlockers(detail: NotesPageParse | null, approved: boolean): string[] {
+  const blockers: string[] = [];
+  if (detail?.shelfGateDetected) {
+    blockers.push("notes detail page appears shelf-gated; do not auto-add shelves");
+  }
+  if (!approved) blockers.push("book id is not in the explicit approved-book-id list");
+  return blockers;
+}
+
+function notesDetailSummary(detail: NotesPageParse | null, alreadyFullyVisible: boolean) {
+  if (!detail) return null;
+  return {
+    noteCount: detail.noteCount,
+    visibleNoteCount: detail.visibleNoteCount,
+    hiddenNoteCount: detail.hiddenNoteCount,
+    notePersistEndpointCount: detail.notePersistEndpointCount,
+    spoilerToggleCount: detail.spoilerToggleCount,
+    shelfGateDetected: detail.shelfGateDetected,
+    alreadyFullyVisible,
+  };
+}
+
+export async function buildNotesPublicizeWorkflowPlan(options: NotesPublicizeWorkflowOptions) {
+  const detail = await loadNotesDetail(options.detailFixture);
+  const detailBookSlug = notesDetailBookSlug(detail, options.bookId);
   const verifyBookSlug = options.bookSlug ?? detailBookSlug ?? undefined;
   const approved = Boolean(options.approvedBookIds?.includes(options.bookId));
-  const visible = detail?.visibleNoteCount ?? null;
-  const total = detail?.noteCount ?? null;
-  const alreadyFullyVisible = total !== null && total > 0 && visible === total;
-  const shelfGateDetected = Boolean(detail?.shelfGateDetected);
-  const blockers: string[] = [];
-  if (shelfGateDetected)
-    blockers.push("notes detail page appears shelf-gated; do not auto-add shelves");
-  if (!approved) blockers.push("book id is not in the explicit approved-book-id list");
+  const alreadyFullyVisible = isFullyVisible(detail);
 
   return {
     bookId: options.bookId,
@@ -202,19 +230,9 @@ export async function buildNotesPublicizeWorkflowPlan(options: NotesPublicizeWor
     verifyBookSlugKnown: Boolean(verifyBookSlug),
     dryRun: true,
     approved,
-    detail: detail
-      ? {
-          noteCount: detail.noteCount,
-          visibleNoteCount: detail.visibleNoteCount,
-          hiddenNoteCount: detail.hiddenNoteCount,
-          notePersistEndpointCount: detail.notePersistEndpointCount,
-          spoilerToggleCount: detail.spoilerToggleCount,
-          shelfGateDetected: detail.shelfGateDetected,
-          alreadyFullyVisible,
-        }
-      : null,
+    detail: notesDetailSummary(detail, alreadyFullyVisible),
     action: alreadyFullyVisible ? "noop-already-public" : "publicize-notes",
-    blockers,
+    blockers: workflowBlockers(detail, approved),
     workflowSteps: [
       "load notes detail page",
       "extract counts and visibility without highlight text",
