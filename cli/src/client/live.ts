@@ -73,6 +73,20 @@ function renderPath(route: GoodreadsRoute, pathParams: Record<string, string>): 
   });
 }
 
+function requestBodyMode(options: LiveExecuteOptions): LiveRequestPlan["bodyMode"] {
+  const hasJson = options.bodyJson !== undefined;
+  const hasForm = Object.keys(options.form ?? {}).length > 0;
+  if (hasJson && hasForm) throw new Error("use either --body-json or --form, not both");
+  if (hasJson) return "json";
+  if (hasForm) return "form";
+  return "none";
+}
+
+function shouldDryRun(route: GoodreadsRoute, options: LiveExecuteOptions): boolean {
+  if (options.dryRun) return true;
+  return route.mutatesAccount && !options.execute;
+}
+
 export function buildLiveRequestPlan(
   route: GoodreadsRoute,
   options: LiveExecuteOptions = {},
@@ -82,11 +96,8 @@ export function buildLiveRequestPlan(
   for (const [key, value] of Object.entries(options.query ?? {})) {
     url.searchParams.set(key, value);
   }
-  const hasJson = options.bodyJson !== undefined;
-  const hasForm = Object.keys(options.form ?? {}).length > 0;
-  if (hasJson && hasForm) throw new Error("use either --body-json or --form, not both");
   const trustedOrigin = isTrustedGoodreadsUrl(url);
-  const dryRun = Boolean(options.dryRun) || (route.mutatesAccount && !options.execute);
+  const dryRun = shouldDryRun(route, options);
   return {
     execute: !dryRun,
     dryRun,
@@ -104,16 +115,11 @@ export function buildLiveRequestPlan(
       cookiePresent: Boolean(process.env.GOODREADS_COOKIE),
       csrfPresent: Boolean(process.env.GOODREADS_CSRF_TOKEN),
     },
-    bodyMode: hasJson ? "json" : hasForm ? "form" : "none",
+    bodyMode: requestBodyMode(options),
   };
 }
 
-export async function executeLiveRequest(
-  route: GoodreadsRoute,
-  options: LiveExecuteOptions = {},
-): Promise<LiveRequestPlan | LiveRequestResult> {
-  const plan = buildLiveRequestPlan(route, options);
-  if (plan.dryRun) return plan;
+function assertCredentialBoundary(plan: LiveRequestPlan, options: LiveExecuteOptions): void {
   if (plan.requiresCookie && !plan.trustedOrigin) {
     throw new Error(
       `credentialed Goodreads requests are restricted to ${TRUSTED_GOODREADS_ORIGIN}`,
@@ -127,8 +133,9 @@ export async function executeLiveRequest(
       "GOODREADS_CSRF_TOKEN or form authenticity_token is required for live Goodreads mutations",
     );
   }
+}
 
-  let body: BodyInit | undefined;
+function requestHeaders(plan: LiveRequestPlan): Record<string, string> {
   const headers: Record<string, string> = {
     "user-agent": "goodreads-cli/0.1.0 (+https://github.com/zaydiscold/goodreads-cli-mcp-api)",
     accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
@@ -139,40 +146,52 @@ export async function executeLiveRequest(
   if (plan.requiresCsrf && process.env.GOODREADS_CSRF_TOKEN) {
     headers["x-csrf-token"] = process.env.GOODREADS_CSRF_TOKEN;
   }
-  if (options.bodyJson !== undefined) {
-    body = JSON.stringify(options.bodyJson);
-    headers["content-type"] = "application/json";
-  } else if (options.form && Object.keys(options.form).length > 0) {
-    const form = new URLSearchParams(options.form);
-    if (process.env.GOODREADS_CSRF_TOKEN && !form.has("authenticity_token")) {
-      form.set("authenticity_token", process.env.GOODREADS_CSRF_TOKEN);
-    }
-    body = form;
-    headers["content-type"] = "application/x-www-form-urlencoded";
-  }
+  return headers;
+}
 
-  const response = await fetch(plan.url, {
-    method: route.method,
-    headers,
-    body,
-    redirect: plan.requiresCookie ? "manual" : "follow",
-    signal: AbortSignal.timeout(30_000),
-  });
+function requestBody(
+  plan: LiveRequestPlan,
+  options: LiveExecuteOptions,
+  headers: Record<string, string>,
+): BodyInit | undefined {
+  if (options.bodyJson !== undefined) {
+    headers["content-type"] = "application/json";
+    return JSON.stringify(options.bodyJson);
+  }
+  if (!options.form || Object.keys(options.form).length === 0) return undefined;
+
+  const form = new URLSearchParams(options.form);
+  if (plan.requiresCsrf && process.env.GOODREADS_CSRF_TOKEN && !form.has("authenticity_token")) {
+    form.set("authenticity_token", process.env.GOODREADS_CSRF_TOKEN);
+  }
+  headers["content-type"] = "application/x-www-form-urlencoded";
+  return form;
+}
+
+function validateRedirect(response: Response, plan: LiveRequestPlan): string | null {
+  const redirectLocation = response.headers.get("location");
+  if (!redirectLocation) return null;
+  const redirectUrl = new URL(redirectLocation, plan.url);
+  if (!isTrustedGoodreadsUrl(redirectUrl)) {
+    throw new Error(
+      `Goodreads returned a cross-origin redirect to ${redirectUrl.origin}; refusing it`,
+    );
+  }
+  return redirectLocation;
+}
+
+async function summarizeResponse(
+  response: Response,
+  route: GoodreadsRoute,
+  plan: LiveRequestPlan,
+): Promise<LiveRequestResult> {
   const contentType = response.headers.get("content-type") ?? "";
   const text = await response.text();
   const redirected = response.status >= 300 && response.status < 400;
   if (!response.ok && !redirected) {
     throw new Error(`Goodreads returned HTTP ${response.status} for ${route.method} ${route.path}`);
   }
-  const redirectLocation = response.headers.get("location");
-  if (redirectLocation) {
-    const redirectUrl = new URL(redirectLocation, plan.url);
-    if (!isTrustedGoodreadsUrl(redirectUrl)) {
-      throw new Error(
-        `Goodreads returned a cross-origin redirect to ${redirectUrl.origin}; refusing it`,
-      );
-    }
-  }
+  const redirectLocation = validateRedirect(response, plan);
   const challenge = responseChallenge(response.status, contentType, text);
   return {
     status: response.status,
@@ -186,4 +205,24 @@ export async function executeLiveRequest(
     challenge,
     privacy: "response body omitted by default; use browser fixtures/parsers for redacted content",
   };
+}
+
+export async function executeLiveRequest(
+  route: GoodreadsRoute,
+  options: LiveExecuteOptions = {},
+): Promise<LiveRequestPlan | LiveRequestResult> {
+  const plan = buildLiveRequestPlan(route, options);
+  if (plan.dryRun) return plan;
+  assertCredentialBoundary(plan, options);
+  const headers = requestHeaders(plan);
+  const body = requestBody(plan, options, headers);
+
+  const response = await fetch(plan.url, {
+    method: route.method,
+    headers,
+    body,
+    redirect: plan.requiresCookie ? "manual" : "follow",
+    signal: AbortSignal.timeout(30_000),
+  });
+  return summarizeResponse(response, route, plan);
 }

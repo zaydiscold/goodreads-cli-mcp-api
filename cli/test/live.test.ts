@@ -27,6 +27,18 @@ const mutationRoute: GoodreadsRoute = {
   requiresApproval: true,
 };
 
+const unauthenticatedPostRoute: GoodreadsRoute = {
+  id: "post-notifications-track",
+  method: "POST",
+  path: "/notifications/track",
+  tags: ["analytics"],
+  summary: "Track a notification event",
+  description: null,
+  parameters: [],
+  mutatesAccount: false,
+  requiresApproval: false,
+};
+
 const originalCookie = process.env.GOODREADS_COOKIE;
 const originalCsrf = process.env.GOODREADS_CSRF_TOKEN;
 const originalGenericGate = process.env.GOODREADS_ALLOW_GENERIC_WRITES;
@@ -86,6 +98,28 @@ describe("live request safety", () => {
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     expect(init.headers).not.toHaveProperty("cookie");
     expect(init.headers).not.toHaveProperty("x-csrf-token");
+  });
+
+  it("does not inject CSRF into an unauthenticated custom-origin form", async () => {
+    process.env.GOODREADS_COOKIE = "secret-cookie";
+    process.env.GOODREADS_CSRF_TOKEN = "secret-csrf";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response("{}", { status: 200, headers: { "content-type": "application/json" } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await executeLiveRequest(unauthenticatedPostRoute, {
+      baseUrl: "https://fixtures.invalid",
+      form: { event: "opened" },
+    });
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const body = init.body as URLSearchParams;
+    expect(init.headers).not.toHaveProperty("cookie");
+    expect(init.headers).not.toHaveProperty("x-csrf-token");
+    expect(body.get("event")).toBe("opened");
+    expect(body.has("authenticity_token")).toBe(false);
   });
 
   it("does not report a 202 anti-bot page as an accepted mutation", async () => {
