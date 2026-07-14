@@ -92,6 +92,25 @@ paths:
         "200":
           $ref: "#/components/responses/HtmlPage"
 
+  /sign_in_prompt:
+    get:
+      tags: [profile]
+      summary: Load the sign-in prompt fragment used by Goodreads pages.
+      parameters:
+        - name: countOverride
+          in: query
+          required: false
+          schema:
+            type: integer
+      x-observed:
+        source: authenticated CDP network inspection 2026-07-14
+        status: 204
+      x-safety:
+        cli_support: omit
+      responses:
+        "204":
+          $ref: "#/components/responses/Empty"
+
   /user/show/{user_slug}:
     get:
       tags: [profile]
@@ -143,6 +162,185 @@ paths:
         "200":
           $ref: "#/components/responses/XhrHtmlOrJson"
 
+  /user/edit_fav_genres:
+    post:
+      tags: [profile]
+      security:
+        - goodreadsCookieSession: []
+      summary: Update the current user's favorite genres.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              propertyNames:
+                pattern: '^favorites\[[^\]]+\]$'
+              additionalProperties:
+                type: string
+              minProperties: 1
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        submitted: false
+      x-safety:
+        default: disabled
+        requires_approved_write_capture: true
+      responses:
+        "200":
+          $ref: "#/components/responses/XhrHtmlOrJson"
+
+  /user/sign_out:
+    post:
+      tags: [profile]
+      security:
+        - goodreadsCookieSession: []
+      summary: Sign out the current Goodreads browser session.
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        submitted: false
+      x-safety:
+        default: disabled
+        disruptive: true
+        cli_support: omit
+      responses:
+        "302":
+          description: Redirect after session termination.
+
+  /user/edit:
+    get:
+      tags: [profile]
+      security:
+        - goodreadsCookieSession: []
+      summary: Current user's profile, notification, feed, and privacy settings page.
+      parameters:
+        - name: tab
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: "widget[shelf]"
+          in: query
+          required: false
+          schema:
+            type: string
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        status: 200
+      x-safety:
+        response_contains_private_account_settings: true
+      responses:
+        "200":
+          $ref: "#/components/responses/HtmlPage"
+
+  /user/update:
+    post:
+      tags: [profile]
+      security:
+        - goodreadsCookieSession: []
+      summary: Update current-user profile or preference settings.
+      description: |
+        One shared endpoint backs separate forms for profile identity/details,
+        email and notification preferences, home-feed preferences, and privacy/
+        discoverability. The selected form is identified by `tab`; nested keys
+        are sent under `user[...]` and `user_preference[...]`.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                _method:
+                  type: string
+                  description: Some settings forms use a Rails method override.
+                tab:
+                  type: string
+                commit:
+                  type: string
+              additionalProperties: true
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        form_families: [profile, notifications, feeds, privacy]
+        submitted: false
+      x-safety:
+        default: disabled
+        sensitive_account_settings: true
+        requires_approved_write_capture: true
+      responses:
+        "200":
+          $ref: "#/components/responses/HtmlPage"
+
+  /amazon/login/destroy:
+    post:
+      tags: [profile]
+      security:
+        - goodreadsCookieSession: []
+      summary: Disconnect the linked Amazon login from the Goodreads account.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                _method:
+                  type: string
+                authenticity_token:
+                  type: string
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        submitted: false
+      x-safety:
+        default: disabled
+        disruptive: true
+        cli_support: omit
+      responses:
+        "302":
+          description: Redirect after account-link change.
+
+  /ap/signin:
+    post:
+      tags: [profile]
+      summary: Begin the Amazon sign-in or account-link flow.
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        submitted: false
+      x-safety:
+        default: disabled
+        interactive_auth_flow: true
+        cli_support: omit
+      responses:
+        "302":
+          description: Redirect into the Amazon sign-in flow.
+
+  /book_link/edit_list:
+    post:
+      tags: [profile]
+      security:
+        - goodreadsCookieSession: []
+      summary: Update preferred book-purchase country and link ordering.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                country:
+                  type: string
+                sort:
+                  type: string
+              required: [country]
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        submitted: false
+      x-safety:
+        default: disabled
+        requires_approved_write_capture: true
+      responses:
+        "200":
+          $ref: "#/components/responses/HtmlPage"
+
   /review/list/{user}:
     get:
       tags: [shelves]
@@ -173,6 +371,76 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/HtmlPage"
+    post:
+      tags: [shelves]
+      security:
+        - goodreadsCookieSession: []
+      summary: Persist an inline review, private notes, or reading dates from a shelf table.
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                "review[usertext]":
+                  type: string
+                "review[notes]":
+                  type: string
+                "review[date_started]":
+                  type: string
+                "review[date_read]":
+                  type: string
+                reading_session_id:
+                  type: string
+              additionalProperties: true
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        submitted: false
+      x-safety:
+        default: disabled
+        requires_approved_write_capture: true
+      responses:
+        "200":
+          $ref: "#/components/responses/HtmlPage"
+
+  /review/destroy/{review_id}:
+    post:
+      tags: [shelves]
+      security:
+        - goodreadsCookieSession: []
+      summary: Delete one review and its shelf association.
+      parameters:
+        - name: review_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                authenticity_token:
+                  type: string
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        submitted: false
+      x-safety:
+        default: disabled
+        destructive: true
+        requires_approved_write_capture: true
+      responses:
+        "302":
+          description: Redirect after deletion.
 
   /review/list:
     get:
@@ -453,6 +721,23 @@ paths:
       summary: Current user's quotes list.
       x-observed:
         artifact: goodreads/proofs/user-pages-map-2026-05-22.json
+        status: 200
+      responses:
+        "200":
+          $ref: "#/components/responses/HtmlPage"
+
+  /quotes/search:
+    get:
+      tags: [quotes, discovery]
+      summary: Search Goodreads quotes.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
         status: 200
       responses:
         "200":
@@ -752,6 +1037,39 @@ paths:
         "200":
           $ref: "#/components/responses/HtmlPage"
 
+  /comment:
+    post:
+      tags: [social]
+      security:
+        - goodreadsCookieSession: []
+      summary: Create a comment on a Goodreads resource.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                "comment[body_usertext]":
+                  type: string
+                id:
+                  type: string
+                  description: Target resource identifier.
+                type:
+                  type: string
+                  description: Target resource type.
+              required: ["comment[body_usertext]", id, type]
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        submitted: false
+      x-safety:
+        default: disabled
+        externally_visible: true
+        requires_approved_write_capture: true
+      responses:
+        "200":
+          $ref: "#/components/responses/XhrHtmlOrJson"
+
   /notes/{user_slug}:
     get:
       tags: [notes]
@@ -916,14 +1234,15 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/XhrHtmlOrJson"
-
-  /notes/{book_id}/{annotation_pair_id}/visibility:
     put:
       tags: [notes]
       security:
         - goodreadsCookieSession: []
-      summary: Inferred per-note visibility toggle.
-      description: Endpoint and payload are inferred from the per-note UI and are not live-captured.
+      summary: Update one annotation's visibility or spoiler state.
+      description: |
+        Current Goodreads client source sends `PUT` to the base annotation route.
+        Use exactly one of `visible` or `is_spoiler`. The route shape and payload
+        were source-verified without submitting an account mutation.
       parameters:
         - name: book_id
           in: path
@@ -935,21 +1254,40 @@ paths:
           required: true
           schema:
             type: string
-      x-confidence: inferred-unverified
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                visible:
+                  type: boolean
+                  description: Make the annotation public or private.
+                is_spoiler:
+                  type: boolean
+                  description: Mark or unmark the annotation as a spoiler.
+              minProperties: 1
+              maxProperties: 1
+      x-observed:
+        source: authenticated CDP source inspection 2026-07-14
+        submitted: false
+      x-confidence: source-verified-unsubmitted
       x-safety:
         default: disabled
         requires_approved_write_capture: true
       responses:
         "200":
           $ref: "#/components/responses/XhrHtmlOrJson"
-
-  /notes/{book_id}/{annotation_pair_id}/spoiler:
-    post:
+    delete:
       tags: [notes]
       security:
         - goodreadsCookieSession: []
-      summary: Inferred per-note spoiler toggle.
-      description: Endpoint and payload are inferred from the per-note UI and are not live-captured.
+      summary: Delete one entire Kindle annotation/highlight.
+      description: |
+        Current Goodreads client source issues a direct `DELETE` to the base
+        annotation route and includes `reading_note_id` in the query. This is the
+        destructive direct-method equivalent of the older Rails POST override.
       parameters:
         - name: book_id
           in: path
@@ -961,9 +1299,27 @@ paths:
           required: true
           schema:
             type: string
-      x-confidence: inferred-unverified
+        - name: reading_note_id
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                book_id:
+                  type: integer
+      x-observed:
+        source: authenticated CDP source inspection 2026-07-14
+        submitted: false
+      x-confidence: source-verified-unsubmitted
       x-safety:
         default: disabled
+        destructive: true
         requires_approved_write_capture: true
       responses:
         "200":
@@ -974,10 +1330,85 @@ paths:
       tags: [notes]
       security:
         - goodreadsCookieSession: []
-      summary: Likely per-note "add your thoughts" persistence endpoint.
+      summary: Add personal note text to an annotation.
       description: |
-        Discovered from `.js-readingNote[data-note-persist-endpoint]` DOM attributes. Not submitted in this run.
-        Method and payload need a dedicated approved write capture before CLI execution support.
+        The DOM exposes this persistence endpoint and current Goodreads client source
+        sends `POST` with `text` and `annotation_pair_id`. Not submitted in this run.
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: annotation_pair_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                annotation_pair_id:
+                  type: string
+              required: [text, annotation_pair_id]
+      x-observed:
+        source: authenticated CDP DOM and source inspection 2026-07-14
+        submitted: false
+      x-confidence: source-verified-unsubmitted
+      x-safety:
+        default: disabled
+        requires_approved_write_capture: true
+      responses:
+        "200":
+          $ref: "#/components/responses/XhrHtmlOrJson"
+
+    put:
+      tags: [notes]
+      security:
+        - goodreadsCookieSession: []
+      summary: Update personal note text on an annotation.
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: annotation_pair_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+              required: [text]
+      x-observed:
+        source: authenticated CDP source inspection 2026-07-14
+        submitted: false
+      x-confidence: source-verified-unsubmitted
+      x-safety:
+        default: disabled
+        requires_approved_write_capture: true
+      responses:
+        "200":
+          $ref: "#/components/responses/XhrHtmlOrJson"
+    delete:
+      tags: [notes]
+      security:
+        - goodreadsCookieSession: []
+      summary: Delete personal note text while preserving the annotation.
       parameters:
         - name: book_id
           in: path
@@ -990,12 +1421,43 @@ paths:
           schema:
             type: string
       x-observed:
-        artifact: goodreads/proofs/notes-dom-mr-whisper-2026-05-22.json
-        source: DOM attribute
+        source: authenticated CDP source inspection 2026-07-14
         submitted: false
-      x-confidence: low-unsubmitted
+      x-confidence: source-verified-unsubmitted
       x-safety:
         default: disabled
+        destructive: true
+        requires_approved_write_capture: true
+      responses:
+        "200":
+          $ref: "#/components/responses/XhrHtmlOrJson"
+
+  /kindle_book_mapping_flags:
+    post:
+      tags: [notes]
+      security:
+        - goodreadsCookieSession: []
+      summary: Report an incorrect Kindle-to-Goodreads book mapping.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                book_id:
+                  type: integer
+                reason:
+                  type: string
+                other_reason:
+                  type: string
+              required: [book_id, reason]
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        submitted: false
+      x-safety:
+        default: disabled
+        externally_visible: true
         requires_approved_write_capture: true
       responses:
         "200":
@@ -1027,6 +1489,19 @@ paths:
         "200":
           $ref: "#/components/responses/Empty"
 
+  /dfp/impression:
+    get:
+      tags: [analytics]
+      summary: Record a display-ad impression.
+      x-observed:
+        source: authenticated CDP network inspection 2026-07-14
+        status: 200
+      x-safety:
+        cli_support: omit
+      responses:
+        "200":
+          $ref: "#/components/responses/Empty"
+
   /friend/requests:
     get:
       tags: [social]
@@ -1050,6 +1525,31 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/HtmlPage"
+
+  /friend/find_friend:
+    get:
+      tags: [social, discovery]
+      security:
+        - goodreadsCookieSession: []
+      summary: Search for Goodreads users from the friend finder.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: n
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Result limit requested by the UI.
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        status: 200
+      responses:
+        "200":
+          $ref: "#/components/responses/XhrHtmlOrJson"
 
   /friend/destroy/{friend_id}:
     post:
@@ -1523,6 +2023,32 @@ paths:
         "200":
           $ref: "#/components/responses/HtmlPage"
 
+  /user_not_interested_works:
+    post:
+      tags: [discovery]
+      security:
+        - goodreadsCookieSession: []
+      summary: Dismiss a book from personalized recommendations.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                "user_not_interested_work[book_id]":
+                  type: integer
+              required: ["user_not_interested_work[book_id]"]
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        submitted: false
+      x-safety:
+        default: disabled
+        requires_approved_write_capture: true
+      responses:
+        "200":
+          $ref: "#/components/responses/XhrHtmlOrJson"
+
   /amazon_purchases:
     get:
       tags: [discovery]
@@ -1539,6 +2065,37 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/HtmlPage"
+
+  /amazon_purchases/books:
+    get:
+      tags: [discovery]
+      security:
+        - goodreadsCookieSession: []
+      summary: Load another page of books discovered from Amazon purchases.
+      parameters:
+        - name: last_row
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: next_page_token
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: origin
+          in: query
+          required: false
+          schema:
+            type: string
+      x-observed:
+        source: authenticated CDP network inspection 2026-07-14
+        status: 200
+      x-safety:
+        may_contain_private_purchase_history: true
+      responses:
+        "200":
+          $ref: "#/components/responses/XhrHtmlOrJson"
 
   /shelf:
     get:
@@ -1745,6 +2302,78 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/HtmlPage"
+    post:
+      tags: [shelves]
+      security:
+        - goodreadsCookieSession: []
+      summary: Import books from an uploaded file or a remote list URL.
+      description: Supply exactly one of `import[file]` or `import[url]`.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                "import[file]":
+                  type: string
+                  format: binary
+                "import[url]":
+                  type: string
+                  format: uri
+              minProperties: 1
+              maxProperties: 1
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        submitted: false
+      x-safety:
+        default: disabled
+        bulk_mutation: true
+        requires_approved_write_capture: true
+      responses:
+        "200":
+          $ref: "#/components/responses/HtmlPage"
+
+  /review/destroy_all:
+    post:
+      tags: [shelves]
+      security:
+        - goodreadsCookieSession: []
+      summary: Delete all reviews and shelf data for the current account.
+      x-observed:
+        source: authenticated CDP DOM inspection 2026-07-14
+        submitted: false
+      x-safety:
+        default: disabled
+        destructive: true
+        bulk_mutation: true
+        cli_support: omit
+      responses:
+        "302":
+          description: Redirect after destructive account-wide deletion.
+
+  /review_porter/export/{user_id}/goodreads_export.csv:
+    head:
+      tags: [shelves]
+      security:
+        - goodreadsCookieSession: []
+      summary: Check whether a Goodreads library export is available.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      x-observed:
+        source: authenticated CDP network inspection 2026-07-14
+        status: 404
+      x-safety:
+        response_may_reference_private_export: true
+      responses:
+        "200":
+          description: Export exists or availability check completed.
+        "404":
+          description: No prepared export is currently available.
 
   /user_shelves:
     post:

@@ -1,11 +1,11 @@
-# POST /quotes
+# POST /user/update
 
 Mutation: yes
 Risk: write-mutate
 
-Summary: Create (add) a quote.
+Summary: Update current-user profile or preference settings.
 
-Tags: quotes
+Tags: profile
 
 Parameters:
 - none

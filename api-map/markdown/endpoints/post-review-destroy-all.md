@@ -1,11 +1,11 @@
-# POST /quotes
+# POST /review/destroy_all
 
 Mutation: yes
 Risk: write-mutate
 
-Summary: Create (add) a quote.
+Summary: Delete all reviews and shelf data for the current account.
 
-Tags: quotes
+Tags: shelves
 
 Parameters:
 - none

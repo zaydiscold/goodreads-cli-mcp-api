@@ -32,6 +32,43 @@ rejected. Unauthenticated custom-origin reads never receive credentials.
 receives no request and that public custom-origin reads contain neither auth
 header.
 
+### Custom-origin form CSRF injection
+
+**What was found.** A non-mutating custom-origin `POST` did not receive cookie
+or CSRF headers, but the shared body builder still appended
+`authenticity_token` whenever `GOODREADS_CSRF_TOKEN` existed.
+
+**How it was reproduced.** A mocked unauthenticated `POST` route used a custom
+origin and a harmless form body. The captured form unexpectedly contained the
+environment token. No network request or real credential value was used.
+
+**Why it matters.** Form fields are credentials too. Header-only assertions
+would miss this exfiltration path.
+
+**Remediation and proof.** CSRF form injection now occurs only when the built
+request plan explicitly requires CSRF. `cli/test/live.test.ts` asserts that a
+custom-origin form receives no cookie header, CSRF header, or CSRF form field.
+
+### Incorrect inferred notes mutation routes
+
+**What was found.** The map contained inferred `/visibility` and `/spoiler`
+suffix routes. The current loaded Goodreads client sends both changes as `PUT`
+to `/notes/{book_id}/{annotation_pair_id}` and uses either `visible` or
+`is_spoiler`.
+
+**How it was found.** The authenticated page's already-loaded application
+script was read through CDP Network response inspection. Only relevant method,
+path-construction, and payload-key snippets were examined; source bundles and
+private page data were not stored.
+
+**Why it matters.** An agent following the old map would call nonexistent or
+incorrect endpoints. Guess-shaped writes are especially unsafe.
+
+**Remediation.** The inferred routes were removed. Current-source `PUT` and
+`DELETE` base operations plus `POST`/`PUT`/`DELETE` note-text operations are
+mapped as disabled, source-verified, and unsubmitted. See
+`docs/authenticated-api-map-2026-07-14.md`.
+
 ### Generic writes were live by default
 
 **What was found.** `request execute` sent mutating routes unless callers
@@ -115,12 +152,12 @@ generated server.
 All commands below are safe and redact auth values:
 
 ```bash
-pnpm install
-pnpm build
-pnpm test
-pnpm typecheck
-pnpm lint
-pnpm audit --audit-level moderate
+corepack pnpm install
+corepack pnpm build
+corepack pnpm test
+corepack pnpm typecheck
+corepack pnpm lint
+corepack pnpm audit --audit-level moderate
 node scripts/goodreads-doctor.mjs
 GOODREADS_MCP_PROFILE=core scripts/goodreads-mcp.sh
 ```

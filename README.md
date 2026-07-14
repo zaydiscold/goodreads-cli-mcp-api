@@ -41,9 +41,9 @@ Full read **and** write across Goodreads:
 - **Kindle Notes & Highlights** — inspect notes metadata, plan + execute publicize/hide (gated), and join your current/read shelves to your notes index.
 - **Annotations** — per-highlight annotation metadata (visibility, spoiler, persist endpoints) without raw highlight text.
 - **Quotes** — add, remove, and reorder your quotes (up/down/top/bottom).
-- **Ratings & Reviews** — via the modern AppSync **GraphQL** ops (`RateBook`/`UnrateBook`) and the mapped review write routes.
+- **Ratings & Reviews** — searchable modern AppSync **GraphQL** operation metadata (`RateBook`/`UnrateBook`, catalog-only until freshly recaptured) plus mapped web review routes.
 - **Comments & Messages** — inspect comment/message route + form shape without emitting bodies.
-- **Raw route driving** — plan or execute any mapped route directly.
+- **Raw route driving** — plan or execute mapped Goodreads-web routes directly; AppSync entries are intentionally discovery-only.
 
 Everything is **redaction-first**: output carries counts, status, timing, link shapes, and route metadata — never raw highlight text, comment bodies, cookies, CSRF tokens, or private URLs.
 
@@ -63,7 +63,7 @@ All reads run live and free. All writes default to a dry-run; the notes workflow
 
 | Command | The question it answers |
 |---|---|
-| `api-map routes` / `api-map search "<q>"` | "What can this drive?" — the mapped Goodreads surface (92 operations) |
+| `api-map routes` / `api-map search "<q>"` | "What can this drive?" — 114 mapped web operations plus 10 searchable AppSync catalog entries |
 | `api-map browser-routes` | "What did the authenticated CDP capture see?" — sanitized route templates |
 | `shelves discover` | "What shelves do I have, and how many books in each?" |
 | `books list --shelf <s>` | "List one shelf" — from authenticated HTML fixtures or public RSS |
@@ -147,10 +147,11 @@ The agent never emits raw highlight text, never leaks cookies or tokens, and eve
 The real artifact lives in [`api-map/`](./api-map/):
 
 - An **OpenAPI 3.1** spec of the undocumented Goodreads web surface.
+- A privacy-safe **AppSync GraphQL operation catalog** with current and historical evidence labels.
 - **Per-endpoint Markdown** under [`api-map/markdown/`](./api-map/markdown/).
 - A **curl** reference so any of it is reproducible without this CLI.
 
-It covers the read surface (HTML pages, RSS, CSV exports) and the write endpoints (Rails-UJS form POSTs captured from `data-remote` actions), plus the **AppSync GraphQL** ops for the modern book/rating/feed widgets. A 2026-06-08 hardening pass live-tested every read route and fire-tested the reversible writes, and closed the quote write surface (add/remove/reorder). See [`docs/write-operations.md`](./docs/write-operations.md).
+It covers the read surface (HTML pages, RSS, CSV exports), write endpoints (Rails-UJS forms and current client-source routes), and a non-executable **AppSync GraphQL** catalog for modern book/rating/feed widgets. A 2026-06-08 hardening pass live-tested every read route and fire-tested reversible writes; the 2026-07-14 authenticated CDP pass corrected note methods and expanded account, import/export, recommendation, and settings coverage. See [`docs/write-operations.md`](./docs/write-operations.md).
 
 The consolidated July 2026 improvement audit is in
 [`docs/improvement-audit-2026-07-14.md`](./docs/improvement-audit-2026-07-14.md),
@@ -160,14 +161,14 @@ with redacted security reproduction evidence in
 ## Architecture & extending
 
 ```
-api-map/ ─ the mapped surface (the product)
+api-map/ ─ the mapped web surface + GraphQL operation catalog (the product)
    │
 cli/src/engine.ts ─ THE SHARED ENGINE (every operation, enveloped output)
    ├── cli/src/commands/*  ─ thin commander wrappers
    └── mcp/src/server.ts   ─ thin MCP tool adapters
 ```
 
-Found an endpoint I missed? Add it to the OpenAPI spec + a Markdown page under `api-map/`, then wire **one engine function + a `CAPABILITIES` entry**, and add the matching CLI command and MCP tool. The parity test will tell you if you forgot one. Full developer runbook: [`AGENTS.md`](./AGENTS.md). Operating guide for agents: [`SKILL.md`](./SKILL.md).
+Found an endpoint I missed? Add it to the OpenAPI spec (or GraphQL catalog) and regenerate the endpoint Markdown. Map-only capabilities automatically reach CLI/MCP search through the shared engine. For a dedicated command, wire **one engine function + a `CAPABILITIES` entry** and add matching CLI/MCP adapters; the parity test catches orphans. Full developer runbook: [`AGENTS.md`](./AGENTS.md). Operating guide for agents: [`SKILL.md`](./SKILL.md).
 
 ---
 

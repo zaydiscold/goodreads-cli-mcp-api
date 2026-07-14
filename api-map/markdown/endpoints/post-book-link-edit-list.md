@@ -1,11 +1,11 @@
-# POST /quotes
+# POST /book_link/edit_list
 
 Mutation: yes
 Risk: write-mutate
 
-Summary: Create (add) a quote.
+Summary: Update preferred book-purchase country and link ordering.
 
-Tags: quotes
+Tags: profile
 
 Parameters:
 - none

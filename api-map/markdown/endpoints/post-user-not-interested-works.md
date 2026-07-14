@@ -1,11 +1,11 @@
-# POST /quotes
+# POST /user_not_interested_works
 
 Mutation: yes
 Risk: write-mutate
 
-Summary: Create (add) a quote.
+Summary: Dismiss a book from personalized recommendations.
 
-Tags: quotes
+Tags: discovery
 
 Parameters:
 - none

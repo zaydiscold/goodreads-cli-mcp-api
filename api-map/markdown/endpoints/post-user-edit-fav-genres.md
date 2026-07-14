@@ -1,11 +1,11 @@
-# POST /quotes
+# POST /user/edit_fav_genres
 
 Mutation: yes
 Risk: write-mutate
 
-Summary: Create (add) a quote.
+Summary: Update the current user's favorite genres.
 
-Tags: quotes
+Tags: profile
 
 Parameters:
 - none

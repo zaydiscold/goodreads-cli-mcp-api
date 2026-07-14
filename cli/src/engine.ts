@@ -17,6 +17,7 @@ import {
   envelope,
   loadApiMapRoutes,
   loadBrowserRoutes,
+  loadSearchableApiEntries,
   parseCsv,
   planBookshelfMove,
   planNotesPublicize,
@@ -348,7 +349,11 @@ export async function apiMapRoutes(
 ): Promise<Envelope> {
   const limit = options.limit ?? Number.POSITIVE_INFINITY;
   let routes = options.query
-    ? searchApiRoutes(await loadApiMapRoutes(), options.query, Number.isFinite(limit) ? limit : 200)
+    ? searchApiRoutes(
+        await loadSearchableApiEntries(),
+        options.query,
+        Number.isFinite(limit) ? limit : 200,
+      )
     : await loadApiMapRoutes();
   if (options.method) routes = routes.filter((route) => route.method === options.method);
   if (options.mutationsOnly) routes = routes.filter((route) => route.mutatesAccount);
@@ -357,7 +362,11 @@ export async function apiMapRoutes(
 }
 
 export async function apiMapSearch(options: { query: string; limit?: number }): Promise<Envelope> {
-  const routes = searchApiRoutes(await loadApiMapRoutes(), options.query, options.limit ?? 20);
+  const routes = searchApiRoutes(
+    await loadSearchableApiEntries(),
+    options.query,
+    options.limit ?? 20,
+  );
   return envelope(
     { query: options.query, routeCount: routes.length, routes },
     { confidence: routes.length > 0 ? "high" : "low" },

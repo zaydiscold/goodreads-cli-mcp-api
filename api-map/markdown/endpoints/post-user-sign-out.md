@@ -1,11 +1,11 @@
-# POST /quotes
+# POST /user/sign_out
 
 Mutation: yes
 Risk: write-mutate
 
-Summary: Create (add) a quote.
+Summary: Sign out the current Goodreads browser session.
 
-Tags: quotes
+Tags: profile
 
 Parameters:
 - none

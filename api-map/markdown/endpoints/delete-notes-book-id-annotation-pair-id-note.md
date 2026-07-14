@@ -1,9 +1,9 @@
-# POST /notes/{book_id}/{annotation_pair_id}/note
+# DELETE /notes/{book_id}/{annotation_pair_id}/note
 
 Mutation: yes
-Risk: write-mutate
+Risk: write-destructive
 
-Summary: Add personal note text to an annotation.
+Summary: Delete personal note text while preserving the annotation.
 
 Tags: notes
 

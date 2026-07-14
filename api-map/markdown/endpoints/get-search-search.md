@@ -3,12 +3,13 @@
 Mutation: no
 Risk: read
 
-Summary: Canonical book search route from OpenSearch descriptor.
+Summary: Legacy search route from the OpenSearch descriptor; 301-redirects to /search.
 
 Tags: discovery
 
 Parameters:
 - search_type (query)
-- search[query] (query, required)
+- search[query] (query)
+- q (query)
 
 Source: api-map/openapi/undocumented/goodreads-web.yaml

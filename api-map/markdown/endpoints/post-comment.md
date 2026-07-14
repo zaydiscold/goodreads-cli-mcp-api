@@ -1,11 +1,11 @@
-# POST /quotes
+# POST /comment
 
 Mutation: yes
 Risk: write-mutate
 
-Summary: Create (add) a quote.
+Summary: Create a comment on a Goodreads resource.
 
-Tags: quotes
+Tags: social
 
 Parameters:
 - none

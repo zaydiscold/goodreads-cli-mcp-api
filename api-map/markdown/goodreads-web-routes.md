@@ -1,8 +1,9 @@
 # Goodreads Web Route Reference
 
 Generated: 2026-05-22T08:49:00Z
-Updated: 2026-05-25T16:40:00Z
+Updated: 2026-07-14
 Recapture: 2026-05-26T21:00:00Z authenticated Chrome CDP route templates.
+Authenticated expansion: 2026-07-14 DOM, Network, loaded-source, and AppSync catalog inspection.
 
 ## Scope
 
@@ -29,6 +30,11 @@ This is the first local `api-map/` artifact for the Goodreads venue. It is deriv
 Raw proofs are private local evidence. They can include account-visible labels and Kindle highlight text. This route reference is intentionally route-level and does not include cookies, headers, response bodies, or highlight text.
 
 Per-endpoint markdown files live in `api-map/markdown/endpoints/`. Each file starts with `Mutation: yes` or `Mutation: no` so agents can classify write routes without reparsing the OpenAPI document.
+
+The table below preserves the original May route-reference snapshot. The canonical OpenAPI map
+has since grown to 107 paths / 114 HTTP operations. See
+[`docs/authenticated-api-map-2026-07-14.md`](../../docs/authenticated-api-map-2026-07-14.md)
+for the granular July additions and corrected notes methods.
 
 ## Auth Model
 
@@ -242,9 +248,10 @@ Safety contract:
 
 ## Open Questions
 
-- Exact payload for `POST /notes/:book_id/:annotation_pair_id/note` needs an approved write capture.
-- Spoiler checkbox route/method is still unsubmitted.
-- Delete routes are intentionally unmapped beyond DOM class names.
-- `/review/import` may expose Goodreads' own export flow and should be checked before implementing a custom bulk exporter.
+- Notes payloads and methods are source-verified but remain unsubmitted: visibility/spoiler use
+  `PUT /notes/:book_id/:annotation_pair_id`; note text uses `POST`/`PUT`/`DELETE` on `/note`.
+- `/review/import` now has mapped file and URL form variants, but neither was submitted.
+- AppSync `RateBook`/`UnrateBook` execution remains disabled until a fresh approved mutation
+  capture confirms the current document and JWT flow.
 - Mobile API surfaces remain unverified.
 - Legacy XML API routes (`/review/list.xml`, `/shelf/list.xml`) still respond but require old API credentials; do not build around them unless a user supplies a working old key/OAuth token.

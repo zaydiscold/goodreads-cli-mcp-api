@@ -1,13 +1,13 @@
-# PUT /notes/{book_id}/share
+# POST /kindle_book_mapping_flags
 
 Mutation: yes
 Risk: write-mutate
 
-Summary: Bulk publicize or hide notes/highlights for a book.
+Summary: Report an incorrect Kindle-to-Goodreads book mapping.
 
 Tags: notes
 
 Parameters:
-- book_id (path, required)
+- none
 
 Source: api-map/openapi/undocumented/goodreads-web.yaml

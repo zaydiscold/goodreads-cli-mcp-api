@@ -22,10 +22,15 @@ response cost about 1,766 tokens.
 Set `GOODREADS_MCP_PROFILE` before starting the server:
 
 - `full` — all legacy tools and exact names for compatibility.
-- `core` — eight high-frequency discovery/books/notes tools. Baseline cost:
-  about 1,166 tokens, a 70.7% reduction.
+- `core` — eight high-frequency discovery/books/notes tools. Current cost:
+  4,830 bytes / 1,164 tokens, about a 71% reduction from full.
 - `notes` — thirteen notes/annotations/recent-reading tools. Baseline cost:
-  about 1,957 tokens, a 50.8% reduction.
+  8,302 bytes / 1,956 tokens, about a 51% reduction from full.
+
+The post-audit `full` profile is 17,034 bytes / 4,011 `o200k_base` tokens. These
+figures are measured from the actual MCP `tools/list` tool array, not estimated
+from source descriptions. The authenticated API-map expansion added no tools;
+web and AppSync discoveries use the existing route-search tool.
 
 Profiles hide registrations; they do not create divergent implementations.
 Every visible tool still calls the same shared engine used by the CLI.

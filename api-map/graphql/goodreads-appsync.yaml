@@ -1,0 +1,75 @@
+version: 1
+service: Goodreads AppSync
+endpoint: https://kxbwmqov6jgg3daaamb744ycu4.appsync-api.us-east-1.amazonaws.com/graphql
+auth: runtime AppSync JWT, distinct from the Goodreads Rails session cookie
+execution: catalog-only
+privacy: No JWTs, request payload values, response bodies, book ids, or account ids are stored.
+operations:
+  - name: myReviewCard
+    type: query
+    summary: Read the signed-in user's review and rating state for one book.
+    variables: [id]
+    evidence: authenticated CDP network inspection 2026-07-14
+    status: 200
+  - name: getReviews
+    type: query
+    summary: Read paginated reviews using filters and pagination variables.
+    variables: [filters, pagination]
+    evidence: authenticated CDP network inspection 2026-07-14
+    status: 200
+  - name: GetAdsTargeting
+    type: query
+    summary: Read ad-targeting metadata for a legacy Goodreads resource.
+    variables: [legacyId, legacyResourceType]
+    evidence: authenticated CDP network inspection 2026-07-14
+    status: 200
+    cli_support: omit
+  - name: getSimilarBooks
+    type: query
+    summary: Read a bounded list of similar books.
+    variables: [id, limit]
+    evidence: authenticated CDP network inspection 2026-07-14
+    status: 200
+  - name: getUser
+    type: query
+    summary: Read modern Goodreads user data.
+    variables: []
+    evidence: authenticated CDP catalog capture 2026-05-28
+  - name: getGiveaways
+    type: query
+    summary: Read giveaway inventory.
+    variables: []
+    evidence: authenticated CDP catalog capture 2026-05-28
+  - name: getFeaturedBookLists
+    type: query
+    summary: Read featured Goodreads book lists.
+    variables: []
+    evidence: authenticated CDP catalog capture 2026-05-28
+  - name: getPopularBookLists
+    type: query
+    summary: Read popular Goodreads book lists.
+    variables: []
+    evidence: authenticated CDP catalog capture 2026-05-28
+  - name: getBookListsVotedOnByFriends
+    type: query
+    summary: Read book lists voted on by friends.
+    variables: []
+    evidence: authenticated CDP catalog capture 2026-05-28
+  - name: getSiteHeaderBanner
+    type: query
+    summary: Read the current site-header banner configuration.
+    variables: []
+    evidence: authenticated CDP catalog capture 2026-05-28
+    cli_support: omit
+  - name: RateBook
+    type: mutation
+    summary: Set a one-to-five-star rating for a book.
+    variables: [bookId, rating]
+    evidence: authenticated CDP catalog capture 2026-05-28
+    safety: disabled until a fresh approved mutation capture confirms the current document and token flow
+  - name: UnrateBook
+    type: mutation
+    summary: Clear the signed-in user's rating for a book.
+    variables: [bookId]
+    evidence: authenticated CDP catalog capture 2026-05-28
+    safety: disabled until a fresh approved mutation capture confirms the current document and token flow

@@ -11,6 +11,7 @@ import { parseShelfRss } from "../src/parsers/rss.js";
 import {
   loadApiMapRoutes,
   loadBrowserRoutes,
+  loadGraphqlCatalogRoutes,
   planBookshelfMove,
   planNotesPublicize,
   searchApiRoutes,
@@ -244,6 +245,50 @@ describe("Goodreads parsers", () => {
       (r) => r.method === "POST" && r.path === "/friend/destroy/{friend_id}",
     );
     expect(destroy?.mutatesAccount).toBe(true);
+  });
+
+  it("maps the authenticated browser discoveries through the shared CLI route engine", async () => {
+    const routes = await loadApiMapRoutes();
+    const has = (method: string, path: string) =>
+      routes.some((route) => route.method === method && route.path === path);
+
+    expect(has("POST", "/user_not_interested_works")).toBe(true);
+    expect(has("GET", "/amazon_purchases/books")).toBe(true);
+    expect(has("HEAD", "/review_porter/export/{user_id}/goodreads_export.csv")).toBe(true);
+    expect(has("PUT", "/notes/{book_id}/{annotation_pair_id}")).toBe(true);
+    expect(has("DELETE", "/notes/{book_id}/{annotation_pair_id}")).toBe(true);
+    for (const method of ["POST", "PUT", "DELETE"]) {
+      expect(has(method, "/notes/{book_id}/{annotation_pair_id}/note")).toBe(true);
+    }
+    expect(routes.some((route) => route.path.endsWith("/visibility"))).toBe(false);
+    expect(routes.some((route) => route.path.endsWith("/spoiler"))).toBe(false);
+
+    const purchaseSearch = searchApiRoutes(routes, "Amazon purchase books", 10);
+    expect(purchaseSearch.map((route) => route.path)).toContain("/amazon_purchases/books");
+    const noteSearch = searchApiRoutes(routes, "update annotation spoiler visibility", 10);
+    expect(noteSearch.map((route) => route.path)).toContain(
+      "/notes/{book_id}/{annotation_pair_id}",
+    );
+  });
+
+  it("makes AppSync operations searchable without enabling generic execution", async () => {
+    const operations = await loadGraphqlCatalogRoutes();
+    const similar = searchApiRoutes(operations, "GraphQL similar books", 5)[0];
+    const rate = searchApiRoutes(operations, "set star rating", 5)[0];
+
+    expect(similar).toMatchObject({
+      method: "GRAPHQL_QUERY",
+      path: "/graphql#getSimilarBooks",
+      executable: false,
+      transport: "appsync-graphql",
+    });
+    expect(rate).toMatchObject({
+      method: "GRAPHQL_MUTATION",
+      path: "/graphql#RateBook",
+      mutatesAccount: true,
+      requiresApproval: true,
+      executable: false,
+    });
   });
 
   it("joins recent shelf rows to notes links without raw highlight text", async () => {

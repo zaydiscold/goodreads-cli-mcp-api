@@ -129,6 +129,32 @@ describe("Goodreads MCP stdio server", () => {
     }
   });
 
+  it("exposes newly authenticated routes through the core search tool without new tools", async () => {
+    const running = await connect("core");
+    try {
+      const result = await running.client.callTool({
+        name: "goodreads_route_search",
+        arguments: { query: "Amazon purchase books", limit: 10 },
+      });
+      const text = textContent(result);
+      expect(result.isError).not.toBe(true);
+      expect(text).toContain("/amazon_purchases/books");
+      expect(Buffer.byteLength(text)).toBeLessThan(5_000);
+
+      const graphql = textContent(
+        await running.client.callTool({
+          name: "goodreads_route_search",
+          arguments: { query: "set star rating", limit: 5 },
+        }),
+      );
+      expect(graphql).toContain("/graphql#RateBook");
+      expect(graphql).toContain('"executable":false');
+      expect(Buffer.byteLength(graphql)).toBeLessThan(5_000);
+    } finally {
+      await running.close();
+    }
+  });
+
   it("publishes accurate standard safety annotations", async () => {
     const running = await connect();
     try {

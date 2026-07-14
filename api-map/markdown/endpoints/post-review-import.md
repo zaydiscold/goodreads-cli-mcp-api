@@ -1,11 +1,11 @@
-# POST /quotes
+# POST /review/import
 
 Mutation: yes
 Risk: write-mutate
 
-Summary: Create (add) a quote.
+Summary: Import books from an uploaded file or a remote list URL.
 
-Tags: quotes
+Tags: shelves
 
 Parameters:
 - none

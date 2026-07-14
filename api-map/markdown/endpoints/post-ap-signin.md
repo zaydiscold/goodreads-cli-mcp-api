@@ -1,11 +1,11 @@
-# POST /quotes
+# POST /ap/signin
 
 Mutation: yes
 Risk: write-mutate
 
-Summary: Create (add) a quote.
+Summary: Begin the Amazon sign-in or account-link flow.
 
-Tags: quotes
+Tags: profile
 
 Parameters:
 - none

@@ -1,5 +1,9 @@
 # Goodreads — full API surface (live-captured 2026-05-28)
 
+> Historical capture. The canonical map was expanded and several inferred notes methods were
+> corrected on 2026-07-14. See
+> [`docs/authenticated-api-map-2026-07-14.md`](../../docs/authenticated-api-map-2026-07-14.md).
+
 Captured via CDP against a logged-in account. Goodreads is a Rails app: most reads are HTML
 page routes, writes are Rails-UJS form POSTs (`data-remote`), and the modern book/rating/feed
 widgets use an **AppSync GraphQL** endpoint

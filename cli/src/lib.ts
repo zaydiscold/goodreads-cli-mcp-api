@@ -126,6 +126,23 @@ export interface GoodreadsRoute {
   }>;
   mutatesAccount: boolean;
   requiresApproval: boolean;
+  executable?: boolean;
+  transport?: "goodreads-web" | "appsync-graphql";
+  evidence?: string | null;
+}
+
+interface GraphqlCatalogOperation {
+  name: string;
+  type: "query" | "mutation";
+  summary: string;
+  variables?: string[];
+  evidence?: string;
+  safety?: string;
+  cli_support?: string;
+}
+
+interface GraphqlCatalog {
+  operations?: GraphqlCatalogOperation[];
 }
 
 export interface GoodreadsBrowserRoute {
@@ -192,6 +209,40 @@ export async function loadApiMapRoutes(): Promise<GoodreadsRoute[]> {
       }),
   );
   return routes.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+export async function loadGraphqlCatalogRoutes(): Promise<GoodreadsRoute[]> {
+  const root = repoRootFromCli();
+  const catalogPath = join(root, "api-map/graphql/goodreads-appsync.yaml");
+  const catalog = YAML.parse(await readFile(catalogPath, "utf8")) as GraphqlCatalog;
+  return (catalog.operations ?? [])
+    .filter((operation) => operation.cli_support !== "omit")
+    .map((operation) => {
+      const mutatesAccount = operation.type === "mutation";
+      return {
+        id: `graphql_${operation.type}_${operation.name.toLowerCase()}`,
+        method: operation.type === "mutation" ? "GRAPHQL_MUTATION" : "GRAPHQL_QUERY",
+        path: `/graphql#${operation.name}`,
+        tags: ["graphql", operation.type],
+        summary: operation.summary,
+        description: operation.safety ?? "Cataloged AppSync operation; execution is not enabled.",
+        parameters: (operation.variables ?? []).map((name) => ({
+          name,
+          in: "graphql-variable",
+          required: false,
+        })),
+        mutatesAccount,
+        requiresApproval: mutatesAccount,
+        executable: false,
+        transport: "appsync-graphql",
+        evidence: operation.evidence ?? null,
+      } satisfies GoodreadsRoute;
+    })
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+export async function loadSearchableApiEntries(): Promise<GoodreadsRoute[]> {
+  return [...(await loadApiMapRoutes()), ...(await loadGraphqlCatalogRoutes())];
 }
 
 export async function loadBrowserRoutes(): Promise<GoodreadsBrowserRoute[]> {

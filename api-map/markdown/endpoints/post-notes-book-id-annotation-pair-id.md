@@ -1,9 +1,9 @@
-# POST /notes/{book_id}/{annotation_pair_id}/note
+# POST /notes/{book_id}/{annotation_pair_id}
 
 Mutation: yes
 Risk: write-mutate
 
-Summary: Add personal note text to an annotation.
+Summary: Delete one Kindle note/highlight through the Rails method override.
 
 Tags: notes
 

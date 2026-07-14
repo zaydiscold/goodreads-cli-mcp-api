@@ -123,7 +123,7 @@ registerTool(
   {
     title: "Goodreads Route Search",
     description:
-      "Search mapped Goodreads capabilities such as notes publicizing, friend requests, shelf export, or message folders.",
+      "Search mapped Goodreads web and catalog-only AppSync capabilities such as notes, ratings, shelf export, or messages.",
     annotations: toolAnnotations(true, "read", false),
     inputSchema: {
       query: z.string(),
