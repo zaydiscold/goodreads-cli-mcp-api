@@ -71,3 +71,14 @@ export function parseNotesPage(html: string): NotesPageParse {
     noteBookLinks,
   };
 }
+
+export function redactNotesPrivateIdentifiers(parsed: NotesPageParse): NotesPageParse {
+  return {
+    ...parsed,
+    notes: parsed.notes.map((note) => ({
+      ...note,
+      annotationPairId: note.annotationPairId ? "<redacted>" : null,
+      notePersistEndpoint: note.notePersistEndpoint ? "<redacted>" : null,
+    })),
+  };
+}

@@ -20,7 +20,12 @@ goodreads-cli notes publicize-plan --book-id <book-id> --book-slug <book-slug> -
 GOODREADS_ALLOW_NOTES_PUBLICIZE=1 goodreads-cli notes publicize --book-id <book-id> --approved-book-id <book-id> --execute --json
 goodreads-cli write-plan books move --review-id <review-id> --to-shelf read
 goodreads-cli write-plan notes publicize --book-id <book-id> --book-slug <book-slug> --user-slug <user-slug>
-goodreads-cli request execute --route "PUT /notes/{book_id}/share" --param book_id=<book-id> --dry-run
+goodreads-cli request execute --route "PUT /notes/{book_id}/share" --param book_id=<book-id>
 ```
 
-`request execute` is live by default and has no generic env write gate. Use `--dry-run` to preview; mutating routes require caller-owned Goodreads cookie/CSRF inputs and print a live-write warning. The higher-level notes publicize workflow adds `GOODREADS_ALLOW_NOTES_PUBLICIZE=1`, `--execute`, and exact approved book-id checks. Notes writes use numeric `book_id`; notes detail verification uses `/notes/{book_slug}/{user_slug}` from the notes link.
+`request execute` runs reads live but defaults mutating routes to a dry-run.
+Generic mutations require `--execute`, an exact `--approved-route`, and
+`GOODREADS_ALLOW_GENERIC_WRITES=1`; `--dry-run` always wins. The higher-level
+notes workflow uses its narrower `GOODREADS_ALLOW_NOTES_PUBLICIZE=1` plus exact
+book approval. Every accepted mutation still requires a follow-up read before
+it is considered verified.

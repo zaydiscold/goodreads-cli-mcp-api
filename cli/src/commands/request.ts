@@ -34,6 +34,7 @@ export function requestCommand(): Command {
       [],
     )
     .option("--base-url <url>", "Base URL.", "https://www.goodreads.com")
+    .option("--authenticated", "Plan an authenticated read using GOODREADS_COOKIE.", false)
     .action(
       async (options: {
         route: string;
@@ -42,6 +43,7 @@ export function requestCommand(): Command {
         bodyJson?: string;
         form: string[];
         baseUrl: string;
+        authenticated: boolean;
       }) => {
         printJson(
           await requestPlan({
@@ -51,6 +53,7 @@ export function requestCommand(): Command {
             query: parsePairs(options.query),
             bodyJson: parseJsonInput(options.bodyJson),
             form: parsePairs(options.form),
+            authenticated: options.authenticated,
           }),
         );
       },
@@ -59,7 +62,7 @@ export function requestCommand(): Command {
   command
     .command("execute")
     .description(
-      "Execute a live Goodreads request. Mutating routes write to the live account unless --dry-run is supplied.",
+      "Run a mapped Goodreads request. Reads run live; mutating routes require --execute and otherwise return a dry-run plan.",
     )
     .requiredOption(
       "--route <id-or-path>",
@@ -84,8 +87,13 @@ export function requestCommand(): Command {
       (value, previous: string[] = []) => [...previous, value],
       [],
     )
-    .option("--base-url <url>", "Base URL.", "https://www.goodreads.com")
-    .option("--dry-run", "Preview the live request without sending it.", false)
+    .option("--authenticated", "Send GOODREADS_COOKIE for a Goodreads read route.", false)
+    .option(
+      "--approved-route <method-and-path-or-id>",
+      "Exact route approval required with --execute for mutations.",
+    )
+    .option("--execute", "Allow a mutating route to write to the live account.", false)
+    .option("--dry-run", "Force a preview without sending, even when --execute is present.", false)
     .action(
       async (options: {
         route: string;
@@ -93,17 +101,21 @@ export function requestCommand(): Command {
         query: string[];
         bodyJson?: string;
         form: string[];
-        baseUrl: string;
+        authenticated: boolean;
+        approvedRoute?: string;
+        execute: boolean;
         dryRun: boolean;
       }) => {
         printJson(
           await requestExecute({
             routeSelector: options.route,
-            baseUrl: options.baseUrl,
             pathParams: parsePairs(options.param),
             query: parsePairs(options.query),
             bodyJson: parseJsonInput(options.bodyJson),
             form: parsePairs(options.form),
+            authenticated: options.authenticated,
+            approvedRoute: options.approvedRoute,
+            execute: options.execute,
             dryRun: options.dryRun,
           }),
         );

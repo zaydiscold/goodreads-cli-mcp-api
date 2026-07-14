@@ -1,23 +1,48 @@
-# goodreads-cli-mcp
+# @zaydiscold/goodreads-mcp
 
-Private MCP server for the live-capable Goodreads API map companion.
+Private stdio MCP server over the Goodreads CLI shared engine.
+
+Build from the repository root because the MCP imports the CLI's generated
+exports:
 
 ```bash
-pnpm --filter @zaydiscold/goodreads-mcp build
-node mcp/dist/server.js
+pnpm install
+pnpm build
+scripts/goodreads-mcp.sh
 ```
 
-Tools:
+The tracked wrapper sources the mode-600 `~/.goodreads/auth.sh` file at runtime,
+rebuilds stale or missing generated artifacts, and keeps all build output off
+MCP stdout. Windows uses `scripts\goodreads-mcp.cmd`.
 
-- `goodreads_api_map_routes`
-- `goodreads_route_search`
-- `goodreads_browser_routes`
-- `goodreads_bookshelf_move_plan`
-- `goodreads_notes_publicize_plan`
-- `goodreads_recent_reading_list`
-- `goodreads_recent_reading_notes`
-- `goodreads_recent_reading_publicize_plan`
-- `goodreads_request_execute`
-- `goodreads_dynamic_inventory_guidance`
+## Profiles
 
-Read tools advertise `mcp:read-only=true`; the live executor advertises `mcp:read-only=false` and `mcp:risk=write-mutate`. The generic personal executor has no env write gate, so use `dryRun: true` when previewing. Recent-reading and notes publicize plan tools are read-only planners. Notes publicize writes use numeric `book_id`; verification uses `/notes/{book_slug}/{user_slug}`.
+`GOODREADS_MCP_PROFILE` controls discovery cost without changing tool behavior:
+
+- `full` (default): all 28 legacy tools.
+- `core`: eight common route/books/notes tools, about 71% fewer discovery tokens.
+- `notes`: thirteen notes/annotations/recent-reading tools, about 51% fewer.
+
+MCP results are compact JSON by default. Set `GOODREADS_MCP_OUTPUT=pretty` only
+for debugging. The human-facing CLI remains pretty-printed.
+
+Live truth is always `tools/list`; exact profile membership is defined and
+tested in `src/profile.ts`.
+
+## Write boundary
+
+- Reads run live; writes produce dry-run plans by default.
+- Notes publicize/hide require `execute`, exact book approval, and
+  `GOODREADS_ALLOW_NOTES_PUBLICIZE=1`.
+- The generic executor requires `execute`, exact `approvedRoute`, and
+  `GOODREADS_ALLOW_GENERIC_WRITES=1` for mutations.
+- Credentials are sent only to `https://www.goodreads.com`; credentialed
+  cross-origin redirects are rejected.
+- An accepted HTTP response is never reported as mutation verification. Reload
+  and verify account state after every write.
+
+Run the real stdio integration suite with:
+
+```bash
+pnpm --filter @zaydiscold/goodreads-mcp test
+```

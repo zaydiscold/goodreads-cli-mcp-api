@@ -829,6 +829,8 @@ paths:
   /notes/{book_id}/share:
     put:
       tags: [notes]
+      security:
+        - goodreadsCookieSession: []
       summary: Bulk publicize or hide notes/highlights for a book.
       description: |
         Observed through the "Make all N visible" and "Hide all" buttons.
@@ -870,9 +872,108 @@ paths:
         "200":
           $ref: "#/components/responses/XhrHtmlOrJson"
 
+  /notes/{book_id}/{annotation_pair_id}:
+    post:
+      tags: [notes]
+      security:
+        - goodreadsCookieSession: []
+      summary: Delete one Kindle note/highlight through the Rails method override.
+      description: |
+        Live-verified 2026-06-08. The browser submits POST form data with
+        `_method=delete`; treat this as destructive even though re-publicizing
+        may recover some annotations.
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: annotation_pair_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                _method:
+                  type: string
+                  const: delete
+                authenticity_token:
+                  type: string
+              required: [_method]
+      x-observed:
+        source: live HTTP verification 2026-06-08
+        status: 200
+      x-safety:
+        default: dry-run
+        destructive: true
+        requires_explicit_execute: true
+      responses:
+        "200":
+          $ref: "#/components/responses/XhrHtmlOrJson"
+
+  /notes/{book_id}/{annotation_pair_id}/visibility:
+    put:
+      tags: [notes]
+      security:
+        - goodreadsCookieSession: []
+      summary: Inferred per-note visibility toggle.
+      description: Endpoint and payload are inferred from the per-note UI and are not live-captured.
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: annotation_pair_id
+          in: path
+          required: true
+          schema:
+            type: string
+      x-confidence: inferred-unverified
+      x-safety:
+        default: disabled
+        requires_approved_write_capture: true
+      responses:
+        "200":
+          $ref: "#/components/responses/XhrHtmlOrJson"
+
+  /notes/{book_id}/{annotation_pair_id}/spoiler:
+    post:
+      tags: [notes]
+      security:
+        - goodreadsCookieSession: []
+      summary: Inferred per-note spoiler toggle.
+      description: Endpoint and payload are inferred from the per-note UI and are not live-captured.
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: annotation_pair_id
+          in: path
+          required: true
+          schema:
+            type: string
+      x-confidence: inferred-unverified
+      x-safety:
+        default: disabled
+        requires_approved_write_capture: true
+      responses:
+        "200":
+          $ref: "#/components/responses/XhrHtmlOrJson"
+
   /notes/{book_id}/{annotation_pair_id}/note:
     post:
       tags: [notes]
+      security:
+        - goodreadsCookieSession: []
       summary: Likely per-note "add your thoughts" persistence endpoint.
       description: |
         Discovered from `.js-readingNote[data-note-persist-endpoint]` DOM attributes. Not submitted in this run.

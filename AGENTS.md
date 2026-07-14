@@ -88,15 +88,15 @@ typechecks** — `pnpm typecheck` already orders this for you.
 ## MCP registration
 
 ```bash
-# Claude Code:
-claude mcp add goodreads-cli -s user -- node /abs/path/to/repo/mcp/dist/server.js
-# Hermes:
-hermes mcp add goodreads --command node --args /abs/path/to/repo/mcp/dist/server.js
+# Register the tracked wrapper, not ignored mcp/dist/server.js:
+/abs/path/to/repo/scripts/goodreads-mcp.sh
 ```
 
-Live tool truth is `tools/list` (currently 28). Pass auth via env when you need
-live writes: `GOODREADS_COOKIE`, `GOODREADS_CSRF_TOKEN`, and
-`GOODREADS_ALLOW_NOTES_PUBLICIZE=1` for the notes workflow. See
+Live tool truth is `tools/list`; the `full`, `core`, and `notes` profiles expose
+different subsets of the same engine. The wrapper loads auth from
+`~/.goodreads/auth.sh`. Generic mutations additionally require exact route
+approval and `GOODREADS_ALLOW_GENERIC_WRITES=1`; notes use
+`GOODREADS_ALLOW_NOTES_PUBLICIZE=1`. See
 [`SKILL.md`](./SKILL.md) §1–§2 for the CDP auth-extraction flow.
 
 ## Naming convention & lineage

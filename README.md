@@ -27,7 +27,9 @@ pnpm build
 node cli/dist/index.js --help     # or link the bin: goodreads-cli --help
 ```
 
-Requires **Node ≥ 20** and **pnpm**. The MCP server runs with `node mcp/dist/server.js`.
+Requires **Node ≥ 20** and **pnpm**. Start the MCP through the tracked
+`scripts/goodreads-mcp.sh` wrapper; it loads local auth at runtime and builds stale
+or missing generated artifacts before opening stdio.
 
 ## What it does
 
@@ -50,7 +52,7 @@ The thing that makes this more than a script: **the CLI and the MCP server share
 
 That invariant is enforced by code, not vigilance: a `CAPABILITIES` registry in the engine is checked **in both directions** by [`cli/test/parity.test.ts`](./cli/test/parity.test.ts) — every capability must have a CLI command **and** an MCP tool, with no orphans on either side. Add a command without its MCP twin and CI goes red.
 
-Live tool truth is always `tools/list` (currently **28 tools**), never a hardcoded number.
+Live tool truth is always `tools/list`; the tested `full` profile currently exposes 28 tools.
 
 For cron-based automation on WSL, see [`wsl-sync.sh`](./wsl-sync.sh) — a daily sync script that pulls reading data to your Windows Desktop.
 
@@ -60,7 +62,7 @@ All reads run live and free. All writes default to a dry-run; the notes workflow
 
 | Command | The question it answers |
 |---|---|
-| `api-map routes` / `api-map search "<q>"` | "What can this drive?" — the mapped Goodreads surface (89 routes) |
+| `api-map routes` / `api-map search "<q>"` | "What can this drive?" — the mapped Goodreads surface (92 operations) |
 | `api-map browser-routes` | "What did the authenticated CDP capture see?" — sanitized route templates |
 | `shelves discover` | "What shelves do I have, and how many books in each?" |
 | `books list --shelf <s>` | "List one shelf" — from authenticated HTML fixtures or public RSS |
@@ -75,7 +77,7 @@ All reads run live and free. All writes default to a dry-run; the notes workflow
 | `quotes add / remove / reorder` | "Manage my quotes" (dry-run unless `--execute`) |
 | `comments list` / `messages folders` / `messages list` | "Inspect comment/message page shape without bodies" |
 | `write-plan books move` / `write-plan notes publicize` | "Static dry-run mutation plans" |
-| `request plan` / `request execute` | "Drive any mapped route raw" (execute is live-capable; pass `--dry-run` to preview) |
+| `request plan` / `request execute` | "Drive any mapped route raw" (reads run live; mutations require three explicit gates) |
 
 ## Safety model
 
@@ -92,6 +94,12 @@ goodreads-cli quotes reorder --quote-id <id> --direction top --execute  # live
 GOODREADS_ALLOW_NOTES_PUBLICIZE=1 \
 GOODREADS_COOKIE="session-id=..." GOODREADS_CSRF_TOKEN="..." \
 goodreads-cli notes publicize --book-id <id> --approved-book-id <id> --execute --json
+
+# Generic mapped mutation: dry-run unless all three exact gates are present
+GOODREADS_ALLOW_GENERIC_WRITES=1 goodreads-cli request execute \
+  --route "PUT /notes/{book_id}/share" \
+  --approved-route "PUT /notes/{book_id}/share" \
+  --param book_id=<id> --form visible=true --execute
 ```
 
 Every live mutation prints a `[WRITES TO LIVE GOODREADS]` warning to stderr, and the rule is **verify after every write** — never trust an HTTP 200; reload the notes page and confirm the visible count.
@@ -99,15 +107,21 @@ Every live mutation prints a `[WRITES TO LIVE GOODREADS]` warning to stderr, and
 ## Use it from an agent (MCP)
 
 ```bash
-pnpm --filter @zaydiscold/goodreads-mcp build
-
-# Claude Code:
-claude mcp add goodreads-cli -s user -- node /abs/path/to/goodreads-cli-mcp-api/mcp/dist/server.js
-# Hermes:
-hermes mcp add goodreads --command node --args /abs/path/to/goodreads-cli-mcp-api/mcp/dist/server.js
+pnpm build
+scripts/goodreads-mcp.sh                  # full profile by default
+GOODREADS_MCP_PROFILE=core scripts/goodreads-mcp.sh
+node scripts/goodreads-doctor.mjs
 ```
 
-The 28 MCP tools surface as `mcp__goodreads-cli__*` and inherit the **same** engine, auth, route map, and write gates as the CLI — so `goodreads_notes_publicize` runs the exact same gated workflow as `notes publicize`. Pass `GOODREADS_COOKIE`, `GOODREADS_CSRF_TOKEN`, and `GOODREADS_ALLOW_NOTES_PUBLICIZE=1` in the server's environment for live writes.
+Register the same absolute `scripts/goodreads-mcp.sh` wrapper with Codex, Claude,
+and Hermes. It sources `~/.goodreads/auth.sh` at runtime; do not duplicate cookie
+or CSRF values into client configuration. `full` preserves all legacy tool
+names, while `core` and `notes` cut routine discovery cost by about 71% and 51%
+respectively. See [`docs/token-efficiency.md`](./docs/token-efficiency.md).
+
+Every MCP tool inherits the **same** engine, auth, route map, and write gates as
+the CLI. The generic executor is marked destructive and requires `execute`, an
+exact approved route, and `GOODREADS_ALLOW_GENERIC_WRITES=1` for mutations.
 
 ## Example: agent-driven notes publicizing
 
@@ -136,6 +150,11 @@ The real artifact lives in [`api-map/`](./api-map/):
 - A **curl** reference so any of it is reproducible without this CLI.
 
 It covers the read surface (HTML pages, RSS, CSV exports) and the write endpoints (Rails-UJS form POSTs captured from `data-remote` actions), plus the **AppSync GraphQL** ops for the modern book/rating/feed widgets. A 2026-06-08 hardening pass live-tested every read route and fire-tested the reversible writes, and closed the quote write surface (add/remove/reorder). See [`docs/write-operations.md`](./docs/write-operations.md).
+
+The consolidated July 2026 improvement audit is in
+[`docs/improvement-audit-2026-07-14.md`](./docs/improvement-audit-2026-07-14.md),
+with redacted security reproduction evidence in
+[`docs/security-audit-2026-07-14.md`](./docs/security-audit-2026-07-14.md).
 
 ## Architecture & extending
 

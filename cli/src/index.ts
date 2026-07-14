@@ -30,7 +30,7 @@ const program = new Command();
 program
   .name("goodreads-cli")
   .description(
-    "Live-capable Goodreads API map CLI. Dynamic account inventory, paginated exports, and opt-in dry-run writes.",
+    "Live-capable Goodreads API map CLI. Dynamic account inventory, paginated exports, and explicitly gated writes.",
   )
   .version("0.1.0");
 

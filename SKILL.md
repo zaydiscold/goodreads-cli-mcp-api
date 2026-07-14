@@ -20,7 +20,7 @@ Drive your Goodreads account from the terminal. Amazon killed the public API in 
 
 **Repo:** `zaydiscold/goodreads-cli-mcp-api` at `~/Desktop/CLIs/goodreads-cli`
 **Auth:** `~/.goodreads/auth.sh` (chmod 600, source before use)
-**MCP:** 28 tools wired into Hermes as `goodreads_*` (live truth: `tools/list`) — full CLI parity via one shared engine
+**MCP:** `full`, `core`, and `notes` profiles over one shared engine (live truth: `tools/list`)
 **Dev runbook:** [`AGENTS.md`](./AGENTS.md) — repo layout, build/test, the shared-engine + parity invariant
 
 ## 1. Auth Setup
@@ -59,16 +59,17 @@ scp /tmp/auth.bat mothership:C:/Users/ZaydK/.goodreads/auth.bat
 ## 2. MCP Wiring
 
 ```bash
-source ~/.goodreads/auth.sh
-echo y | hermes mcp add goodreads \
-  --command node \
-  --args ~/Desktop/goodreads-cli/mcp/dist/server.js \
-  --env "GOODREADS_COOKIE=$GOODREADS_COOKIE" \
-  --env "GOODREADS_CSRF_TOKEN=*** \
-  --env "GOODREADS_ALLOW_NOTES_PUBLICIZE=1"
+# Register this tracked wrapper with Hermes, Claude, and Codex. It loads the
+# chmod-600 auth file at runtime and builds missing/stale artifacts without
+# copying secrets into client configs.
+~/Desktop/CLIs/goodreads-cli/scripts/goodreads-mcp.sh
+
+# Optional lower-context profiles:
+GOODREADS_MCP_PROFILE=core ~/Desktop/CLIs/goodreads-cli/scripts/goodreads-mcp.sh
+GOODREADS_MCP_PROFILE=notes ~/Desktop/CLIs/goodreads-cli/scripts/goodreads-mcp.sh
 ```
 
-28 MCP tools (live truth: `tools/list`) — full CLI parity via one shared engine, all prefixed `goodreads_`:
+The `full` profile exposes all legacy tools; `core` and `notes` reduce discovery cost while preserving the same tool implementations. All names are prefixed `goodreads_`:
 
 - **Reads:** `api_map_routes`, `route_search`, `browser_routes`, `shelves_discover`, `books_list`, `books_export`, `book_show`, `comments_list`, `messages_folders`, `messages_list`, `annotations_list`, `notes_inspect`, `recent_reading_list`, `recent_reading_notes`, `dynamic_inventory_guidance`.
 - **Plans (never submit):** `notes_publicize_plan`, `recent_reading_publicize_plan`, `annotations_thoughts_plan`, `bookshelf_move_plan`, `write_plan_notes_publicize`, `request_plan`.
@@ -165,6 +166,7 @@ ssh mothership "claude --dangerously-skip-permissions -p '...'"
 
 - Never print raw highlights, cookies, CSRF tokens, or private URLs
 - Every write defaults to dry-run unless `--execute` + approval gates passed
+- Generic mapped mutations additionally require exact `--approved-route` and `GOODREADS_ALLOW_GENERIC_WRITES=1`
 - Notes publicize requires all three: `--execute`, `--approved-book-id`, `GOODREADS_ALLOW_NOTES_PUBLICIZE=1`
 - Delete is IRREVERSIBLE (but notes may be recoverable via re-publicize)
 - Verify after every live operation — never trust HTTP 200

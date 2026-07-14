@@ -8,7 +8,13 @@ import { parseMessagePage } from "../src/parsers/messagePage.js";
 import { parseNotesPage } from "../src/parsers/notesPage.js";
 import { parseShelfHtml } from "../src/parsers/shelfHtml.js";
 import { parseShelfRss } from "../src/parsers/rss.js";
-import { loadApiMapRoutes, loadBrowserRoutes, planBookshelfMove, planNotesPublicize, searchApiRoutes } from "../src/lib.js";
+import {
+  loadApiMapRoutes,
+  loadBrowserRoutes,
+  planBookshelfMove,
+  planNotesPublicize,
+  searchApiRoutes,
+} from "../src/lib.js";
 import { riskLevelForRoute } from "../src/risk.js";
 import { buildRecentReadingNotes, checkPublicizeApproval } from "../src/workflows/recentReading.js";
 
@@ -129,42 +135,81 @@ describe("Goodreads parsers", () => {
 
   it("keeps sitemap-discovered public hubs searchable", async () => {
     const routes = await loadApiMapRoutes();
-    expect(searchApiRoutes(routes, "ask the author questions", 5).map((route) => route.path)).toContain(
-      "/ask_the_author"
-    );
+    expect(
+      searchApiRoutes(routes, "ask the author questions", 5).map((route) => route.path),
+    ).toContain("/ask_the_author");
     expect(searchApiRoutes(routes, "similar books readers also enjoyed", 5)[0]?.path).toBe(
-      "/book/similar/{work_slug}"
+      "/book/similar/{work_slug}",
     );
-    expect(searchApiRoutes(routes, "choice awards", 5).map((route) => route.path)).toContain("/choiceawards");
+    expect(searchApiRoutes(routes, "choice awards", 5).map((route) => route.path)).toContain(
+      "/choiceawards",
+    );
   });
 
   it("builds dry-run plans for notes and shelf writes", () => {
-    expect(planNotesPublicize({ bookId: "654321", bookSlug: "654321-example-book", userSlug: "reader-user" })).toMatchObject({
+    expect(
+      planNotesPublicize({
+        bookId: "654321",
+        bookSlug: "654321-example-book",
+        userSlug: "reader-user",
+      }),
+    ).toMatchObject({
       dryRun: true,
       method: "PUT",
       route: "/notes/654321/share",
       verifyRouteTemplate: "/notes/{book_slug}/{user_slug}",
-      verify: "/notes/654321-example-book/reader-user"
+      verify: "/notes/654321-example-book/reader-user",
     });
     expect(planBookshelfMove({ reviewId: "111", toShelf: "read", user: "123456" })).toMatchObject({
       dryRun: true,
       method: "POST",
       route: "/review/update_list/123456",
-      verify: "/review/list/123456?shelf=read"
+      verify: "/review/list/123456?shelf=read",
     });
   });
 
   it("builds live request dry-runs without an env write gate", async () => {
-    const route = (await loadApiMapRoutes()).find((candidate) => candidate.path === "/notes/{book_id}/share");
+    const route = (await loadApiMapRoutes()).find(
+      (candidate) => candidate.path === "/notes/{book_id}/share",
+    );
     expect(route).toBeTruthy();
     const plan = buildLiveRequestPlan(route!, {
       pathParams: { book_id: "654321" },
-      dryRun: true
+      dryRun: true,
     });
     expect(plan.url).toBe("https://www.goodreads.com/notes/654321/share");
     expect(plan.execute).toBe(false);
     expect(plan.requiresCookie).toBe(true);
     expect(riskLevelForRoute(route!)).toBe("write-mutate");
+  });
+
+  it("defaults mapped mutations to dry-run and requires explicit execution", async () => {
+    const routes = await loadApiMapRoutes();
+    const mutation = routes.find((candidate) => candidate.path === "/notes/{book_id}/share");
+    const read = routes.find(
+      (candidate) => candidate.method === "GET" && candidate.path === "/book/show/{book_slug}",
+    );
+    expect(mutation).toBeTruthy();
+    expect(read).toBeTruthy();
+
+    const safeDefault = buildLiveRequestPlan(mutation!, { pathParams: { book_id: "654321" } });
+    expect(safeDefault).toMatchObject({ execute: false, dryRun: true, mutatesAccount: true });
+
+    const explicitWrite = buildLiveRequestPlan(mutation!, {
+      pathParams: { book_id: "654321" },
+      execute: true,
+    });
+    expect(explicitWrite).toMatchObject({ execute: true, dryRun: false, mutatesAccount: true });
+
+    const forcedDryRun = buildLiveRequestPlan(mutation!, {
+      pathParams: { book_id: "654321" },
+      execute: true,
+      dryRun: true,
+    });
+    expect(forcedDryRun).toMatchObject({ execute: false, dryRun: true });
+
+    const liveRead = buildLiveRequestPlan(read!, { pathParams: { book_slug: "654321-example" } });
+    expect(liveRead).toMatchObject({ execute: true, dryRun: false, mutatesAccount: false });
   });
 
   it("maps the quote write surface (add/remove/reorder) as mutating routes", async () => {
@@ -184,7 +229,10 @@ describe("Goodreads parsers", () => {
     // GET /quotes/new is the add form, not a mutation.
     expect(byPath("GET", "/quotes/new")?.mutatesAccount).toBe(false);
 
-    const plan = buildLiveRequestPlan(moveUp!, { pathParams: { quote_id: "105273908" }, dryRun: true });
+    const plan = buildLiveRequestPlan(moveUp!, {
+      pathParams: { quote_id: "105273908" },
+      dryRun: true,
+    });
     expect(plan.url).toBe("https://www.goodreads.com/quotes/move_up/105273908");
     expect(plan.requiresCsrf).toBe(true);
   });
@@ -192,7 +240,9 @@ describe("Goodreads parsers", () => {
   it("maps canonical /search and unfriend routes discovered in the hardening pass", async () => {
     const routes = await loadApiMapRoutes();
     expect(routes.find((r) => r.method === "GET" && r.path === "/search")).toBeTruthy();
-    const destroy = routes.find((r) => r.method === "POST" && r.path === "/friend/destroy/{friend_id}");
+    const destroy = routes.find(
+      (r) => r.method === "POST" && r.path === "/friend/destroy/{friend_id}",
+    );
     expect(destroy?.mutatesAccount).toBe(true);
   });
 
@@ -211,7 +261,7 @@ describe("Goodreads parsers", () => {
             </tr>
           </table>
         </body></html>
-      `
+      `,
     );
     await writeFile(
       join(dir, "notes-index.html"),
@@ -220,7 +270,7 @@ describe("Goodreads parsers", () => {
           <a href="/notes/123-example-book/current-user">View notes for Example Book</a>
           <span class="highlightText">This private highlight must not leak.</span>
         </body></html>
-      `
+      `,
     );
 
     const joined = await buildRecentReadingNotes({ fixtureDir: dir, shelves: ["read"], limit: 10 });
@@ -235,16 +285,16 @@ describe("Goodreads parsers", () => {
         bookId: "123",
         approvedBookIds: [],
         execute: false,
-        env: {}
-      }).blockers
+        env: {},
+      }).blockers,
     ).toContain("--execute is required for live notes publicizing");
     expect(
       checkPublicizeApproval({
         bookId: "123",
         approvedBookIds: ["123"],
         execute: true,
-        env: { GOODREADS_ALLOW_NOTES_PUBLICIZE: "1" }
-      }).blockers
+        env: { GOODREADS_ALLOW_NOTES_PUBLICIZE: "1" },
+      }).blockers,
     ).toHaveLength(0);
   });
 
@@ -252,6 +302,8 @@ describe("Goodreads parsers", () => {
     const routes = await loadBrowserRoutes();
     expect(routes.length).toBeGreaterThanOrEqual(10);
     expect(routes.map((route) => route.path_template)).toContain("/review/list/{id}");
-    expect(JSON.stringify(routes)).not.toMatch(/Cookie|Authorization|csrf-token|localStorage|sessionStorage/i);
+    expect(JSON.stringify(routes)).not.toMatch(
+      /Cookie|Authorization|csrf-token|localStorage|sessionStorage/i,
+    );
   });
 });

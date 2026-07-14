@@ -17,6 +17,16 @@ export function pageNumber(parsed: ShelfHtmlParse): number {
   return parsed.currentPage ?? 1;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function shelfSlugFromFixtureFilename(file: string): string | null {
+  const standard = file.match(/^shelf-(.+?)(?:-page\d+)?\.html$/)?.[1];
+  if (standard) return standard;
+  return file.match(/^(.+?)-shelf(?:-page\d+)?\.html$/)?.[1] ?? null;
+}
+
 export async function readShelfPagesFromFixtureDir(
   dir: string,
   shelf: string,
@@ -27,13 +37,16 @@ export async function readShelfPagesFromFixtureDir(
   } catch {
     return [];
   }
+  const escapedShelf = escapeRegExp(shelf);
+  const standardPage = new RegExp(`^shelf-${escapedShelf}-page\\d+\\.html$`);
+  const alternatePage = new RegExp(`^${escapedShelf}-shelf-page\\d+\\.html$`);
   const candidates = files
     .filter(
       (file) =>
         file === `shelf-${shelf}.html` ||
         file === `${shelf}-shelf.html` ||
-        file.match(new RegExp(`^shelf-${shelf}-page\\d+\\.html$`)) ||
-        file.match(new RegExp(`^${shelf}-shelf-page\\d+\\.html$`)),
+        standardPage.test(file) ||
+        alternatePage.test(file),
     )
     .sort((a, b) => {
       const pageA = Number(a.match(/page(\d+)/)?.[1] ?? "1");

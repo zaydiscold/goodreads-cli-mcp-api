@@ -36,29 +36,34 @@ const CLI_GROUPS = [
   quotesCommand(),
   recentReadingCommand(),
   requestCommand(),
-  writePlanCommand()
+  writePlanCommand(),
 ];
 
 const cliPaths = new Set(CLI_GROUPS.flatMap((group) => leafPaths(group, group.name())));
 
 const mcpServerSource = readFileSync(
   fileURLToPath(new URL("../../mcp/src/server.ts", import.meta.url)),
-  "utf8"
+  "utf8",
 );
 const registeredTools = new Set(
-  [...mcpServerSource.matchAll(/registerTool\(\s*"([^"]+)"/g)].map((match) => match[1])
+  [...mcpServerSource.matchAll(/registerTool\(\s*"([^"]+)"/g)].map((match) => match[1]),
 );
 
 describe("CLI <-> MCP parity (the shared-engine invariant)", () => {
   it("exposes every CLI-backed capability as an actual CLI command", () => {
     for (const capability of CAPABILITIES) {
       if (!capability.cli) continue;
-      expect(cliPaths, `capability ${capability.key} missing CLI command '${capability.cli}'`).toContain(capability.cli);
+      expect(
+        cliPaths,
+        `capability ${capability.key} missing CLI command '${capability.cli}'`,
+      ).toContain(capability.cli);
     }
   });
 
   it("has no orphan CLI commands without a registered capability", () => {
-    const capabilityCliPaths = new Set(CAPABILITIES.map((capability) => capability.cli).filter(Boolean));
+    const capabilityCliPaths = new Set(
+      CAPABILITIES.map((capability) => capability.cli).filter(Boolean),
+    );
     for (const path of cliPaths) {
       expect(capabilityCliPaths, `CLI command '${path}' has no capability entry`).toContain(path);
     }
@@ -66,9 +71,10 @@ describe("CLI <-> MCP parity (the shared-engine invariant)", () => {
 
   it("exposes every capability as a registered MCP tool", () => {
     for (const capability of CAPABILITIES) {
-      expect(registeredTools, `capability ${capability.key} missing MCP tool '${capability.mcpTool}'`).toContain(
-        capability.mcpTool
-      );
+      expect(
+        registeredTools,
+        `capability ${capability.key} missing MCP tool '${capability.mcpTool}'`,
+      ).toContain(capability.mcpTool);
     }
   });
 

@@ -1,8 +1,14 @@
 # MCP Agent Surface
 
-The MCP package exposes both read and live-capable write surfaces for the personal Goodreads CLI. Read tools are annotated `mcp:read-only=true`; the executor is annotated `mcp:read-only=false` and `mcp:risk=write-mutate`.
+The MCP package exposes both read and gated write surfaces. Standard MCP
+annotations advertise read-only, idempotent, destructive, and open-world hints;
+the generic executor is conservatively destructive.
 
 ## Tools
+
+Use `GOODREADS_MCP_PROFILE=full|core|notes` to select the advertised subset.
+`full` preserves all legacy names; `core` and `notes` reduce routine discovery
+by about 71% and 51%. See [token-efficiency.md](./token-efficiency.md).
 
 - `goodreads_api_map_routes` lists the bundled web/RSS route map.
 - `goodreads_route_search` searches mapped capabilities such as notes publicizing, shelf exports, message folders, friends, and profile pages.
@@ -12,7 +18,7 @@ The MCP package exposes both read and live-capable write surfaces for the person
 - `goodreads_recent_reading_list` lists current/recent shelf books from caller-supplied local fixtures.
 - `goodreads_recent_reading_notes` joins recent shelf books to notes/highlights metadata without raw highlight text.
 - `goodreads_recent_reading_publicize_plan` plans recent-reading notes publicization and never submits writes.
-- `goodreads_request_execute` executes a live request by route selector. Use `dryRun: true` to preview.
+- `goodreads_request_execute` runs reads live and plans mutations unless all generic write gates are present.
 - `goodreads_dynamic_inventory_guidance` explains which account-specific collections must be discovered before acting.
 
 ## Dynamic Inventory Rule
@@ -23,7 +29,10 @@ Seeded Zayd routes are valid examples, not universal truth. Treat per-user/per-b
 
 ## Write Boundary
 
-The generic personal executor has no env write gate. Do not submit notes, shelf, message, review, profile, rating, or account changes unless the caller intentionally selected the route and supplied the current account/session inputs needed for that request. The notes/highlights publicize workflow adds `GOODREADS_ALLOW_NOTES_PUBLICIZE=1`, exact approved book ids, and explicit execute flags.
+The generic executor requires `execute=true`, an exact `approvedRoute`, and
+`GOODREADS_ALLOW_GENERIC_WRITES=1` for mutations. The notes/highlights workflow
+uses `GOODREADS_ALLOW_NOTES_PUBLICIZE=1`, exact approved book ids, and explicit
+execute flags. HTTP acceptance never implies the account mutation was verified.
 
 Known notes/highlights publicize shape:
 

@@ -7,7 +7,7 @@ import tsPlugin from "@typescript-eslint/eslint-plugin";
 export default [
   { ignores: ["**/dist/**", "**/node_modules/**", "**/*.js", "**/*.mjs", "**/*.cjs"] },
   {
-    files: ["cli/src/**/*.ts", "mcp/src/**/*.ts"],
+    files: ["cli/**/*.ts", "mcp/**/*.ts"],
     languageOptions: { parser: tsParser, ecmaVersion: "latest", sourceType: "module" },
     plugins: { "@typescript-eslint": tsPlugin },
     rules: {

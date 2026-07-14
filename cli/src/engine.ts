@@ -7,7 +7,6 @@
 // so they cannot drift. The CAPABILITIES registry below is the contract the
 // parity test enforces.
 import { readdir } from "node:fs/promises";
-import { join } from "node:path";
 import { fetchText, goodreadsUrl } from "./client/http.js";
 import {
   buildLiveRequestPlan,
@@ -16,7 +15,6 @@ import {
 } from "./client/live.js";
 import {
   envelope,
-  fileExists,
   loadApiMapRoutes,
   loadBrowserRoutes,
   parseCsv,
@@ -30,10 +28,14 @@ import {
 import { parseBookPage } from "./parsers/bookPage.js";
 import { parseCommentsPage } from "./parsers/commentsPage.js";
 import { parseMessagePage } from "./parsers/messagePage.js";
-import { parseNotesPage } from "./parsers/notesPage.js";
+import { parseNotesPage, redactNotesPrivateIdentifiers } from "./parsers/notesPage.js";
 import { parseShelfHtml } from "./parsers/shelfHtml.js";
 import { emitLiveMutationWarning, riskLevelForRoute, type RiskLevel } from "./risk.js";
-import { readShelfPagesFromFixtureDir, summarizeShelfPages } from "./shelf.js";
+import {
+  readShelfPagesFromFixtureDir,
+  shelfSlugFromFixtureFilename,
+  summarizeShelfPages,
+} from "./shelf.js";
 import type { CommandEnvelope, ShelfBookRow } from "./types/index.js";
 import { parseShelfRss } from "./parsers/rss.js";
 import {
@@ -291,14 +293,18 @@ export function parseJsonInput(value: string | undefined): unknown {
 
 export async function findRoute(selector: string): Promise<GoodreadsRoute> {
   const routes = await loadApiMapRoutes();
-  const route = routes.find(
+  const matches = routes.filter(
     (candidate) =>
       candidate.id === selector ||
       candidate.path === selector ||
       `${candidate.method} ${candidate.path}` === selector,
   );
-  if (!route) throw new Error(`unknown Goodreads route: ${selector}`);
-  return route;
+  if (matches.length === 0) throw new Error(`unknown Goodreads route: ${selector}`);
+  if (matches.length > 1) {
+    const choices = matches.map((route) => `${route.method} ${route.path}`).join(", ");
+    throw new Error(`ambiguous Goodreads route '${selector}'; use one of: ${choices}`);
+  }
+  return matches[0]!;
 }
 
 async function routeBySelector(selector: string): Promise<GoodreadsRoute> {
@@ -318,7 +324,7 @@ async function runWrite(
   if (!execute) {
     return envelope(
       {
-        ...buildLiveRequestPlan(route, { ...options, dryRun: true }),
+        ...buildLiveRequestPlan(route, { ...options, execute: false, dryRun: true }),
         riskLevel: riskLevelForRoute(route),
         submitted: false,
       },
@@ -326,8 +332,12 @@ async function runWrite(
     );
   }
   emitLiveMutationWarning(route);
-  const result = await executeLiveRequest(route, { ...options, dryRun: false });
-  return envelope({ submitted: true, result, verificationRequired });
+  const result = await executeLiveRequest(route, { ...options, execute: true, dryRun: false });
+  return envelope({
+    submitted: "requestAccepted" in result ? result.requestAccepted : false,
+    result,
+    verificationRequired,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -401,18 +411,27 @@ export async function booksList(options: {
   baseUrl?: string;
 }): Promise<Envelope> {
   const shelf = options.shelf;
-  if (options.fixtureDir) {
+  const requestedSource = options.source as string | undefined;
+  if (requestedSource !== undefined && requestedSource !== "html" && requestedSource !== "rss") {
+    throw new Error(`source must be one of html, rss (got ${requestedSource})`);
+  }
+  const source = requestedSource ?? (options.fixtureDir ? "html" : "rss");
+
+  if (source === "html") {
+    if (!options.fixtureDir) {
+      throw new Error("fixture-dir is required when source is html");
+    }
     const pages = await readShelfPagesFromFixtureDir(options.fixtureDir, shelf);
     if (pages.length === 0)
       throw new Error(`No shelf fixtures found for '${shelf}' in ${options.fixtureDir}`);
     const data = summarizeShelfPages(pages);
     return envelope(
-      { shelf, ...data },
+      { shelf, source, ...data },
       { warnings: data.pagination.complete ? [] : ["Shelf export is incomplete."] },
     );
   }
-  if (!options.user)
-    throw new Error("user is required when listing books without a fixture directory");
+
+  if (!options.user) throw new Error("user is required when source is rss");
   const xml = await fetchText(
     goodreadsUrl(
       `/review/list_rss/${options.user}?shelf=${encodeURIComponent(shelf)}`,
@@ -424,7 +443,7 @@ export async function booksList(options: {
     ? ["RSS returned exactly 100 items; this may be capped."]
     : [];
   return envelope(
-    { shelf, rss },
+    { shelf, source, rss },
     { warnings, confidence: rss.signals.rssMayCapAt100 ? "medium" : "high" },
   );
 }
@@ -440,9 +459,7 @@ export async function booksExport(options: {
     const files = await readdir(dir);
     shelves = [
       ...new Set(
-        files
-          .map((file) => file.match(/^shelf-(.+?)(?:-page\d+)?\.html$/)?.[1])
-          .filter((value): value is string => Boolean(value)),
+        files.map(shelfSlugFromFixtureFilename).filter((value): value is string => Boolean(value)),
       ),
     ];
   }
@@ -452,12 +469,11 @@ export async function booksExport(options: {
   const warnings: string[] = [];
 
   for (const shelf of shelves) {
-    const hasFirstPage = fileExists(join(dir, `shelf-${shelf}.html`));
-    if (!hasFirstPage) {
-      warnings.push(`Missing first-page fixture for shelf '${shelf}'.`);
+    const pages = await readShelfPagesFromFixtureDir(dir, shelf);
+    if (pages.length === 0) {
+      warnings.push(`No shelf fixtures found for '${shelf}'.`);
       continue;
     }
-    const pages = await readShelfPagesFromFixtureDir(dir, shelf);
     const result = summarizeShelfPages(pages);
     perShelf.push({ shelf, pagination: result.pagination });
     if (!result.pagination.complete) warnings.push(`Shelf '${shelf}' is incomplete.`);
@@ -481,6 +497,11 @@ export async function bookShow(options: {
   fixture?: string;
   baseUrl?: string;
 }): Promise<Envelope> {
+  const hasSlugOrId = Boolean(options.slugOrId?.trim());
+  const hasFixture = Boolean(options.fixture?.trim());
+  if (hasSlugOrId === hasFixture) {
+    throw new Error("exactly one of slugOrId or fixture is required");
+  }
   const html = options.fixture
     ? await readText(options.fixture)
     : await fetchText(
@@ -514,14 +535,26 @@ export async function commentsList(options: {
 }
 
 export async function messagesFolders(options: { fixture?: string } = {}): Promise<Envelope> {
-  const warnings: string[] = [];
   if (options.fixture) {
-    await readText(options.fixture);
-  } else {
-    warnings.push(
-      "Using mapped default folders; pass a fixture to prove them from the current account UI.",
+    const parsed = parseMessagePage(await readText(options.fixture));
+    const warnings =
+      parsed.folders.length > 0
+        ? []
+        : [
+            "No message folders were discovered in the fixture; the page may be logged out or structurally changed.",
+          ];
+    return envelope(
+      {
+        folders: parsed.folders,
+        page: { title: parsed.title },
+      },
+      {
+        warnings,
+        confidence: parsed.folders.length > 0 ? "high" : "low",
+      },
     );
   }
+
   return envelope(
     {
       folders: [
@@ -531,7 +564,12 @@ export async function messagesFolders(options: { fixture?: string } = {}): Promi
         { slug: "trash", href: "/message/trash" },
       ],
     },
-    { warnings, confidence: options.fixture ? "high" : "medium" },
+    {
+      warnings: [
+        "Using mapped default folders; pass a fixture to discover them from the current account UI.",
+      ],
+      confidence: "medium",
+    },
   );
 }
 
@@ -610,9 +648,18 @@ async function notesShareRoute(): Promise<GoodreadsRoute> {
   return routeBySelector("PUT /notes/{book_id}/share");
 }
 
-export async function notesInspect(options: { fixture: string }): Promise<Envelope> {
+export async function notesInspect(options: {
+  fixture: string;
+  includePrivateIds?: boolean;
+}): Promise<Envelope> {
   const parsed = parseNotesPage(await readText(options.fixture));
-  return envelope(parsed, {
+  const output = options.includePrivateIds ? parsed : redactNotesPrivateIdentifiers(parsed);
+  return envelope(output, {
+    warnings: options.includePrivateIds
+      ? [
+          "Raw annotation pair ids and note persistence endpoints emitted for private local use; do not share this output.",
+        ]
+      : [],
     confidence: parsed.noteCount > 0 || parsed.noteBookLinks.length > 0 ? "high" : "medium",
   });
 }
@@ -651,7 +698,8 @@ async function notesShareWrite(
   const blocked = !options.execute || options.dryRun || approval.blockers.length > 0;
   const requestPlan = buildLiveRequestPlan(route, {
     pathParams: { book_id: options.bookId },
-    form: visible === "false" ? { visible: "false" } : undefined,
+    form: { visible },
+    execute: !blocked,
     dryRun: blocked,
   });
   if (blocked) {
@@ -664,9 +712,15 @@ async function notesShareWrite(
   const result = await executeLiveRequest(route, {
     pathParams: { book_id: options.bookId },
     form: { visible },
+    execute: true,
     dryRun: false,
   });
-  return envelope({ approval, submitted: true, result, verificationRequired });
+  return envelope({
+    approval,
+    submitted: "requestAccepted" in result ? result.requestAccepted : false,
+    result,
+    verificationRequired,
+  });
 }
 
 export function notesPublicize(options: {
@@ -844,6 +898,7 @@ export async function requestPlan(options: {
   query?: Record<string, string>;
   bodyJson?: unknown;
   form?: Record<string, string>;
+  authenticated?: boolean;
 }): Promise<Envelope> {
   const route = await findRoute(options.routeSelector);
   const plan = buildLiveRequestPlan(route, {
@@ -852,6 +907,7 @@ export async function requestPlan(options: {
     query: options.query ?? {},
     bodyJson: options.bodyJson,
     form: options.form ?? {},
+    authenticated: options.authenticated,
     dryRun: true,
   });
   return envelope({ ...plan, riskLevel: riskLevelForRoute(route) });
@@ -864,6 +920,9 @@ export async function requestExecute(options: {
   query?: Record<string, string>;
   bodyJson?: unknown;
   form?: Record<string, string>;
+  authenticated?: boolean;
+  approvedRoute?: string;
+  execute?: boolean;
   dryRun?: boolean;
 }): Promise<Envelope> {
   const route = await findRoute(options.routeSelector);
@@ -873,11 +932,25 @@ export async function requestExecute(options: {
     query: options.query ?? {},
     bodyJson: options.bodyJson,
     form: options.form ?? {},
+    authenticated: options.authenticated,
+    execute: options.execute,
     dryRun: options.dryRun,
   };
-  if (options.dryRun) {
+  const plan = buildLiveRequestPlan(route, executeOptions);
+  if (route.mutatesAccount && options.execute) {
+    const exactRoute = `${route.method} ${route.path}`;
+    if (process.env.GOODREADS_ALLOW_GENERIC_WRITES !== "1") {
+      throw new Error("live generic mutations require GOODREADS_ALLOW_GENERIC_WRITES=1");
+    }
+    if (options.approvedRoute !== exactRoute && options.approvedRoute !== route.id) {
+      throw new Error(
+        `live mutation requires approvedRoute to exactly equal '${exactRoute}' or '${route.id}'`,
+      );
+    }
+  }
+  if (plan.dryRun) {
     return envelope({
-      ...buildLiveRequestPlan(route, executeOptions),
+      ...plan,
       riskLevel: riskLevelForRoute(route),
     });
   }

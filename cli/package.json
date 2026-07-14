@@ -7,7 +7,7 @@
     "goodreads-cli": "dist/index.js"
   },
   "exports": {
-    ".": "./dist/index.js",
+    ".": "./dist/api.js",
     "./engine": "./dist/engine.js",
     "./lib": "./dist/lib.js",
     "./live": "./dist/client/live.js",
@@ -28,11 +28,11 @@
   "dependencies": {
     "cheerio": "^1.2.0",
     "commander": "^14.0.3",
-    "fast-xml-parser": "^5.8.0",
-    "yaml": "^2.8.0"
+    "fast-xml-parser": "^5.10.0",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "tsx": "^4.22.3"
+    "tsx": "^4.23.1"
   },
   "engines": {
     "node": ">=20"
