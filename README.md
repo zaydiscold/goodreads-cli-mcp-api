@@ -22,12 +22,13 @@ An unofficial **API map + CLI + MCP server** for the logged-in Goodreads web sur
 ```bash
 git clone https://github.com/zaydiscold/goodreads-cli-mcp-api.git
 cd goodreads-cli-mcp-api
-pnpm install
-pnpm build
+corepack pnpm install
+corepack pnpm build
 node cli/dist/index.js --help     # or link the bin: goodreads-cli --help
 ```
 
-Requires **Node ≥ 20** and **pnpm**. Start the MCP through the tracked
+Requires **Node ≥ 20** and the repository-pinned pnpm, available through
+**Corepack**. Start the MCP through the tracked
 `scripts/goodreads-mcp.sh` wrapper; it loads local auth at runtime and builds stale
 or missing generated artifacts before opening stdio.
 
@@ -107,7 +108,7 @@ Every live mutation prints a `[WRITES TO LIVE GOODREADS]` warning to stderr, and
 ## Use it from an agent (MCP)
 
 ```bash
-pnpm build
+corepack pnpm build
 scripts/goodreads-mcp.sh                  # full profile by default
 GOODREADS_MCP_PROFILE=core scripts/goodreads-mcp.sh
 node scripts/goodreads-doctor.mjs

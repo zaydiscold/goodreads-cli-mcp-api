@@ -6,8 +6,8 @@ Build from the repository root because the MCP imports the CLI's generated
 exports:
 
 ```bash
-pnpm install
-pnpm build
+corepack pnpm install
+corepack pnpm build
 scripts/goodreads-mcp.sh
 ```
 

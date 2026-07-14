@@ -14,7 +14,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "pretest": "pnpm --filter @zaydiscold/goodreads-cli build && pnpm build",
+    "pretest": "corepack pnpm --filter @zaydiscold/goodreads-cli build && corepack pnpm build",
     "test": "vitest run test"
   },
   "dependencies": {

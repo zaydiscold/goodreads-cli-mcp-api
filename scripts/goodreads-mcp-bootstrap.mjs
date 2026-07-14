@@ -12,8 +12,10 @@ function stderr(message) {
 }
 
 function runBuild() {
-  const command = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-  const result = spawnSync(command, ["build"], {
+  const windows = process.platform === "win32";
+  const command = windows ? "corepack.cmd" : "pnpm";
+  const args = windows ? ["pnpm", "build"] : ["build"];
+  const result = spawnSync(command, args, {
     cwd: root,
     env: process.env,
     encoding: "utf8",

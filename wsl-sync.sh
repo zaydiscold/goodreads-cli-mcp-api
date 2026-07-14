@@ -18,7 +18,7 @@ if [[ -z "$GOODREADS_USER" ]]; then
 fi
 
 if [[ ! -f cli/dist/index.js ]]; then
-  pnpm build >> "$OUT_DIR/sync.log" 2>&1 || {
+  corepack pnpm build >> "$OUT_DIR/sync.log" 2>&1 || {
     echo "build: FAIL" >> "$OUT_DIR/sync.log"
     exit 1
   }
