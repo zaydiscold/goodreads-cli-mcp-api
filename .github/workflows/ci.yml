@@ -18,6 +18,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # pnpm 10 still uses npm's retired audit endpoint. Keep pnpm 10 for
+      # Node 20 compatibility, but use pnpm 11's bulk-advisory audit client.
+      - run: pnpm audit:security
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test

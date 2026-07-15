@@ -9,6 +9,7 @@
     "test:cli": "corepack pnpm --filter @zaydiscold/goodreads-cli test",
     "test:mcp": "corepack pnpm --filter @zaydiscold/goodreads-mcp test",
     "typecheck": "corepack pnpm --filter @zaydiscold/goodreads-cli typecheck && corepack pnpm --filter @zaydiscold/goodreads-cli build && corepack pnpm --filter @zaydiscold/goodreads-mcp typecheck",
+    "audit:security": "corepack pnpm@11.13.0 --pm-on-fail=ignore audit --audit-level moderate",
     "lint": "eslint cli/src cli/test mcp/src mcp/test",
     "lint:fix": "eslint cli/src cli/test mcp/src mcp/test --fix",
     "format": "prettier --write cli/src cli/test mcp/src mcp/test scripts",
