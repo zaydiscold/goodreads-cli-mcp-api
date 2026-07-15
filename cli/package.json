@@ -1,6 +1,6 @@
 {
   "name": "@zaydiscold/goodreads-cli",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Open-access Goodreads API map plus live-capable CLI for shelves, books, notes, exports, and account routes.",
   "type": "module",
   "bin": {

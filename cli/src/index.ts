@@ -32,7 +32,7 @@ program
   .description(
     "Live-capable Goodreads API map CLI. Dynamic account inventory, paginated exports, and explicitly gated writes.",
   )
-  .version("0.1.0");
+  .version("1.0.0");
 
 program.addCommand(apiMapCommand());
 program.addCommand(annotationsCommand());
