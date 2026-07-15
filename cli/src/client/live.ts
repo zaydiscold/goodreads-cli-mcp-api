@@ -137,7 +137,7 @@ function assertCredentialBoundary(plan: LiveRequestPlan, options: LiveExecuteOpt
 
 function requestHeaders(plan: LiveRequestPlan): Record<string, string> {
   const headers: Record<string, string> = {
-    "user-agent": "goodreads-cli/0.1.0 (+https://github.com/zaydiscold/goodreads-cli-mcp-api)",
+    "user-agent": "goodreads-cli/1.0.0 (+https://github.com/zaydiscold/goodreads-cli-mcp-api)",
     accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
   };
   if (plan.requiresCookie && process.env.GOODREADS_COOKIE) {

@@ -32,6 +32,21 @@ Requires **Node ≥ 20** and the repository-pinned pnpm, available through
 `scripts/goodreads-mcp.sh` wrapper; it loads local auth at runtime and builds stale
 or missing generated artifacts before opening stdio.
 
+## v1.0.0 — 70.98% fewer MCP discovery tokens
+
+The stable release keeps the complete 28-tool compatibility profile while making
+the eight-tool `core` profile the practical default for agents:
+
+| Measurement | Full | Core | Reduction |
+| --- | ---: | ---: | ---: |
+| `tools/list` tokens (`o200k_base`) | 4,011 | 1,164 | **70.98%** |
+| Compact JSON bytes | 17,034 | 4,830 | **71.64%** |
+| Visible tools | 28 | 8 | **71.43%** |
+
+The 13-tool `notes` profile costs 1,956 tokens, a **51.23%** reduction from
+full. Profiles hide registrations only; all capabilities still use the same
+CLI/MCP engine and the full profile remains available for compatibility.
+
 ## What it does
 
 Full read **and** write across Goodreads:

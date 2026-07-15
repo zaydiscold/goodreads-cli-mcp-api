@@ -1,7 +1,7 @@
 export async function fetchText(url: string): Promise<string> {
   const response = await fetch(url, {
     headers: {
-      "user-agent": "goodreads-cli/0.1.0 (+https://github.com/zaydiscold/goodreads-cli-mcp-api)",
+      "user-agent": "goodreads-cli/1.0.0 (+https://github.com/zaydiscold/goodreads-cli-mcp-api)",
       accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     },
   });

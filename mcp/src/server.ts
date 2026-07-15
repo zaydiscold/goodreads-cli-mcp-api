@@ -50,7 +50,7 @@ import { parseMcpProfile, toolsForProfile, type GoodreadsToolName } from "./prof
 
 const server = new McpServer({
   name: "goodreads-cli-mcp",
-  version: "0.1.0",
+  version: "1.0.0",
 });
 const enabledTools = toolsForProfile(parseMcpProfile(process.env.GOODREADS_MCP_PROFILE));
 const prettyOutput = process.env.GOODREADS_MCP_OUTPUT === "pretty";
