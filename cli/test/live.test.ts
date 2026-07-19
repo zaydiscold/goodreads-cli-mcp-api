@@ -147,6 +147,48 @@ describe("live request safety", () => {
     });
   });
 
+  it("does not flag a signed-in page as an authentication challenge", async () => {
+    process.env.GOODREADS_COOKIE = "secret-cookie";
+    process.env.GOODREADS_CSRF_TOKEN = "secret-csrf";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          '<html><a href="/user/sign_out">Sign Out</a><a href="/user/sign_in">Sign In</a>notes</html>',
+          { status: 200, headers: { "content-type": "text/html" } },
+        ),
+      ),
+    );
+
+    const result = await executeLiveRequest(mutationRoute, {
+      pathParams: { book_id: "123" },
+      form: { visible: "true" },
+      execute: true,
+    });
+    expect(result).toMatchObject({ requestAccepted: true, challenge: null });
+  });
+
+  it("flags a signed-out wall as an authentication challenge", async () => {
+    process.env.GOODREADS_COOKIE = "secret-cookie";
+    process.env.GOODREADS_CSRF_TOKEN = "secret-csrf";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response('<html>Sign in to Goodreads<a href="/user/sign_in">Sign In</a></html>', {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        }),
+      ),
+    );
+
+    const result = await executeLiveRequest(mutationRoute, {
+      pathParams: { book_id: "123" },
+      form: { visible: "true" },
+      execute: true,
+    });
+    expect(result).toMatchObject({ requestAccepted: false, challenge: "authentication" });
+  });
+
   it("refuses a cross-origin redirect without following it", async () => {
     process.env.GOODREADS_COOKIE = "secret-cookie";
     process.env.GOODREADS_CSRF_TOKEN = "secret-csrf";
