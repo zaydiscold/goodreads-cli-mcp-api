@@ -58,7 +58,14 @@ function responseChallenge(status: number, contentType: string, text: string) {
   ) {
     return "anti-bot" as const;
   }
-  if (/sign in to goodreads|name=["']sign_in|\/user\/sign_in|amazon sign-in/.test(sample)) {
+  // Every Goodreads page, signed in or not, links /user/sign_in in its nav
+  // markup; only a session without a sign-out affordance is actually facing
+  // an authentication wall.
+  const signedIn = /sign out|\/user\/sign_out|signout/.test(sample);
+  if (
+    !signedIn &&
+    /sign in to goodreads|name=["']sign_in|\/user\/sign_in|amazon sign-in/.test(sample)
+  ) {
     return "authentication" as const;
   }
   if (contentType.includes("json")) return null;
