@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { shelvesDiscover } from "../engine.js";
+import { shelfAdd, shelfRemove, shelvesDiscover } from "../engine.js";
 import { printJson } from "../lib.js";
 
 interface ShelvesOptions {
@@ -7,6 +7,18 @@ interface ShelvesOptions {
   user?: string;
   baseUrl?: string;
   json?: boolean;
+}
+
+interface ShelfAddOptions {
+  bookId: string;
+  name: string;
+  execute?: boolean;
+}
+
+interface ShelfRemoveOptions {
+  bookId: string;
+  name: string;
+  execute?: boolean;
 }
 
 export function shelvesCommand(): Command {
@@ -27,6 +39,42 @@ export function shelvesCommand(): Command {
           fixture: options.fixture,
           user: options.user,
           baseUrl: options.baseUrl,
+        }),
+      );
+    });
+
+  command
+    .command("add")
+    .description("Add a book to a shelf via POST /shelf/add_to_shelf. Dry-run unless --execute.")
+    .requiredOption("--book-id <id>", "Goodreads numeric book id.")
+    .requiredOption("--name <shelf>", "Target shelf slug (e.g. to-read, read, currently-reading).")
+    .option("--execute", "Send the live write to Goodreads.", false)
+    .option("--json", "Emit JSON.", true)
+    .action(async (options: ShelfAddOptions) => {
+      printJson(
+        await shelfAdd({
+          bookId: options.bookId,
+          shelf: options.name,
+          execute: options.execute,
+        }),
+      );
+    });
+
+  command
+    .command("remove")
+    .description(
+      "Remove a book from a shelf via POST /shelf/add_to_shelf?a=remove. Dry-run unless --execute.",
+    )
+    .requiredOption("--book-id <id>", "Goodreads numeric book id.")
+    .requiredOption("--name <shelf>", "Target shelf slug.")
+    .option("--execute", "Send the live write to Goodreads.", false)
+    .option("--json", "Emit JSON.", true)
+    .action(async (options: ShelfRemoveOptions) => {
+      printJson(
+        await shelfRemove({
+          bookId: options.bookId,
+          shelf: options.name,
+          execute: options.execute,
         }),
       );
     });

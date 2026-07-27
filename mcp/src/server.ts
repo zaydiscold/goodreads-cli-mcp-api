@@ -41,6 +41,8 @@ import {
   recentReadingPublicizePlan,
   requestExecute,
   requestPlan,
+  shelfAdd,
+  shelfRemove,
   shelvesDiscover,
   writePlanNotesPublicize,
   type Envelope,
@@ -429,6 +431,43 @@ registerTool(
   },
   async ({ quoteId, direction, execute }) =>
     emit(await quotesReorder({ quoteId, direction, execute })),
+);
+
+// ---------------------------------------------------------------------------
+// Shelf add / remove
+// ---------------------------------------------------------------------------
+registerTool(
+  "goodreads_shelf_add",
+  {
+    title: "Goodreads Shelf Add",
+    description:
+      "Add a book to a shelf (to-read, read, currently-reading, etc.) via POST /shelf/add_to_shelf. Dry-run unless execute=true.",
+    annotations: toolAnnotations(false, "write-mutate"),
+    inputSchema: {
+      bookId: z.string(),
+      shelf: z.string(),
+      execute: z.boolean().default(false),
+    },
+  },
+  async ({ bookId, shelf, execute }) =>
+    emit(await shelfAdd({ bookId, shelf, execute })),
+);
+
+registerTool(
+  "goodreads_shelf_remove",
+  {
+    title: "Goodreads Shelf Remove",
+    description:
+      "Remove a book from a shelf via POST /shelf/add_to_shelf?a=remove. Dry-run unless execute=true.",
+    annotations: toolAnnotations(false, "write-mutate"),
+    inputSchema: {
+      bookId: z.string(),
+      shelf: z.string(),
+      execute: z.boolean().default(false),
+    },
+  },
+  async ({ bookId, shelf, execute }) =>
+    emit(await shelfRemove({ bookId, shelf, execute })),
 );
 
 // ---------------------------------------------------------------------------

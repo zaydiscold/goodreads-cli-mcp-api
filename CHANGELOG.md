@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — 2026-07-27
+
+### Shelf add / remove (live)
+
+- First-class `shelves add` / `shelves remove` CLI commands + MCP tools
+  `goodreads_shelf_add` / `goodreads_shelf_remove` (also in `core` profile).
+- Drives proven route `POST /shelf/add_to_shelf` with `book_id` + `name`
+  (`to-read` / `currently-reading` / `read` / custom) and `a=remove` for remove.
+- Live-verified 2026-07-27: Catching the Big Fish (`58169`), Fantastic Mr. Fox
+  (`6693`), Edison's Alley (`20875669`) added to to-read and confirmed via RSS.
+- Mutation client now sends `Referer` + `Origin` + `X-Requested-With` on writes
+  (Goodreads returns opaque 404s without them — same lesson as `publicize.py`).
+- Error bodies are surfaced on failed writes (e.g. `Sorry, we couldn't find that book.`).
+
 ## 1.0.0 — 2026-07-14
 
 First stable release of the paired Goodreads API map, CLI, and MCP server.

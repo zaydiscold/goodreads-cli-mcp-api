@@ -153,6 +153,12 @@ function requestHeaders(plan: LiveRequestPlan): Record<string, string> {
   if (plan.requiresCsrf && process.env.GOODREADS_CSRF_TOKEN) {
     headers["x-csrf-token"] = process.env.GOODREADS_CSRF_TOKEN;
   }
+  // Goodreads 404s mutations without Referer — observed in publicize.py fire-tests
+  if (plan.mutatesAccount) {
+    headers.referer = "https://www.goodreads.com/";
+    headers.origin = "https://www.goodreads.com";
+    headers["x-requested-with"] = "XMLHttpRequest";
+  }
   return headers;
 }
 
@@ -196,7 +202,11 @@ async function summarizeResponse(
   const text = await response.text();
   const redirected = response.status >= 300 && response.status < 400;
   if (!response.ok && !redirected) {
-    throw new Error(`Goodreads returned HTTP ${response.status} for ${route.method} ${route.path}`);
+    const detail = text.slice(0, 200).replace(/\s+/g, " ").trim();
+    throw new Error(
+      `Goodreads returned HTTP ${response.status} for ${route.method} ${route.path}` +
+        (detail ? `: ${detail}` : ""),
+    );
   }
   const redirectLocation = validateRedirect(response, plan);
   const challenge = responseChallenge(response.status, contentType, text);

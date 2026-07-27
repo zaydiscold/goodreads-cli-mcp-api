@@ -200,6 +200,20 @@ export const CAPABILITIES: Capability[] = [
     risk: "write-mutate",
   },
   {
+    key: "shelf-add",
+    cli: "shelves add",
+    mcpTool: "goodreads_shelf_add",
+    readOnly: false,
+    risk: "write-mutate",
+  },
+  {
+    key: "shelf-remove",
+    cli: "shelves remove",
+    mcpTool: "goodreads_shelf_remove",
+    readOnly: false,
+    risk: "write-mutate",
+  },
+  {
     key: "recent-reading-list",
     cli: "recent-reading list",
     mcpTool: "goodreads_recent_reading_list",
@@ -820,6 +834,39 @@ export async function quotesReorder(options: {
     { pathParams: { quote_id: options.quoteId } },
     Boolean(options.execute),
     "Reload /quotes/list and confirm the new ordering.",
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Shelf add / remove
+// ---------------------------------------------------------------------------
+const SHELF_ADD_ROUTE = "POST /shelf/add_to_shelf";
+
+export async function shelfAdd(options: {
+  bookId: string;
+  shelf: string;
+  execute?: boolean;
+}): Promise<Envelope> {
+  const route = await routeBySelector(SHELF_ADD_ROUTE);
+  return runWrite(
+    route,
+    { form: { book_id: options.bookId, name: options.shelf } },
+    Boolean(options.execute),
+    `Reload shelf "${options.shelf}" and confirm book ${options.bookId} is listed.`,
+  );
+}
+
+export async function shelfRemove(options: {
+  bookId: string;
+  shelf: string;
+  execute?: boolean;
+}): Promise<Envelope> {
+  const route = await routeBySelector(SHELF_ADD_ROUTE);
+  return runWrite(
+    route,
+    { form: { book_id: options.bookId, name: options.shelf, a: "remove" } },
+    Boolean(options.execute),
+    `Reload shelf "${options.shelf}" and confirm book ${options.bookId} is gone.`,
   );
 }
 

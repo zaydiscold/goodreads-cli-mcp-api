@@ -212,6 +212,7 @@ describe("live request safety", () => {
   });
 
   it("requires the generic write gate and exact route approval", async () => {
+    delete process.env.GOODREADS_ALLOW_GENERIC_WRITES;
     await expect(
       requestExecute({
         routeSelector: "PUT /notes/{book_id}/share",
