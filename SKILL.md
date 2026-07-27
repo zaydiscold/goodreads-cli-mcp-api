@@ -1,6 +1,6 @@
 ---
 name: goodreads-cli
-description: Complete Goodreads CLI + MCP — publicize/hide notes, manage shelves, extract auth via CDP, capture fixtures, cross-machine dispatch. Full read+write across the undocumented Goodreads web surface.
+description: Complete Goodreads CLI + MCP — publicize/hide notes, add/remove shelves (want-to-read), extract auth via CDP, capture fixtures, cross-machine dispatch. Full read+write across the undocumented Goodreads web surface.
 triggers:
   - "publicize my Goodreads notes"
   - "make Goodreads highlights public"
@@ -9,6 +9,8 @@ triggers:
   - "goodreads-cli"
   - "extract Goodreads auth"
   - "goodreads shelf"
+  - "add to want to read"
+  - "add to to-read"
   - "hide Goodreads notes"
   - "fixture capture"
   - "cross-machine goodreads"
@@ -18,12 +20,23 @@ triggers:
 
 Drive your Goodreads account from the terminal. Amazon killed the public API in December 2020 — this CLI drives the undocumented web surface via a hand-mapped OpenAPI spec, CDP-captured routes, and live-verified write endpoints.
 
-**Repo:** `zaydiscold/goodreads-cli-mcp-api` at `~/Desktop/CLIs/goodreads-cli`
-**Auth:** `~/.goodreads/auth.sh` (chmod 600, source before use)
+**Repo:** `zaydiscold/goodreads-cli-mcp-api` at `~/Desktop/clis and apis/goodreads-cli` (mothership) / `~/Desktop/CLIs/goodreads-cli` (frostbyte)
+**Auth:** `~/.goodreads/auth.sh` (chmod 600, source before use) — **one cookie for every function**
 **MCP:** `full`, `core`, and `notes` profiles over one shared engine (live truth: `tools/list`)
 **Dev runbook:** [`AGENTS.md`](./AGENTS.md) — repo layout, build/test, the shared-engine + parity invariant
 
-## 1. Auth Setup
+## 1. Auth Setup — one session, all writes
+
+There is **no separate login** for notes vs shelves vs quotes. Same `GOODREADS_COOKIE`.
+
+| Env | Role |
+|---|---|
+| `GOODREADS_COOKIE` | Durable browser session |
+| `GOODREADS_CSRF_TOKEN` | Optional bootstrap; **auto-refreshed from cookie before every live Rails write** |
+| `GOODREADS_ALLOW_NOTES_PUBLICIZE=1` | Notes publicize/hide gate |
+| `GOODREADS_ALLOW_GENERIC_WRITES=1` | Generic `request execute` gate |
+
+Live mutations always send `Referer` + `Origin` + `X-Requested-With`. Missing these → opaque HTTP 404 (not a second-login problem).
 
 ### Extract from Chrome via CDP (macOS)
 
@@ -41,8 +54,9 @@ cp ~/Library/Application\ Support/Google/Chrome/Profile\ 1/Cookies \
 # Extract via Python CDP (navigate to goodreads.com, get cookies + CSRF)
 # Save to ~/.goodreads/auth.sh:
 export GOODREADS_COOKIE='...'
-export GOODREADS_CSRF_TOKEN='...'
+export GOODREADS_CSRF_TOKEN='...'   # optional; CLI refreshes on write
 export GOODREADS_ALLOW_NOTES_PUBLICIZE=1
+chmod 600 ~/.goodreads/auth.sh
 ```
 
 **Cookie quoting:** Goodreads cookies contain embedded double-quotes (`session-token="Mo5+..."`, `x-main="Ii1lsrN4..."`). Use Python's `shlex.quote()` for single-quote wrapping. Double-quote wrapping BREAKS silently.
@@ -73,9 +87,48 @@ The `full` profile exposes all legacy tools; `core` and `notes` reduce discovery
 
 - **Reads:** `api_map_routes`, `route_search`, `browser_routes`, `shelves_discover`, `books_list`, `books_export`, `book_show`, `comments_list`, `messages_folders`, `messages_list`, `annotations_list`, `notes_inspect`, `recent_reading_list`, `recent_reading_notes`, `dynamic_inventory_guidance`.
 - **Plans (never submit):** `notes_publicize_plan`, `recent_reading_publicize_plan`, `annotations_thoughts_plan`, `bookshelf_move_plan`, `write_plan_notes_publicize`, `request_plan`.
-- **Writes (dry-run by default; gated):** `notes_publicize`, `notes_hide`, `recent_reading_publicize`, `quotes_add`, `quotes_remove`, `quotes_reorder`, `request_execute`.
+- **Writes (dry-run by default; gated):** `notes_publicize`, `notes_hide`, `recent_reading_publicize`, `quotes_add`, `quotes_remove`, `quotes_reorder`, **`shelf_add`**, **`shelf_remove`**, `request_execute`.
 
-## 3. Notes Publicize/Hide
+`core` profile includes `shelf_add` / `shelf_remove` so agents can fulfill “add this to want to read” without the full tool surface.
+
+## 3. Add to Want to Read (shelf add/remove)
+
+Want-to-read shelf slug = **`to-read`**.
+
+```bash
+source ~/.goodreads/auth.sh
+
+# Dry-run
+goodreads-cli shelves add --book-id <id> --name to-read
+
+# Live
+goodreads-cli shelves add --book-id <id> --name to-read --execute
+
+# Remove
+goodreads-cli shelves remove --book-id <id> --name to-read --execute
+```
+
+MCP:
+
+```json
+{ "name": "goodreads_shelf_add", "arguments": { "bookId": "58169", "shelf": "to-read", "execute": true } }
+```
+
+Route: `POST /shelf/add_to_shelf` with `book_id`, `name`, optional `a=remove`.
+
+**Photo / natural language flow:** identify title+author → resolve numeric Goodreads book id → `shelf_add` with `shelf: "to-read"`. If `/book/show/{id}` is bot-walled (202), use editions pages (`/work/editions/{work_id}`) or RSS verification. Wrong id → 404 body `Sorry, we couldn't find that book.` (not auth).
+
+Verify:
+
+```bash
+curl -s -b "$GOODREADS_COOKIE" \
+  "https://www.goodreads.com/review/list_rss/179929687?shelf=to-read" \
+  | grep book_id
+```
+
+Live-verified 2026-07-27: Catching the Big Fish (`58169`), Fantastic Mr. Fox (`6693`), Edison's Alley (`20875669`).
+
+## 4. Notes Publicize/Hide
 
 ### CRITICAL: PUT /notes/{book_id}/share requires visible=true form body
 
@@ -100,7 +153,7 @@ curl -s -H "Cookie: $GOODREADS_COOKIE" \
   | grep -o "data-visible-count='[0-9]*'"
 ```
 
-## 4. Commands Quick Reference
+## 5. Commands Quick Reference
 
 ```bash
 # Route discovery
@@ -109,6 +162,11 @@ goodreads-cli api-map search "publicize notes" --json
 
 # Shelf inventory (needs fixtures)
 goodreads-cli recent-reading list --fixture-dir <dir> --shelves read,currently-reading --json
+
+# Want-to-read / exclusive shelves
+goodreads-cli shelves add --book-id <id> --name to-read --execute
+goodreads-cli shelves remove --book-id <id> --name to-read --execute
+goodreads-cli shelves discover --user 179929687 --json
 
 # Notes workflow
 goodreads-cli recent-reading publicize-plan --fixture-dir <dir> --json
@@ -121,7 +179,7 @@ goodreads-cli request execute --route "PUT /notes/{book_id}/share" \
   --param "book_id=<id>" --form "visible=true" --dry-run
 ```
 
-## 5. Fixture Capture
+## 6. Fixture Capture
 
 Goodreads loads shelf/notes data dynamically via XHR. Static HTML dumps are empty.
 
@@ -135,23 +193,25 @@ Goodreads loads shelf/notes data dynamically via XHR. Static HTML dumps are empt
 
 **User ID:** `179929687` (Zayd). User slug: `179929687-zayd-khan`.
 
-## 6. Known Gaps
+## 7. Known Gaps
 
 | Area | Status |
 |---|---|
+| Shelf add/remove (to-read etc.) | ✅ Live-verified 2026-07-27 (`POST /shelf/add_to_shelf`) |
 | Per-note delete | ✅ Verified (`POST /notes/{id}/{annot} _method=delete`) |
 | Per-note visibility toggle | ⚠️ Inferred, not CDP-captured |
 | Per-note spoiler | ⚠️ Inferred, not CDP-captured |
 | Per-note like | ❌ Not mapped |
 | Per-note comment | ❌ Not mapped |
-| Quotes write (add/remove/reorder) | ✅ Mapped & live-verified 2026-06-08 (`POST /quotes`, `/quotes/{slug}/remove`, `/quotes/move_{up,down,top,bottom}/{id}`, `/quotes/update_positions`) |
+| Quotes write (add/remove/reorder) | ✅ Mapped & live-verified 2026-06-08 |
+| Title/author → book_id resolver | ❌ Agent-side / web search; public `/search` often 202 bot wall |
 | Pagination (shelf pages 2+) | ❌ CLI only reads page 1 |
 
-## 7. Shelf Gate
+## 8. Shelf Gate
 
-The "Make all N visible" button opens a shelving modal when the browser session is NOT properly authenticated. If the page shows "Read" but the modal says "first add this book to a shelf", the debug Chrome's cookies are stale. Re-copy fresh cookies.
+The "Make all N visible" button opens a shelving modal when the browser session is NOT properly authenticated. If the page shows "Read" but the modal says "first add this book to a shelf", the debug Chrome's cookies are stale. Re-copy fresh cookies **once** — that same cookie unlocks notes + shelves.
 
-## 8. Cross-Machine (mothership)
+## 9. Cross-Machine (mothership)
 
 ```bash
 # Dispatch Claude headless on mothership
@@ -159,19 +219,20 @@ ssh mothership "claude --dangerously-skip-permissions -p '...'"
 
 # Mothership known issues: VRM overheat under sustained load (Z370-P + i7-9700K + RTX 2080 Ti)
 # Python: python (not python3), v3.10.7 at C:\Python310\
-# Node: v24.15.0, pnpm available
+# Node: v24+, pnpm via npx / corepack
 ```
 
-## 9. Safety
+## 10. Safety
 
 - Never print raw highlights, cookies, CSRF tokens, or private URLs
 - Every write defaults to dry-run unless `--execute` + approval gates passed
 - Generic mapped mutations additionally require exact `--approved-route` and `GOODREADS_ALLOW_GENERIC_WRITES=1`
 - Notes publicize requires all three: `--execute`, `--approved-book-id`, `GOODREADS_ALLOW_NOTES_PUBLICIZE=1`
+- Shelf add/remove: dry-run unless `--execute` (same cookie session; CSRF auto-refresh)
 - Delete is IRREVERSIBLE (but notes may be recoverable via re-publicize)
-- Verify after every live operation — never trust HTTP 200
+- Verify after every live operation — never trust HTTP 200 alone (`requestAccepted` ≠ `mutationVerified`)
 
-## 10. Self-Extension Protocol
+## 11. Self-Extension Protocol
 
 If you discover an endpoint not in `api-map/`:
 1. Add to `api-map/openapi/` and `api-map/markdown/`

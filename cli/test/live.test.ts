@@ -1,5 +1,9 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildLiveRequestPlan, executeLiveRequest } from "../src/client/live.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  buildLiveRequestPlan,
+  executeLiveRequest,
+  extractCsrfToken,
+} from "../src/client/live.js";
 import { requestExecute } from "../src/engine.js";
 import type { GoodreadsRoute } from "../src/lib.js";
 
@@ -42,6 +46,12 @@ const unauthenticatedPostRoute: GoodreadsRoute = {
 const originalCookie = process.env.GOODREADS_COOKIE;
 const originalCsrf = process.env.GOODREADS_CSRF_TOKEN;
 const originalGenericGate = process.env.GOODREADS_ALLOW_GENERIC_WRITES;
+const originalSkipRefresh = process.env.GOODREADS_SKIP_CSRF_REFRESH;
+
+beforeEach(() => {
+  // Unit tests stub a single fetch; production always refreshes CSRF from cookie.
+  process.env.GOODREADS_SKIP_CSRF_REFRESH = "1";
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -51,6 +61,8 @@ afterEach(() => {
   else process.env.GOODREADS_CSRF_TOKEN = originalCsrf;
   if (originalGenericGate === undefined) delete process.env.GOODREADS_ALLOW_GENERIC_WRITES;
   else process.env.GOODREADS_ALLOW_GENERIC_WRITES = originalGenericGate;
+  if (originalSkipRefresh === undefined) delete process.env.GOODREADS_SKIP_CSRF_REFRESH;
+  else process.env.GOODREADS_SKIP_CSRF_REFRESH = originalSkipRefresh;
 });
 
 describe("live request safety", () => {
@@ -120,6 +132,33 @@ describe("live request safety", () => {
     expect(init.headers).not.toHaveProperty("x-csrf-token");
     expect(body.get("event")).toBe("opened");
     expect(body.has("authenticity_token")).toBe(false);
+  });
+
+  it("sends browser-like origin headers on live mutations", async () => {
+    process.env.GOODREADS_COOKIE = "secret-cookie";
+    process.env.GOODREADS_CSRF_TOKEN = "secret-csrf";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('{"ok":true}', {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await executeLiveRequest(mutationRoute, {
+      pathParams: { book_id: "123" },
+      form: { visible: "true" },
+      execute: true,
+    });
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers.referer).toBe("https://www.goodreads.com/");
+    expect(headers.origin).toBe("https://www.goodreads.com");
+    expect(headers["x-requested-with"]).toBe("XMLHttpRequest");
+    expect(headers.cookie).toBe("secret-cookie");
+    expect(headers["x-csrf-token"]).toBe("secret-csrf");
+    const body = init.body as URLSearchParams;
+    expect(body.get("authenticity_token")).toBe("secret-csrf");
   });
 
   it("does not report a 202 anti-bot page as an accepted mutation", async () => {
@@ -212,6 +251,7 @@ describe("live request safety", () => {
   });
 
   it("requires the generic write gate and exact route approval", async () => {
+    delete process.env.GOODREADS_ALLOW_GENERIC_WRITES;
     await expect(
       requestExecute({
         routeSelector: "PUT /notes/{book_id}/share",
@@ -230,5 +270,53 @@ describe("live request safety", () => {
         approvedRoute: "POST /quotes",
       }),
     ).rejects.toThrow("approvedRoute to exactly equal");
+  });
+});
+
+describe("csrf refresh from the same cookie session", () => {
+  it("extracts csrf-token meta and authenticity_token inputs", () => {
+    expect(
+      extractCsrfToken('<meta name="csrf-token" content="abc123token" />'),
+    ).toBe("abc123token");
+    expect(
+      extractCsrfToken('<input name="authenticity_token" value="form-token-xyz" />'),
+    ).toBe("form-token-xyz");
+    expect(extractCsrfToken("<html>nope</html>")).toBeNull();
+  });
+
+  it("mints a fresh CSRF from the cookie session before writes", async () => {
+    delete process.env.GOODREADS_SKIP_CSRF_REFRESH;
+    process.env.GOODREADS_COOKIE = "session-cookie";
+    delete process.env.GOODREADS_CSRF_TOKEN;
+
+    const signedInHtml =
+      '<html><meta name="csrf-token" content="fresh-from-cookie" /><a href="/user/sign_out">Sign Out</a></html>';
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(signedInHtml, { status: 200, headers: { "content-type": "text/html" } }),
+      )
+      .mockResolvedValueOnce(
+        new Response('{"ok":true}', {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await executeLiveRequest(mutationRoute, {
+      pathParams: { book_id: "123" },
+      form: { visible: "true" },
+      execute: true,
+    });
+    // first call = csrf refresh GET, second = mutation
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(process.env.GOODREADS_CSRF_TOKEN).toBe("fresh-from-cookie");
+    const mutationInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    const headers = mutationInit.headers as Record<string, string>;
+    expect(headers["x-csrf-token"]).toBe("fresh-from-cookie");
+    expect(headers.referer).toBe("https://www.goodreads.com/");
+    expect(headers.origin).toBe("https://www.goodreads.com");
+    expect(headers["x-requested-with"]).toBe("XMLHttpRequest");
   });
 });

@@ -46,6 +46,9 @@ export interface LiveRequestResult {
 
 export const TRUSTED_GOODREADS_ORIGIN = "https://www.goodreads.com";
 
+/** Authenticated page used to mint a fresh Rails CSRF from the same cookie session. */
+export const CSRF_REFRESH_URL = `${TRUSTED_GOODREADS_ORIGIN}/`;
+
 function isTrustedGoodreadsUrl(url: URL): boolean {
   return url.protocol === "https:" && url.origin === TRUSTED_GOODREADS_ORIGIN;
 }
@@ -120,7 +123,7 @@ export function buildLiveRequestPlan(
       cookieEnv: "GOODREADS_COOKIE",
       csrfEnv: "GOODREADS_CSRF_TOKEN",
       cookiePresent: Boolean(process.env.GOODREADS_COOKIE),
-      csrfPresent: Boolean(process.env.GOODREADS_CSRF_TOKEN),
+      csrfPresent: Boolean(process.env.GOODREADS_CSRF_TOKEN || options.form?.authenticity_token),
     },
     bodyMode: requestBodyMode(options),
   };
@@ -135,11 +138,91 @@ function assertCredentialBoundary(plan: LiveRequestPlan, options: LiveExecuteOpt
   if (plan.requiresCookie && !process.env.GOODREADS_COOKIE) {
     throw new Error("GOODREADS_COOKIE is required for live Goodreads mutations");
   }
-  if (plan.requiresCsrf && !process.env.GOODREADS_CSRF_TOKEN && !options.form?.authenticity_token) {
+  // CSRF may be minted from the cookie session immediately before the write
+  // (ensureFreshCsrf). Callers may still supply form authenticity_token.
+  if (
+    plan.requiresCsrf &&
+    !process.env.GOODREADS_CSRF_TOKEN &&
+    !options.form?.authenticity_token &&
+    !process.env.GOODREADS_COOKIE
+  ) {
     throw new Error(
-      "GOODREADS_CSRF_TOKEN or form authenticity_token is required for live Goodreads mutations",
+      "GOODREADS_COOKIE (for CSRF refresh) or GOODREADS_CSRF_TOKEN / form authenticity_token is required for live Goodreads mutations",
     );
   }
+}
+
+/**
+ * Extract a Rails CSRF token from authenticated Goodreads HTML.
+ * Same session cookie as every other write — no separate login.
+ */
+export function extractCsrfToken(html: string): string | null {
+  const meta =
+    html.match(/name=["']csrf-token["']\s+content=["']([^"']+)["']/i) ||
+    html.match(/content=["']([^"']+)["']\s+name=["']csrf-token["']/i);
+  if (meta?.[1]) return meta[1];
+  const input = html.match(
+    /name=["']authenticity_token["'][^>]*value=["']([^"']+)["']/i,
+  );
+  return input?.[1] ?? null;
+}
+
+/**
+ * Mint a fresh CSRF from the live cookie session before Rails mutations.
+ * Stale GOODREADS_CSRF_TOKEN values from auth.sh cause opaque 404s; the cookie
+ * is the durable credential. publicize.py does the same pattern.
+ *
+ * Skip when:
+ * - plan does not need CSRF
+ * - caller already supplied form authenticity_token
+ * - GOODREADS_SKIP_CSRF_REFRESH=1 (tests / offline)
+ */
+export async function ensureFreshCsrf(
+  plan: LiveRequestPlan,
+  options: LiveExecuteOptions = {},
+): Promise<string | null> {
+  if (!plan.requiresCsrf) return process.env.GOODREADS_CSRF_TOKEN ?? null;
+  if (options.form?.authenticity_token) {
+    process.env.GOODREADS_CSRF_TOKEN = options.form.authenticity_token;
+    return options.form.authenticity_token;
+  }
+  if (process.env.GOODREADS_SKIP_CSRF_REFRESH === "1") {
+    return process.env.GOODREADS_CSRF_TOKEN ?? null;
+  }
+  const cookie = process.env.GOODREADS_COOKIE;
+  if (!cookie) return process.env.GOODREADS_CSRF_TOKEN ?? null;
+
+  const response = await fetch(CSRF_REFRESH_URL, {
+    method: "GET",
+    headers: {
+      cookie,
+      "user-agent": "goodreads-cli/1.0.0 (+https://github.com/zaydiscold/goodreads-cli-mcp-api)",
+      accept: "text/html,application/xhtml+xml",
+    },
+    redirect: "follow",
+    signal: AbortSignal.timeout(30_000),
+  });
+  const html = await response.text();
+  const challenge = responseChallenge(response.status, response.headers.get("content-type") ?? "", html);
+  if (challenge === "authentication") {
+    throw new Error(
+      "Goodreads cookie session is not signed in; re-extract GOODREADS_COOKIE from a logged-in browser",
+    );
+  }
+  if (challenge === "anti-bot") {
+    throw new Error(
+      "Goodreads anti-bot challenge while refreshing CSRF; retry from a browser-authenticated session",
+    );
+  }
+  const token = extractCsrfToken(html);
+  if (!token) {
+    if (process.env.GOODREADS_CSRF_TOKEN) return process.env.GOODREADS_CSRF_TOKEN;
+    throw new Error(
+      "Could not extract csrf-token from authenticated Goodreads HTML; check GOODREADS_COOKIE",
+    );
+  }
+  process.env.GOODREADS_CSRF_TOKEN = token;
+  return token;
 }
 
 function requestHeaders(plan: LiveRequestPlan): Record<string, string> {
@@ -152,6 +235,13 @@ function requestHeaders(plan: LiveRequestPlan): Record<string, string> {
   }
   if (plan.requiresCsrf && process.env.GOODREADS_CSRF_TOKEN) {
     headers["x-csrf-token"] = process.env.GOODREADS_CSRF_TOKEN;
+  }
+  // Goodreads returns opaque HTTP 404 on mutations without browser-like
+  // origin headers. Same lesson as ~/.goodreads/publicize.py (Referer required).
+  if (plan.mutatesAccount) {
+    headers.referer = `${TRUSTED_GOODREADS_ORIGIN}/`;
+    headers.origin = TRUSTED_GOODREADS_ORIGIN;
+    headers["x-requested-with"] = "XMLHttpRequest";
   }
   return headers;
 }
@@ -196,7 +286,11 @@ async function summarizeResponse(
   const text = await response.text();
   const redirected = response.status >= 300 && response.status < 400;
   if (!response.ok && !redirected) {
-    throw new Error(`Goodreads returned HTTP ${response.status} for ${route.method} ${route.path}`);
+    const detail = text.slice(0, 200).replace(/\s+/g, " ").trim();
+    throw new Error(
+      `Goodreads returned HTTP ${response.status} for ${route.method} ${route.path}` +
+        (detail ? `: ${detail}` : ""),
+    );
   }
   const redirectLocation = validateRedirect(response, plan);
   const challenge = responseChallenge(response.status, contentType, text);
@@ -221,6 +315,13 @@ export async function executeLiveRequest(
   const plan = buildLiveRequestPlan(route, options);
   if (plan.dryRun) return plan;
   assertCredentialBoundary(plan, options);
+  await ensureFreshCsrf(plan, options);
+  // Re-check after refresh — cookie-only sessions must have a token by now.
+  if (plan.requiresCsrf && !process.env.GOODREADS_CSRF_TOKEN && !options.form?.authenticity_token) {
+    throw new Error(
+      "GOODREADS_CSRF_TOKEN or form authenticity_token is required for live Goodreads mutations",
+    );
+  }
   const headers = requestHeaders(plan);
   const body = requestBody(plan, options, headers);
 

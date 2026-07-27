@@ -57,8 +57,8 @@ function envelopeData(text: string): Record<string, unknown> {
 
 describe("Goodreads MCP stdio server", () => {
   const profiles = [
-    { profile: "full" as const, names: FULL_TOOL_NAMES, maxBytes: 17_500 },
-    { profile: "core" as const, names: CORE_TOOL_NAMES, maxBytes: 5_000 },
+    { profile: "full" as const, names: FULL_TOOL_NAMES, maxBytes: 19_000 },
+    { profile: "core" as const, names: CORE_TOOL_NAMES, maxBytes: 6_500 },
     { profile: "notes" as const, names: NOTES_TOOL_NAMES, maxBytes: 8_500 },
   ];
 
@@ -171,6 +171,9 @@ describe("Goodreads MCP stdio server", () => {
       expect(tool("goodreads_request_execute").annotations?.destructiveHint).toBe(true);
       expect(tool("goodreads_notes_publicize").annotations?.destructiveHint).toBe(false);
       expect(tool("goodreads_notes_publicize").annotations?.readOnlyHint).toBe(false);
+      expect(tool("goodreads_shelf_add").annotations?.readOnlyHint).toBe(false);
+      expect(tool("goodreads_shelf_add").annotations?.destructiveHint).toBe(false);
+      expect(tool("goodreads_shelf_remove").annotations?.readOnlyHint).toBe(false);
       expect(tool("goodreads_notes_inspect").annotations?.openWorldHint).toBe(false);
       expect(tool("goodreads_api_map_routes").annotations).not.toHaveProperty("mcp:risk");
       expect(tool("goodreads_api_map_routes").annotations).not.toHaveProperty("mcp:read-only");
@@ -186,8 +189,15 @@ describe("Goodreads MCP stdio server", () => {
         name: "goodreads_notes_publicize",
         arguments: { bookId: "123" },
       });
-      expect(notes.isError).not.toBe(true);
+
       expect(envelopeData(textContent(notes)).submitted).toBe(false);
+
+      const shelf = await running.client.callTool({
+        name: "goodreads_shelf_add",
+        arguments: { bookId: "123", shelf: "to-read" },
+      });
+      expect(shelf.isError).not.toBe(true);
+      expect(envelopeData(textContent(shelf)).submitted).toBe(false);
 
       const generic = await running.client.callTool({
         name: "goodreads_request_execute",

@@ -18,6 +18,8 @@ export const FULL_TOOL_NAMES = [
   "goodreads_quotes_add",
   "goodreads_quotes_remove",
   "goodreads_quotes_reorder",
+  "goodreads_shelf_add",
+  "goodreads_shelf_remove",
   "goodreads_recent_reading_list",
   "goodreads_recent_reading_notes",
   "goodreads_recent_reading_publicize_plan",
@@ -41,6 +43,8 @@ export const CORE_TOOL_NAMES = [
   "goodreads_notes_publicize_plan",
   "goodreads_notes_publicize",
   "goodreads_notes_hide",
+  "goodreads_shelf_add",
+  "goodreads_shelf_remove",
 ] as const satisfies readonly GoodreadsToolName[];
 
 export const NOTES_TOOL_NAMES = [

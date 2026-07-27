@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased — 2026-07-27
+
+Snap a bookstore stack photo → agent resolves ids → Want to Read. Same cookie
+session as notes; CSRF auto-refresh so the next write feature doesn't eat
+stale-token 404s.
+
+### Shelf add / remove (live)
+
+- First-class `shelves add` / `shelves remove` CLI commands + MCP tools
+  `goodreads_shelf_add` / `goodreads_shelf_remove` (also in `core` profile).
+- Drives proven route `POST /shelf/add_to_shelf` with `book_id` + `name`
+  (`to-read` / `currently-reading` / `read` / custom) and `a=remove` for remove.
+- Live-verified 2026-07-27: Catching the Big Fish (`58169`), Fantastic Mr. Fox
+  (`6693`), Edison's Alley (`20875669`) added to to-read and confirmed via RSS.
+
+### Auth hardening (same cookie for every write)
+
+- Mutation client always sends `Referer` + `Origin` + `X-Requested-With` on
+  account writes (Goodreads returns opaque 404s without them — same lesson as
+  `publicize.py`).
+- **Auto CSRF refresh:** before live Rails mutations, GET
+  `https://www.goodreads.com/` with `GOODREADS_COOKIE` and mint a fresh
+  `csrf-token`. Stale `GOODREADS_CSRF_TOKEN` in auth.sh no longer breaks shelves
+  or notes. Skip only with `GOODREADS_SKIP_CSRF_REFRESH=1` (tests).
+- Error bodies are surfaced on failed writes (e.g. `Sorry, we couldn't find that book.`).
+- Docs: `docs/auth.md`, `docs/write-operations.md`, `docs/gotchas.md`, `SKILL.md`.
+
 ## 1.0.0 — 2026-07-14
 
 First stable release of the paired Goodreads API map, CLI, and MCP server.
