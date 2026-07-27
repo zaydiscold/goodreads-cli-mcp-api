@@ -15,6 +15,7 @@ import { recentReadingCommand } from "../src/commands/recentReading.js";
 import { requestCommand } from "../src/commands/request.js";
 import { shelvesCommand } from "../src/commands/shelves.js";
 import { writePlanCommand } from "../src/commands/writePlan.js";
+import { libraryCommand } from "../src/commands/libraryCommand.js";
 
 // Walk a commander command tree and collect every leaf command's full path
 // (space-joined). A leaf is a command with no subcommands.
@@ -37,6 +38,7 @@ const CLI_GROUPS = [
   recentReadingCommand(),
   requestCommand(),
   writePlanCommand(),
+  libraryCommand(),
 ];
 
 const cliPaths = new Set(CLI_GROUPS.flatMap((group) => leafPaths(group, group.name())));

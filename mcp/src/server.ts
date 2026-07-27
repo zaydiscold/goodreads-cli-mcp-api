@@ -46,7 +46,7 @@ import {
   shelvesDiscover,
   writePlanNotesPublicize,
   type Envelope,
-} from "@zaydiscold/goodreads-cli/engine";
+ls, ss, ru, rv } from "@zaydiscold/goodreads-cli/engine";
 import type { RiskLevel } from "@zaydiscold/goodreads-cli/risk";
 import { parseMcpProfile, toolsForProfile, type GoodreadsToolName } from "./profile.js";
 
@@ -676,3 +676,34 @@ registerTool(
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
+
+registerTool("goodreads_library_show",{
+  title:"Library Show",
+  description:"Read current status, rating, and review for one book.",
+  inputSchema:{bookId:z.string(),includeReviewId:z.boolean().default(false)},
+  annotations:toolAnnotations(true,"read"),
+},async({bookId,includeReviewId})=>emit(await ls({bookId,includeReviewId})));
+
+registerTool("goodreads_library_set_status",{
+  title:"Library Set Status",
+  description:"Set reading status (to-read/currently-reading/read). Dry-run unless execute=true.",
+  inputSchema:{bookId:z.string(),status:z.enum(["to-read","currently-reading","read"]),approvedBookId:z.array(z.string()).default([]),approvedStatus:z.string().optional(),execute:z.boolean().default(false)},
+  annotations:toolAnnotations(false,"write-mutate"),
+},async({bookId,status,approvedBookId,approvedStatus,execute})=>emit(await ss({bookId,status,approvedBookId,approvedStatus,execute})));
+
+registerTool("goodreads_rating_update",{
+  title:"Rating Update",
+  description:"Set or clear star rating. Returns needs_capture until AppSync capture.",
+  inputSchema:{bookId:z.string(),action:z.enum(["set","clear"]),rating:z.number().int().min(1).max(5).optional(),approvedBookId:z.array(z.string()).default([]),approvedRating:z.number().int().min(1).max(5).optional(),execute:z.boolean().default(false)},
+  annotations:toolAnnotations(false,"write-mutate"),
+},async({bookId,action,rating,approvedBookId,approvedRating,execute})=>emit(await ru({bookId,action,rating:rating as 1|2|3|4|5|undefined,approvedBookId,approvedRating:approvedRating as 1|2|3|4|5|undefined,execute})));
+registerTool("goodreads_review_upsert",{
+  title:"Review Upsert",
+  description:"Create or update review text. Returns needs_capture until browser capture.",
+  inputSchema:{bookId:z.string(),reviewText:z.string(),approvedBookId:z.array(z.string()).default([]),approvedTextSha256:z.string().optional(),execute:z.boolean().default(false)},
+  annotations:toolAnnotations(false,"write-mutate"),
+},async({bookId,reviewText,approvedBookId,approvedTextSha256,execute})=>emit(await rv({bookId,reviewText,approvedBookId,approvedTextSha256,execute})));
+
+
+
+

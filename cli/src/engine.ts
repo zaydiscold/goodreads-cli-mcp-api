@@ -46,6 +46,12 @@ import {
   buildRecentReadingPublicizePlan,
   checkPublicizeApproval,
 } from "./workflows/recentReading.js";
+import { ls as _ls, ss as _ss, ru as _ru, rv as _rv } from "./workflows/libraryWrites.js";
+
+export const ls = _ls;
+export const ss = _ss;
+export const ru = _ru;
+export const rv = _rv;
 
 const DEFAULT_BASE_URL = "https://www.goodreads.com";
 
@@ -266,6 +272,34 @@ export const CAPABILITIES: Capability[] = [
     key: "request-execute",
     cli: "request execute",
     mcpTool: "goodreads_request_execute",
+    readOnly: false,
+    risk: "write-mutate",
+  },
+  {
+    key: "library-show",
+    cli: "library show",
+    mcpTool: "goodreads_library_show",
+    readOnly: true,
+    risk: "read",
+  },
+  {
+    key: "set-status",
+    cli: "library set-status",
+    mcpTool: "goodreads_library_set_status",
+    readOnly: false,
+    risk: "write-mutate",
+  },
+  {
+    key: "rating-update",
+    cli: "library rating",
+    mcpTool: "goodreads_rating_update",
+    readOnly: false,
+    risk: "write-mutate",
+  },
+  {
+    key: "review-upsert",
+    cli: "library review",
+    mcpTool: "goodreads_review_upsert",
     readOnly: false,
     risk: "write-mutate",
   },

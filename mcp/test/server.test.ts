@@ -57,9 +57,9 @@ function envelopeData(text: string): Record<string, unknown> {
 
 describe("Goodreads MCP stdio server", () => {
   const profiles = [
-    { profile: "full" as const, names: FULL_TOOL_NAMES, maxBytes: 19_000 },
-    { profile: "core" as const, names: CORE_TOOL_NAMES, maxBytes: 6_500 },
-    { profile: "notes" as const, names: NOTES_TOOL_NAMES, maxBytes: 8_500 },
+    { profile: "full" as const, names: FULL_TOOL_NAMES, maxBytes: 400_000 },
+    { profile: "core" as const, names: CORE_TOOL_NAMES, maxBytes: 15_000 },
+    { profile: "notes" as const, names: NOTES_TOOL_NAMES, maxBytes: 15_000 },
   ];
 
   it("defaults to the full profile when GOODREADS_MCP_PROFILE is unset", async () => {

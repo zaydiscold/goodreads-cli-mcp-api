@@ -24,6 +24,7 @@ import { requestCommand } from "./commands/request.js";
 import { recentReadingCommand } from "./commands/recentReading.js";
 import { shelvesCommand } from "./commands/shelves.js";
 import { writePlanCommand } from "./commands/writePlan.js";
+import { libraryCommand } from "./commands/libraryCommand.js";
 
 const program = new Command();
 
@@ -46,6 +47,7 @@ program.addCommand(quotesCommand());
 program.addCommand(recentReadingCommand());
 program.addCommand(requestCommand());
 program.addCommand(writePlanCommand());
+program.addCommand(libraryCommand());
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);

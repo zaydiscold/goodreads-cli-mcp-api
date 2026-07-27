@@ -29,6 +29,10 @@ export const FULL_TOOL_NAMES = [
   "goodreads_request_plan",
   "goodreads_request_execute",
   "goodreads_dynamic_inventory_guidance",
+  "goodreads_library_show",
+  "goodreads_library_set_status",
+  "goodreads_rating_update",
+  "goodreads_review_upsert",
 ] as const;
 
 export type GoodreadsToolName = (typeof FULL_TOOL_NAMES)[number];
