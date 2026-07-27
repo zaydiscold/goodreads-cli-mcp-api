@@ -68,19 +68,20 @@ The thing that makes this more than a script: **the CLI and the MCP server share
 
 That invariant is enforced by code, not vigilance: a `CAPABILITIES` registry in the engine is checked **in both directions** by [`cli/test/parity.test.ts`](./cli/test/parity.test.ts) — every capability must have a CLI command **and** an MCP tool, with no orphans on either side. Add a command without its MCP twin and CI goes red.
 
-Live tool truth is always `tools/list`; the tested `full` profile currently exposes 28 tools.
+Live tool truth is always `tools/list`; the tested `full` profile currently exposes 30 tools.
 
 For cron-based automation on WSL, see [`wsl-sync.sh`](./wsl-sync.sh) — a daily sync script that pulls reading data to your Windows Desktop.
 
 ## Command tour — what answers what
 
-All reads run live and free. All writes default to a dry-run; the notes workflow needs the three explicit gates below.
+All reads run live and free. All writes default to a dry-run; the notes workflow needs the three explicit gates below. **One browser cookie drives every write** — CSRF is auto-refreshed from that cookie before live Rails mutations (see [`docs/auth.md`](./docs/auth.md)).
 
 | Command | The question it answers |
 |---|---|
 | `api-map routes` / `api-map search "<q>"` | "What can this drive?" — 114 mapped web operations plus 10 searchable AppSync catalog entries |
 | `api-map browser-routes` | "What did the authenticated CDP capture see?" — sanitized route templates |
 | `shelves discover` | "What shelves do I have, and how many books in each?" |
+| `shelves add` / `shelves remove` | "Add/remove a book on want-to-read (`to-read`), currently-reading, read, or a custom shelf" (dry-run unless `--execute`) |
 | `books list --shelf <s>` | "List one shelf" — from authenticated HTML fixtures or public RSS |
 | `books export --fixture-dir <d>` | "Export my shelves" — deduped by book, with per-shelf membership + completeness flags |
 | `book show <slug-or-id>` | "Parse this book page" — JSON-LD + Next.js metadata |
@@ -102,13 +103,18 @@ All reads run live and free. All writes default to a dry-run; the notes workflow
 goodreads-cli shelves discover --fixture ./fixtures/shelf-read.html
 goodreads-cli api-map search "publicize notes"
 
+# Want-to-read: dry-run by default; --execute fires live POST /shelf/add_to_shelf
+# (same GOODREADS_COOKIE as notes; CSRF auto-refreshed)
+goodreads-cli shelves add --book-id <id> --name to-read
+goodreads-cli shelves add --book-id <id> --name to-read --execute
+
 # Quote writes: dry-run by default; --execute fires the live Rails-UJS POST
 goodreads-cli quotes reorder --quote-id <id> --direction top            # dry-run plan
 goodreads-cli quotes reorder --quote-id <id> --direction top --execute  # live
 
 # Notes publicize/hide: gated THREE ways — --execute + exact --approved-book-id + env flag
 GOODREADS_ALLOW_NOTES_PUBLICIZE=1 \
-GOODREADS_COOKIE="session-id=..." GOODREADS_CSRF_TOKEN="..." \
+GOODREADS_COOKIE="session-id=..." \
 goodreads-cli notes publicize --book-id <id> --approved-book-id <id> --execute --json
 
 # Generic mapped mutation: dry-run unless all three exact gates are present

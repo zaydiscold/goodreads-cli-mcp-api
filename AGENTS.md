@@ -52,8 +52,10 @@ proofs/         sanitized run proofs (counts/status/timing only — no highlight
 2. **Safety: reads are free, writes gate.** Reads run live. Every write builds a
    dry-run plan by default. Notes publicize/hide require all three gates —
    `--execute`, an exact `--approved-book-id`, and `GOODREADS_ALLOW_NOTES_PUBLICIZE=1`
-   (enforced in `checkPublicizeApproval`). Quote writes default to dry-run and
-   need `--execute`. Output must **never** contain raw highlight text, comment
+   (enforced in `checkPublicizeApproval`). Quote and shelf writes default to dry-run
+   and need `--execute`. Live Rails mutations auto-refresh CSRF from
+   `GOODREADS_COOKIE` and send `Referer`/`Origin`/`X-Requested-With` (see
+   `docs/auth.md`). Output must **never** contain raw highlight text, comment
    bodies, cookies, CSRF tokens, or private URLs.
 
 ## Build / test / typecheck

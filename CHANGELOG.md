@@ -10,9 +10,18 @@
   (`to-read` / `currently-reading` / `read` / custom) and `a=remove` for remove.
 - Live-verified 2026-07-27: Catching the Big Fish (`58169`), Fantastic Mr. Fox
   (`6693`), Edison's Alley (`20875669`) added to to-read and confirmed via RSS.
-- Mutation client now sends `Referer` + `Origin` + `X-Requested-With` on writes
-  (Goodreads returns opaque 404s without them — same lesson as `publicize.py`).
+
+### Auth hardening (same cookie for every write)
+
+- Mutation client always sends `Referer` + `Origin` + `X-Requested-With` on
+  account writes (Goodreads returns opaque 404s without them — same lesson as
+  `publicize.py`).
+- **Auto CSRF refresh:** before live Rails mutations, GET
+  `https://www.goodreads.com/` with `GOODREADS_COOKIE` and mint a fresh
+  `csrf-token`. Stale `GOODREADS_CSRF_TOKEN` in auth.sh no longer breaks shelves
+  or notes. Skip only with `GOODREADS_SKIP_CSRF_REFRESH=1` (tests).
 - Error bodies are surfaced on failed writes (e.g. `Sorry, we couldn't find that book.`).
+- Docs: `docs/auth.md`, `docs/write-operations.md`, `docs/gotchas.md`, `SKILL.md`.
 
 ## 1.0.0 — 2026-07-14
 
