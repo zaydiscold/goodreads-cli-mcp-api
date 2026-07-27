@@ -2,6 +2,10 @@
 
 ## Unreleased — 2026-07-27
 
+Snap a bookstore stack photo → agent resolves ids → Want to Read. Same cookie
+session as notes; CSRF auto-refresh so the next write feature doesn't eat
+stale-token 404s.
+
 ### Shelf add / remove (live)
 
 - First-class `shelves add` / `shelves remove` CLI commands + MCP tools

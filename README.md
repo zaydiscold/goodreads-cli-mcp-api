@@ -4,6 +4,8 @@
 
 An unofficial **API map + CLI + MCP server** for the logged-in Goodreads web surface — shelves, books, ratings, reviews, quotes, and Kindle notes & highlights — driven from the terminal or from your agents, without ever opening the website. Amazon closed the public Goodreads API to new keys in December 2020, so this drives the web surface from a hand-mapped OpenAPI spec: a TypeScript CLI **and** an MCP server sharing one engine. **The map is the headline; the CLI and MCP are the proof it's real.**
 
+Snap a photo of a stack at a bookstore, hand it to your agent, and it can land those titles on your **Want to Read** shelf — same session cookie as notes publicize, with CSRF auto-refreshed so every write feature stops dying on stale tokens.
+
 ---
 
 ## ⚠️ Disclaimer
@@ -34,24 +36,24 @@ or missing generated artifacts before opening stdio.
 
 ## v1.0.0 — 70.98% fewer MCP discovery tokens
 
-The stable release keeps the complete 28-tool compatibility profile while making
-the eight-tool `core` profile the practical default for agents:
+The stable release keeps the complete compatibility profile while making
+the `core` profile the practical default for agents (now includes shelf add/remove):
 
 | Measurement | Full | Core | Reduction |
 | --- | ---: | ---: | ---: |
 | `tools/list` tokens (`o200k_base`) | 4,011 | 1,164 | **70.98%** |
 | Compact JSON bytes | 17,034 | 4,830 | **71.64%** |
-| Visible tools | 28 | 8 | **71.43%** |
+| Visible tools | 30 | 10 | — |
 
-The 13-tool `notes` profile costs 1,956 tokens, a **51.23%** reduction from
-full. Profiles hide registrations only; all capabilities still use the same
-CLI/MCP engine and the full profile remains available for compatibility.
+Token table above is the v1.0.0 baseline (28→8). Current tip is **30 full / 10 core** after shelf add/remove; profiles still hide registrations only — all capabilities use the same CLI/MCP engine and full remains available for compatibility.
 
 ## What it does
 
 Full read **and** write across Goodreads:
 
-- **Shelves** — discover your shelf inventory + counts; list and export shelves (HTML pagination or RSS), deduped by book with per-shelf membership.
+- **Want to Read / shelves** — add or remove books on `to-read`, `currently-reading`, `read`, or custom shelves (live `POST /shelf/add_to_shelf`); discover inventory + counts; list and export (HTML pagination or RSS).
+- **Bookstore → shelf** — agent takes a photo (or title/author), resolves the numeric book id, and shelves it. Built so you can snap stacks in a shop and clear the backlog without opening the site.
+- **One cookie, every write** — notes, shelves, quotes, and raw routes share `GOODREADS_COOKIE`. CSRF is auto-minted from that session before Rails mutations, with browser-like `Referer`/`Origin` headers so new write features don't fail the old "stale token / opaque 404" way.
 - **Books** — parse any public book page (JSON-LD + Next.js metadata).
 - **Kindle Notes & Highlights** — inspect notes metadata, plan + execute publicize/hide (gated), and join your current/read shelves to your notes index.
 - **Annotations** — per-highlight annotation metadata (visibility, spoiler, persist endpoints) without raw highlight text.
