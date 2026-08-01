@@ -16,7 +16,10 @@
     "format:check": "prettier --check cli/src cli/test mcp/src mcp/test scripts",
     "cli": "corepack pnpm --filter @zaydiscold/goodreads-cli cli",
     "mcp": "scripts/goodreads-mcp.sh",
-    "doctor": "node scripts/goodreads-doctor.mjs"
+    "doctor": "node scripts/goodreads-doctor.mjs",
+    "integrity": "node scripts/source-integrity.mjs",
+    "clean": "node scripts/clean-dist.mjs",
+    "prebuild": "node scripts/source-integrity.mjs && node scripts/clean-dist.mjs"
   },
   "devDependencies": {
     "@types/node": "^25.9.5",
