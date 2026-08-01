@@ -693,13 +693,13 @@ registerTool("goodreads_library_set_status",{
 
 registerTool("goodreads_rating_update",{
   title:"Rating Update",
-  description:"Set or clear star rating. Returns needs_capture until AppSync capture.",
+  description:"Set or clear star rating. Uses POST /review/update/{book_id}; dry-run unless execute=true.",
   inputSchema:{bookId:z.string(),action:z.enum(["set","clear"]),rating:z.number().int().min(1).max(5).optional(),approvedBookId:z.array(z.string()).default([]),approvedRating:z.number().int().min(1).max(5).optional(),execute:z.boolean().default(false)},
   annotations:toolAnnotations(false,"write-mutate"),
 },async({bookId,action,rating,approvedBookId,approvedRating,execute})=>emit(await ru({bookId,action,rating:rating as 1|2|3|4|5|undefined,approvedBookId,approvedRating:approvedRating as 1|2|3|4|5|undefined,execute})));
 registerTool("goodreads_review_upsert",{
   title:"Review Upsert",
-  description:"Create or update review text. Returns needs_capture until browser capture.",
+  description:"Create or update review text. Uses POST /review/update/{book_id}; dry-run unless execute=true.",
   inputSchema:{bookId:z.string(),reviewText:z.string(),approvedBookId:z.array(z.string()).default([]),approvedTextSha256:z.string().optional(),execute:z.boolean().default(false)},
   annotations:toolAnnotations(false,"write-mutate"),
 },async({bookId,reviewText,approvedBookId,approvedTextSha256,execute})=>emit(await rv({bookId,reviewText,approvedBookId,approvedTextSha256,execute})));

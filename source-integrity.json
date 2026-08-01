@@ -1,0 +1,20 @@
+{
+  "files": {
+    "cli/src/engine.ts": {
+      "minLines": 900,
+      "minBytes": 30000
+    },
+    "cli/src/index.ts": {
+      "minLines": 45,
+      "minBytes": 1500
+    },
+    "mcp/src/server.ts": {
+      "minLines": 600,
+      "minBytes": 24000
+    },
+    "mcp/src/profile.ts": {
+      "minLines": 60,
+      "minBytes": 1800
+    }
+  }
+}
