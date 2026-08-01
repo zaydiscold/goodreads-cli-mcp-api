@@ -228,3 +228,8 @@ Built on the trio pattern (CLI + skill + MCP) pioneered by [Matt Van Horn's Prin
 > *Read deliberately. Ship the complete thing. Return your books on time.* 📚
 
 <!-- Zayd Khan // cold // www.zayd.wtf -->
+
+### Haul tips (agent + human)
+- Prefer **one edition per work** on `to-read` (skip study guides / alternate storybooks unless asked).
+- If CSRF refresh hits an anti-bot challenge, set `GOODREADS_SKIP_CSRF_REFRESH=1` and use a fresh `GOODREADS_CSRF_TOKEN` from a browser session, then retry the write.
+- Product direction: a tiny web UI that logs into Goodreads + Amazon, accepts bookstore photos / camera roll, and runs bidirectional list sync on top of these CLIs.
