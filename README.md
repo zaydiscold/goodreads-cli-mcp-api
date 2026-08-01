@@ -6,6 +6,10 @@ An unofficial **API map + CLI + MCP server** for the logged-in Goodreads web sur
 
 Snap a photo of a stack at a bookstore, hand it to your agent, and it can land those titles on your **Want to Read** shelf — same session cookie as notes publicize, with CSRF auto-refreshed so every write feature stops dying on stale tokens.
 
+> **Bookstore photos → lists (live).** Agent photo → title resolve → `shelves add --name to-read --execute` is a **working path**. Pair it with the sibling [amazon-kindle-cli-mcp-api](https://github.com/zaydiscold/amazon-kindle-cli-mcp-api) (`wishlist add` / `parity` / `sync goodreads-plan`) for Goodreads ↔ Amazon wishlist / Kindle parity on the same haul — one photo stack, both lists.
+
+**Last shipped update (feature branch):** live library surfaces — `library set-status` reuses `POST /shelf/add_to_shelf`; rating + review ride `POST /review/update/{book_id}` (no stubs). See PR [#9](https://github.com/zaydiscold/goodreads-cli-mcp-api/pull/9).
+
 ---
 
 ## ⚠️ Disclaimer

@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — 2026-08-01
+
+### Bookstore haul + Kindle parity (live)
+
+- Photo → resolve → `shelves add --name to-read --execute` proven on multi-title
+  bookstore hauls (session cookie + auto CSRF). Titles land on Want to Read.
+- Cross-repo: pair with [amazon-kindle-cli-mcp-api](https://github.com/zaydiscold/amazon-kindle-cli-mcp-api)
+  (`wishlist add` / `parity` / `sync goodreads-plan`) for Goodreads ↔ Amazon
+  wishlist / Kindle list parity on the same stack.
+- Library writes no longer stubs: `set-status` reuses shelf add; rating/review
+  via `POST /review/update/{book_id}` (PR #9).
+
 ## Unreleased — 2026-07-27
 
 Snap a bookstore stack photo → agent resolves ids → Want to Read. Same cookie
