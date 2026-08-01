@@ -143,6 +143,7 @@ async function ratingFromRss(userId: string, bookId: string): Promise<number | n
   return null;
 }
 
+// eslint-disable-next-line complexity -- multi-shelf RSS + optional HTML enrichment
 export async function ls(o: LSO): Promise<CommandEnvelope<unknown>> {
   const uid = o.userId || process.env.GOODREADS_USER_ID || "179929687";
   const sources: string[] = [];
