@@ -12,4 +12,6 @@ Mapped undocumented or semi-documented Goodreads surfaces:
 - `/message/:folder`, `/message/show/:message_id`, `/message/move_batch` message surfaces.
 - 2026-05-26 authenticated Chrome CDP recapture added 15 sanitized route templates across home/feed, shelves, profile, messages, notes, friends, recommendations, tooltips, and load-more XHR. Evidence is in `proofs/cdp-goodreads-authenticated-sanitized-2026-05-26.json` and `api-map/browser-cdp-routes-2026-05-26.json`.
 
+- 2026-08-02 added public `/user/year_in_books/{year}/{user_id}` after Brave CDP plus independent HTTP verification. The dedicated parser emits totals, averages, and book identity/extrema only; review text is intentionally excluded. Evidence: `proofs/year-in-books-live-2026-08-02.json`.
+
 Discovery methods are documented in `research/current-api-sweep-2026-05-22.md` and `research/user-pages-map.md`.

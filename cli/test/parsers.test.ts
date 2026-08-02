@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import { buildLiveRequestPlan } from "../src/client/live.js";
 import { parseBookPage } from "../src/parsers/bookPage.js";
+import { parseYearInBooksPage } from "../src/parsers/yearInBooksPage.js";
 import { parseMessagePage } from "../src/parsers/messagePage.js";
 import { parseNotesPage } from "../src/parsers/notesPage.js";
 import { parseShelfHtml } from "../src/parsers/shelfHtml.js";
@@ -88,6 +89,46 @@ describe("Goodreads parsers", () => {
     expect(parsed.jsonLdBook.authors).toEqual(["Author"]);
     expect(parsed.hasNextData).toBe(true);
     expect(parsed.nextDataTypenames.Book).toBe(1);
+  });
+
+  it("parses Year in Books stats and book identity without review text", () => {
+    const html = `
+      <html><head><title>Reader's Year in Books</title></head><body>
+        <div class="herobannerYearText">2025</div>
+        <div class="heroImageContainer">
+          <div class="heroImageContainer__avatarOrCount"><div class="heroImageContainer__count">3,015</div><div class="heroImageContainer__countLabel">pages read</div></div>
+          <div class="heroImageContainer__avatarOrCount"><div class="heroImageContainer__count">9</div><div class="heroImageContainer__countLabel">books read</div></div>
+        </div>
+        <div class="yyibBooksLockup__bookContainer"><a href="/book/show/101-short"><img alt="Short Book by Ada Author"></a><div id="yyibShortestBookHeading">Shortest Book</div><div id="yyibShortestBookLabel">280 pages</div></div>
+        <div class="yyibBooksLockup__bookContainer"><a href="/book/show/202-long"><img alt="Long Book by Bob Author"></a><div id="yyibLongestBookHeading">Longest Book</div><div id="yyibLongestBookLabel">382 pages</div></div>
+        <div id="yyibAverageBookLengthLabel">Average book length in 2025</div><div class="yyibAverageBookLengthData">335 pages</div>
+        <div class="yyibBooksLockup__bookContainer"><a href="/book/show/303-most"><img alt="Most Book by Cee Author"></a><div id="yyibMostPopularHeading">Most Shelved</div><div id="yyibMostPopularLabel">860,295 people also shelved</div></div>
+        <div class="yyibBooksLockup__bookContainer"><a href="/book/show/404-least"><img alt="Least Book by Dee Author"></a><div id="yyibLeastPopularHeading">Least Shelved</div><div id="yyibLeastPopularLabel">15,509 people also shelved</div></div>
+        <div id="yyibAverageRatingLabel">Reader's average rating for 2025</div><div class="yyibAverageRatingData"><div class="yyibAverageRatingData__pageCount">4.6</div></div>
+        <div class="crowdFavoriteWidget"><a href="/book/show/505-high"><img alt="High Book by Eve Author"></a><div class="yyibCrowdFavoriteHeading">Highest Rated on Goodreads</div><div class="yyibCrowdFavoriteRatingLabel">4.47 average</div></div>
+        <div class="yyibFirstLastReview">Private review text must never be returned.</div>
+      </body></html>
+    `;
+    const parsed = parseYearInBooksPage(html, { userId: "reader-1", year: 2025 });
+    expect(parsed).toMatchObject({
+      year: 2025,
+      userId: "reader-1",
+      booksRead: 9,
+      pagesRead: 3015,
+      averageBookLengthPages: 335,
+      averageUserRating: 4.6,
+    });
+    expect(parsed.shortestBook).toMatchObject({
+      bookId: "101",
+      title: "Short Book",
+      author: "Ada Author",
+      pages: 280,
+    });
+    expect(parsed.longestBook?.pages).toBe(382);
+    expect(parsed.mostShelvedBook?.shelvedCount).toBe(860295);
+    expect(parsed.leastShelvedBook?.shelvedCount).toBe(15509);
+    expect(parsed.highestRatedBook).toMatchObject({ bookId: "505", rating: 4.47 });
+    expect(JSON.stringify(parsed)).not.toContain("Private review text");
   });
 
   it("parses notes metadata without note text", () => {

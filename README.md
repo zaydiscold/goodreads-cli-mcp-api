@@ -8,7 +8,7 @@ Snap a photo of a stack at a bookstore, hand it to your agent, and it can land t
 
 > **Bookstore photos → lists (live).** Agent photo → title resolve → `shelves add --name to-read --execute` is a **working path**. Pair it with the sibling [amazon-kindle-cli-mcp-api](https://github.com/zaydiscold/amazon-kindle-cli-mcp-api) (`wishlist add` / `parity` / `sync goodreads-plan`) for Goodreads ↔ Amazon wishlist / Kindle parity on the same haul — one photo stack, both lists.
 
-**Last shipped update (feature branch):** live library surfaces — `library set-status` reuses `POST /shelf/add_to_shelf`; rating + review ride `POST /review/update/{book_id}` (no stubs). See PR [#9](https://github.com/zaydiscold/goodreads-cli-mcp-api/pull/9).
+**Current expansion:** live authenticated My Books HTML plus public `stats year-in-books`; both run through the shared CLI/MCP engine with signed-out/challenge detection and redaction-first output.
 
 ---
 
@@ -16,7 +16,7 @@ Snap a photo of a stack at a bookstore, hand it to your agent, and it can land t
 
 **This is an independent, unofficial project. It is NOT affiliated with, endorsed by, or approved by Goodreads or Amazon.**
 
-- **Unofficial surface.** Amazon closed the public Goodreads API to new keys in December 2020. This tool drives the *logged-in web surface* (HTML pages, RSS, CSV exports, Rails-UJS form POSTs, and the newer AppSync GraphQL ops) mapped by hand. Goodreads can rename or rotate any of it without notice — trust live reads over memory.
+- **Unofficial surface.** Amazon closed the public Goodreads API to new keys in December 2020. This tool drives the _logged-in web surface_ (HTML pages, RSS, CSV exports, Rails-UJS form POSTs, and the newer AppSync GraphQL ops) mapped by hand. Goodreads can rename or rotate any of it without notice — trust live reads over memory.
 - **Your own account, at your own risk.** It acts on the account you're already logged into, using your own browser cookie + CSRF token. Automated/non-browser access may be against Goodreads' Terms of Service. Use it on your own account and understand the risk.
 - **Writes can change your account.** Publicizing/hiding notes, moving shelves, and quote edits mutate your real account. Every write defaults to a dry-run; the notes workflow is gated three ways (below).
 - **No warranty.** Provided "as is". See [LICENSE](LICENSE).
@@ -43,13 +43,13 @@ or missing generated artifacts before opening stdio.
 The stable release keeps the complete compatibility profile while making
 the `core` profile the practical default for agents (now includes shelf add/remove):
 
-| Measurement | Full | Core | Reduction |
-| --- | ---: | ---: | ---: |
-| `tools/list` tokens (`o200k_base`) | 4,011 | 1,164 | **70.98%** |
-| Compact JSON bytes | 17,034 | 4,830 | **71.64%** |
-| Visible tools | 30 | 10 | — |
+| Measurement                        |   Full |  Core |  Reduction |
+| ---------------------------------- | -----: | ----: | ---------: |
+| `tools/list` tokens (`o200k_base`) |  4,011 | 1,164 | **70.98%** |
+| Compact JSON bytes                 | 17,034 | 4,830 | **71.64%** |
+| Visible tools                      |     30 |    10 |          — |
 
-Token table above is the v1.0.0 baseline (28→8). Current tip is **30 full / 10 core** after shelf add/remove; profiles still hide registrations only — all capabilities use the same CLI/MCP engine and full remains available for compatibility.
+Token table above is the v1.0.0 baseline (28→8). Current tip is **31 full / 11 core** after shelf add/remove and Year in Books; profiles still hide registrations only — all capabilities use the same CLI/MCP engine and full remains available for compatibility.
 
 ## What it does
 
@@ -59,6 +59,7 @@ Full read **and** write across Goodreads:
 - **Bookstore → shelf** — agent takes a photo (or title/author), resolves the numeric book id, and shelves it. Built so you can snap stacks in a shop and clear the backlog without opening the site.
 - **One cookie, every write** — notes, shelves, quotes, and raw routes share `GOODREADS_COOKIE`. CSRF is auto-minted from that session before Rails mutations, with browser-like `Referer`/`Origin` headers so new write features don't fail the old "stale token / opaque 404" way.
 - **Books** — parse any public book page (JSON-LD + Next.js metadata).
+- **Year in Books** — public yearly books/pages totals, average length/rating, and shortest/longest/most/least-shelved/highest-rated book metadata without emitting review text.
 - **Kindle Notes & Highlights** — inspect notes metadata, plan + execute publicize/hide (gated), and join your current/read shelves to your notes index.
 - **Annotations** — per-highlight annotation metadata (visibility, spoiler, persist endpoints) without raw highlight text.
 - **Quotes** — add, remove, and reorder your quotes (up/down/top/bottom).
@@ -74,7 +75,7 @@ The thing that makes this more than a script: **the CLI and the MCP server share
 
 That invariant is enforced by code, not vigilance: a `CAPABILITIES` registry in the engine is checked **in both directions** by [`cli/test/parity.test.ts`](./cli/test/parity.test.ts) — every capability must have a CLI command **and** an MCP tool, with no orphans on either side. Add a command without its MCP twin and CI goes red.
 
-Live tool truth is always `tools/list`; the tested `full` profile currently exposes 30 tools.
+Live tool truth is always `tools/list`; the tested `full` profile currently exposes 31 tools.
 
 For cron-based automation on WSL, see [`wsl-sync.sh`](./wsl-sync.sh) — a daily sync script that pulls reading data to your Windows Desktop.
 
@@ -82,25 +83,26 @@ For cron-based automation on WSL, see [`wsl-sync.sh`](./wsl-sync.sh) — a daily
 
 All reads run live and free. All writes default to a dry-run; the notes workflow needs the three explicit gates below. **One browser cookie drives every write** — CSRF is auto-refreshed from that cookie before live Rails mutations (see [`docs/auth.md`](./docs/auth.md)).
 
-| Command | The question it answers |
-|---|---|
-| `api-map routes` / `api-map search "<q>"` | "What can this drive?" — 114 mapped web operations plus 10 searchable AppSync catalog entries |
-| `api-map browser-routes` | "What did the authenticated CDP capture see?" — sanitized route templates |
-| `shelves discover` | "What shelves do I have, and how many books in each?" |
-| `shelves add` / `shelves remove` | "Add/remove a book on want-to-read (`to-read`), currently-reading, read, or a custom shelf" (dry-run unless `--execute`) |
-| `books list --shelf <s>` | "List one shelf" — from authenticated HTML fixtures or public RSS |
-| `books export --fixture-dir <d>` | "Export my shelves" — deduped by book, with per-shelf membership + completeness flags |
-| `book show <slug-or-id>` | "Parse this book page" — JSON-LD + Next.js metadata |
-| `recent-reading list / notes` | "Join my current/read shelves to my Kindle notes index" |
-| `recent-reading publicize-plan / publicize` | "Plan, then publicize, my recent books' highlights" (gated) |
-| `notes inspect` | "What's in this notes page?" — counts + visibility, no highlight text |
-| `notes publicize-plan` | "Build the verified plan for one book's notes" |
-| `notes publicize` / `notes hide` | "Make all highlights public / hidden for a book" (gated) |
-| `annotations list / thoughts-plan` | "Per-highlight annotation metadata; plan a per-note thought" |
-| `quotes add / remove / reorder` | "Manage my quotes" (dry-run unless `--execute`) |
-| `comments list` / `messages folders` / `messages list` | "Inspect comment/message page shape without bodies" |
-| `write-plan books move` / `write-plan notes publicize` | "Static dry-run mutation plans" |
-| `request plan` / `request execute` | "Drive any mapped route raw" (reads run live; mutations require three explicit gates) |
+| Command                                                | The question it answers                                                                                                  |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `api-map routes` / `api-map search "<q>"`              | "What can this drive?" — 114 mapped web operations plus 10 searchable AppSync catalog entries                            |
+| `api-map browser-routes`                               | "What did the authenticated CDP capture see?" — sanitized route templates                                                |
+| `shelves discover`                                     | "What shelves do I have, and how many books in each?"                                                                    |
+| `shelves add` / `shelves remove`                       | "Add/remove a book on want-to-read (`to-read`), currently-reading, read, or a custom shelf" (dry-run unless `--execute`) |
+| `books list --shelf <s>`                               | "List one shelf" — from authenticated HTML fixtures or public RSS                                                        |
+| `books export --fixture-dir <d>`                       | "Export my shelves" — deduped by book, with per-shelf membership + completeness flags                                    |
+| `book show <slug-or-id>`                               | "Parse this book page" — JSON-LD + Next.js metadata                                                                      |
+| `stats year-in-books --user-id <id> --year <yyyy>`     | "What did this reader finish that year?" — books/pages, averages and extrema without review text                         |
+| `recent-reading list / notes`                          | "Join my current/read shelves to my Kindle notes index"                                                                  |
+| `recent-reading publicize-plan / publicize`            | "Plan, then publicize, my recent books' highlights" (gated)                                                              |
+| `notes inspect`                                        | "What's in this notes page?" — counts + visibility, no highlight text                                                    |
+| `notes publicize-plan`                                 | "Build the verified plan for one book's notes"                                                                           |
+| `notes publicize` / `notes hide`                       | "Make all highlights public / hidden for a book" (gated)                                                                 |
+| `annotations list / thoughts-plan`                     | "Per-highlight annotation metadata; plan a per-note thought"                                                             |
+| `quotes add / remove / reorder`                        | "Manage my quotes" (dry-run unless `--execute`)                                                                          |
+| `comments list` / `messages folders` / `messages list` | "Inspect comment/message page shape without bodies"                                                                      |
+| `write-plan books move` / `write-plan notes publicize` | "Static dry-run mutation plans"                                                                                          |
+| `request plan` / `request execute`                     | "Drive any mapped route raw" (reads run live; mutations require three explicit gates)                                    |
 
 ## Safety model
 
@@ -217,19 +219,20 @@ Built on the trio pattern (CLI + skill + MCP) pioneered by [Matt Van Horn's Prin
 >
 > Congratulations, Reader. You reached the last page of the README — most dog-ear it and quit.
 >
-> *Achievement unlocked — "Marginalia."* You now hold a typed, gated control plane for your own
+> _Achievement unlocked — "Marginalia."_ You now hold a typed, gated control plane for your own
 > reading life: every shelf, every quote, every Kindle highlight you annotated at 2am. The System
 > notes your `GOODREADS_ALLOW_NOTES_PUBLICIZE` flag is **unset.** Good — highlights stay yours
 > until you say otherwise.
 >
-> *A library is only as private as the reader guarding it. You're the reader. Publicize on purpose.*
+> _A library is only as private as the reader guarding it. You're the reader. Publicize on purpose._
 >
 > **Loot dropped:** one (1) hand-mapped API, 28 MCP tools, and the receipts in `api-map/`.
-> *Read deliberately. Ship the complete thing. Return your books on time.* 📚
+> _Read deliberately. Ship the complete thing. Return your books on time._ 📚
 
 <!-- Zayd Khan // cold // www.zayd.wtf -->
 
 ### Haul tips (agent + human)
+
 - Prefer **one edition per work** on `to-read` (skip study guides / alternate storybooks unless asked).
 - If CSRF refresh hits an anti-bot challenge, set `GOODREADS_SKIP_CSRF_REFRESH=1` and use a fresh `GOODREADS_CSRF_TOKEN` from a browser session, then retry the write.
 - Product direction: a tiny web UI that logs into Goodreads + Amazon, accepts bookstore photos / camera roll, and runs bidirectional list sync on top of these CLIs.

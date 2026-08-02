@@ -1,0 +1,22 @@
+{
+  "capturedAt": "2026-08-02T05:00:00Z",
+  "method": "GET",
+  "routeTemplate": "/user/year_in_books/{year}/{user_id}",
+  "status": 200,
+  "contentType": "text/html",
+  "htmlBytes": 77604,
+  "selectorsPresent": [
+    ".herobannerYearText",
+    ".heroImageContainer__countLabel",
+    "#yyibShortestBookHeading",
+    "#yyibLongestBookHeading",
+    ".yyibAverageBookLengthData",
+    "#yyibMostPopularHeading",
+    "#yyibLeastPopularHeading",
+    ".yyibAverageRatingData",
+    ".yyibCrowdFavoriteRatingLabel"
+  ],
+  "privateReviewTextPersisted": false,
+  "cookiesPersisted": false,
+  "sanitized": true
+}

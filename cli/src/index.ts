@@ -23,6 +23,7 @@ import { quotesCommand } from "./commands/quotes.js";
 import { requestCommand } from "./commands/request.js";
 import { recentReadingCommand } from "./commands/recentReading.js";
 import { shelvesCommand } from "./commands/shelves.js";
+import { statsCommand } from "./commands/stats.js";
 import { writePlanCommand } from "./commands/writePlan.js";
 import { libraryCommand } from "./commands/libraryCommand.js";
 
@@ -38,6 +39,7 @@ program
 program.addCommand(apiMapCommand());
 program.addCommand(annotationsCommand());
 program.addCommand(shelvesCommand());
+program.addCommand(statsCommand());
 program.addCommand(booksCommand());
 program.addCommand(bookCommand());
 program.addCommand(commentsCommand());
