@@ -1,5 +1,11 @@
 import { Command } from "commander";
-import { notesHide, notesInspect, notesPublicize, notesPublicizePlan } from "../engine.js";
+import {
+  notesBooks,
+  notesHide,
+  notesInspect,
+  notesPublicize,
+  notesPublicizePlan,
+} from "../engine.js";
 import { printJson } from "../lib.js";
 
 interface PublicizePlanOptions {
@@ -28,6 +34,24 @@ function inspectCommand(): Command {
     .option("--json", "Emit JSON.", true)
     .action(async (options: { fixture: string }) => {
       printJson(await notesInspect({ fixture: options.fixture }));
+    });
+}
+
+function booksCommand(): Command {
+  return new Command("books")
+    .description("List public annotated-book metadata without annotation text.")
+    .requiredOption("--user-id <id>", "Goodreads numeric user id.")
+    .option("--limit <n>", "Maximum books to return.", "100")
+    .option("--base-url <url>", "Goodreads base URL.", "https://www.goodreads.com")
+    .option("--json", "Emit JSON.", true)
+    .action(async (options: { userId: string; limit: string; baseUrl?: string }) => {
+      printJson(
+        await notesBooks({
+          userId: options.userId,
+          limit: Number(options.limit),
+          baseUrl: options.baseUrl,
+        }),
+      );
     });
 }
 
@@ -93,6 +117,7 @@ export function notesCommand(): Command {
   return new Command("notes")
     .description("Read Kindle notes/highlights metadata without raw highlight text.")
     .addCommand(inspectCommand())
+    .addCommand(booksCommand())
     .addCommand(publicizePlanCommand())
     .addCommand(visibilityCommand("publicize"))
     .addCommand(visibilityCommand("hide"));

@@ -7,6 +7,7 @@ import { parseBookPage } from "../src/parsers/bookPage.js";
 import { parseYearInBooksPage } from "../src/parsers/yearInBooksPage.js";
 import { parseMessagePage } from "../src/parsers/messagePage.js";
 import { parseNotesPage } from "../src/parsers/notesPage.js";
+import { parseNotesBooksPayload } from "../src/parsers/notesBooks.js";
 import { parseShelfHtml } from "../src/parsers/shelfHtml.js";
 import { parseShelfRss } from "../src/parsers/rss.js";
 import {
@@ -146,6 +147,45 @@ describe("Goodreads parsers", () => {
     expect(parsed.visibleCounts.true).toBe(1);
     expect(parsed.notes[0]?.notePersistEndpoint).toBe("/notes/123/abc/note");
     expect(JSON.stringify(parsed)).not.toContain("Raw highlight text");
+  });
+
+  it("normalizes annotated-book metadata without treating object counts as zero", () => {
+    const parsed = parseNotesBooksPayload({
+      annotated_books_collection: [
+        {
+          asin: "B000TEST01",
+          title: "Example Book",
+          authorName: "Example Author",
+          sharedCount: 3,
+          highlightCount: {},
+          noteCount: 2,
+          readingNotesUrl: "https://www.goodreads.com/notes/123-example/179-reader?private=1",
+          imageUrl: "https://images.example/private.jpg",
+          privateAnnotationText: "must never survive",
+        },
+      ],
+      next_token: {},
+    });
+    expect(parsed).toMatchObject({
+      bookCount: 1,
+      nextTokenPresent: false,
+      books: [
+        {
+          asin: "B000TEST01",
+          title: "Example Book",
+          author: "Example Author",
+          sharedCount: 3,
+          highlightCount: null,
+          highlightCountAvailable: false,
+          noteCount: 2,
+          noteCountAvailable: true,
+          notesPath: "/notes/123-example/179-reader",
+        },
+      ],
+    });
+    expect(JSON.stringify(parsed)).not.toContain("must never survive");
+    expect(JSON.stringify(parsed)).not.toContain("images.example");
+    expect(JSON.stringify(parsed)).not.toContain("private=1");
   });
 
   it("parses message metadata without labels or bodies", () => {
