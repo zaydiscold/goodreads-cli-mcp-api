@@ -31,6 +31,7 @@ import { parseYearInBooksPage } from "./parsers/yearInBooksPage.js";
 import { parseCommentsPage } from "./parsers/commentsPage.js";
 import { parseMessagePage } from "./parsers/messagePage.js";
 import { parseNotesPage, redactNotesPrivateIdentifiers } from "./parsers/notesPage.js";
+import { parseNotesBooksPayload } from "./parsers/notesBooks.js";
 import { parseShelfHtml } from "./parsers/shelfHtml.js";
 import { emitLiveMutationWarning, riskLevelForRoute, type RiskLevel } from "./risk.js";
 import {
@@ -168,6 +169,13 @@ export const CAPABILITIES: Capability[] = [
     key: "notes-inspect",
     cli: "notes inspect",
     mcpTool: "goodreads_notes_inspect",
+    readOnly: true,
+    risk: "read",
+  },
+  {
+    key: "notes-books",
+    cli: "notes books",
+    mcpTool: "goodreads_notes_books",
     readOnly: true,
     risk: "read",
   },
@@ -826,6 +834,47 @@ export async function notesInspect(options: {
       : [],
     confidence: parsed.noteCount > 0 || parsed.noteBookLinks.length > 0 ? "high" : "medium",
   });
+}
+
+export async function notesBooks(options: {
+  userId: string;
+  limit?: number;
+  baseUrl?: string;
+}): Promise<Envelope> {
+  const userId = options.userId.trim();
+  if (!/^\d+$/.test(userId)) throw new Error("user-id must be numeric");
+  const limit = options.limit ?? 100;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
+    throw new Error("limit must be an integer from 1 through 500");
+  }
+  const raw = await fetchText(
+    goodreadsUrl(
+      `/notes/${encodeURIComponent(userId)}/load_more`,
+      options.baseUrl ?? DEFAULT_BASE_URL,
+    ),
+  );
+  let payload: unknown;
+  try {
+    payload = JSON.parse(raw) as unknown;
+  } catch {
+    return envelope(
+      { kind: "notes_books", bookCount: 0, books: [], nextTokenPresent: false },
+      {
+        warnings: ["Goodreads returned non-JSON content instead of annotated-book metadata."],
+        confidence: "low",
+      },
+    );
+  }
+  const parsed = parseNotesBooksPayload(payload);
+  return envelope(
+    {
+      ...parsed,
+      totalAvailable: parsed.bookCount,
+      returnedCount: Math.min(limit, parsed.bookCount),
+      books: parsed.books.slice(0, limit),
+    },
+    { confidence: parsed.bookCount > 0 ? "high" : "medium" },
+  );
 }
 
 export async function notesPublicizePlan(options: {

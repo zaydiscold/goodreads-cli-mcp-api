@@ -8,6 +8,7 @@ import {
   booksList,
   messagesFolders,
   notesInspect,
+  notesBooks,
   shelvesDiscover,
   yearInBooks,
 } from "../src/engine.js";
@@ -140,6 +141,44 @@ describe("Goodreads engine correctness", () => {
     });
     expect(result.confidence).toBe("high");
     expect(dataOf<{ signedOut: boolean }>(result).signedOut).toBe(false);
+  });
+
+  it("fetches annotated-book metadata and applies a bounded limit", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          annotated_books_collection: [
+            { asin: "A", title: "One", authorName: "Author", sharedCount: 1 },
+            { asin: "B", title: "Two", authorName: "Author", sharedCount: 2 },
+          ],
+          next_token: { cursor: "opaque-secret" },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await notesBooks({ userId: "179929687", limit: 1 });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/notes/179929687/load_more");
+    expect(
+      dataOf<{
+        totalAvailable: number;
+        returnedCount: number;
+        nextTokenPresent: boolean;
+        books: unknown[];
+      }>(result),
+    ).toMatchObject({ totalAvailable: 2, returnedCount: 1, nextTokenPresent: true });
+    expect(dataOf<{ books: unknown[] }>(result).books).toHaveLength(1);
+    expect(JSON.stringify(result)).not.toContain("opaque-secret");
+  });
+
+  it("reports a non-JSON notes-books response as low confidence", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("<html>Sign in</html>", { status: 200 })),
+    );
+    const result = await notesBooks({ userId: "179929687" });
+    expect(result.confidence).toBe("low");
+    expect(result.warnings).toEqual(expect.arrayContaining([expect.stringContaining("non-JSON")]));
   });
 
   it("exports and auto-discovers alternate shelf fixture names", async () => {

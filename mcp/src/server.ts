@@ -29,6 +29,7 @@ import {
   messagesList,
   notesHide,
   notesInspect,
+  notesBooks,
   notesPublicize,
   notesPublicizePlan,
   parsePairs,
@@ -338,6 +339,22 @@ registerTool(
     },
   },
   async ({ fixture }) => emit(await notesInspect({ fixture })),
+);
+
+registerTool(
+  "goodreads_notes_books",
+  {
+    title: "Goodreads Annotated Books",
+    description:
+      "List public annotated-book metadata and available counts without annotation text or image URLs.",
+    annotations: toolAnnotations(true, "read"),
+    inputSchema: {
+      userId: z.string(),
+      limit: z.number().int().min(1).max(500).default(100),
+      baseUrl: z.string().optional(),
+    },
+  },
+  async ({ userId, limit, baseUrl }) => emit(await notesBooks({ userId, limit, baseUrl })),
 );
 
 registerTool(

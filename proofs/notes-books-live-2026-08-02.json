@@ -1,0 +1,27 @@
+{
+  "capturedAt": "2026-08-02T12:40:00Z",
+  "method": "GET",
+  "routeTemplate": "/notes/{user_id}/load_more",
+  "status": 200,
+  "contentType": "application/json",
+  "topLevelKeys": ["annotated_books_collection", "next_token"],
+  "bookCount": 33,
+  "bookFieldsObserved": [
+    "asin",
+    "authorName",
+    "highlightCount",
+    "imageUrl",
+    "knhCta",
+    "noSharedAnnotations",
+    "noteCount",
+    "readingNotesUrl",
+    "sharedCount",
+    "title"
+  ],
+  "nextTokenPresent": false,
+  "annotationTextPersisted": false,
+  "imageUrlsPersisted": false,
+  "tokenValuesPersisted": false,
+  "cookiesPersisted": false,
+  "sanitized": true
+}

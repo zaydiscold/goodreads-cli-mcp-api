@@ -49,7 +49,7 @@ the `core` profile the practical default for agents (now includes shelf add/remo
 | Compact JSON bytes                 | 17,034 | 4,830 | **71.64%** |
 | Visible tools                      |     30 |    10 |          — |
 
-Token table above is the v1.0.0 baseline (28→8). Current tip is **31 full / 11 core** after shelf add/remove and Year in Books; profiles still hide registrations only — all capabilities use the same CLI/MCP engine and full remains available for compatibility.
+Token table above is the v1.0.0 baseline (28→8). Current tip is **32 full / 12 core** after shelf add/remove, Year in Books, and annotated-book metadata; profiles still hide registrations only — all capabilities use the same CLI/MCP engine and full remains available for compatibility.
 
 ## What it does
 
@@ -60,7 +60,7 @@ Full read **and** write across Goodreads:
 - **One cookie, every write** — notes, shelves, quotes, and raw routes share `GOODREADS_COOKIE`. CSRF is auto-minted from that session before Rails mutations, with browser-like `Referer`/`Origin` headers so new write features don't fail the old "stale token / opaque 404" way.
 - **Books** — parse any public book page (JSON-LD + Next.js metadata).
 - **Year in Books** — public yearly books/pages totals, average length/rating, and shortest/longest/most/least-shelved/highest-rated book metadata without emitting review text.
-- **Kindle Notes & Highlights** — inspect notes metadata, plan + execute publicize/hide (gated), and join your current/read shelves to your notes index.
+- **Kindle Notes & Highlights** — list annotated books and available counts from public JSON, inspect notes metadata, plan + execute publicize/hide (gated), and join your current/read shelves to your notes index.
 - **Annotations** — per-highlight annotation metadata (visibility, spoiler, persist endpoints) without raw highlight text.
 - **Quotes** — add, remove, and reorder your quotes (up/down/top/bottom).
 - **Ratings & Reviews** — searchable modern AppSync **GraphQL** operation metadata (`RateBook`/`UnrateBook`, catalog-only until freshly recaptured) plus mapped web review routes.
@@ -75,7 +75,7 @@ The thing that makes this more than a script: **the CLI and the MCP server share
 
 That invariant is enforced by code, not vigilance: a `CAPABILITIES` registry in the engine is checked **in both directions** by [`cli/test/parity.test.ts`](./cli/test/parity.test.ts) — every capability must have a CLI command **and** an MCP tool, with no orphans on either side. Add a command without its MCP twin and CI goes red.
 
-Live tool truth is always `tools/list`; the tested `full` profile currently exposes 31 tools.
+Live tool truth is always `tools/list`; the tested `full` profile currently exposes 32 tools.
 
 For cron-based automation on WSL, see [`wsl-sync.sh`](./wsl-sync.sh) — a daily sync script that pulls reading data to your Windows Desktop.
 
@@ -95,7 +95,8 @@ All reads run live and free. All writes default to a dry-run; the notes workflow
 | `stats year-in-books --user-id <id> --year <yyyy>`     | "What did this reader finish that year?" — books/pages, averages and extrema without review text                         |
 | `recent-reading list / notes`                          | "Join my current/read shelves to my Kindle notes index"                                                                  |
 | `recent-reading publicize-plan / publicize`            | "Plan, then publicize, my recent books' highlights" (gated)                                                              |
-| `notes inspect`                                        | "What's in this notes page?" — counts + visibility, no highlight text                                                    |
+| `notes books --user-id <id>`                        | "Which books have Kindle annotations?" — ASIN/title/author and available counts, never annotation text                   |
+| `notes inspect`                                     | "What's in this notes page?" — counts + visibility, no highlight text                                                    |
 | `notes publicize-plan`                                 | "Build the verified plan for one book's notes"                                                                           |
 | `notes publicize` / `notes hide`                       | "Make all highlights public / hidden for a book" (gated)                                                                 |
 | `annotations list / thoughts-plan`                     | "Per-highlight annotation metadata; plan a per-note thought"                                                             |

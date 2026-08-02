@@ -1094,7 +1094,7 @@ paths:
   /notes/{user_id}/load_more:
     get:
       tags: [notes]
-      summary: Paginated notes/highlights index loader.
+      summary: Annotated-book metadata loader with opaque-token pagination.
       parameters:
         - name: user_id
           in: path
@@ -1106,8 +1106,10 @@ paths:
         artifacts:
           - goodreads/proofs/user-pages-map-2026-05-22.json
           - goodreads/proofs/user-pages-map-batch2-2026-05-22.json
+          - proofs/notes-books-live-2026-08-02.json
         status: 200
         resourceType: XHR
+        responseShape: annotated_books_collection plus opaque next_token
       responses:
         "200":
           $ref: "#/components/responses/XhrHtmlOrJson"

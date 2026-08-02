@@ -96,7 +96,7 @@ GOODREADS_MCP_PROFILE=notes ~/Desktop/CLIs/goodreads-cli/scripts/goodreads-mcp.s
 
 The `full` profile exposes all legacy tools; `core` and `notes` reduce discovery cost while preserving the same tool implementations. All names are prefixed `goodreads_`:
 
-- **Reads:** `api_map_routes`, `route_search`, `browser_routes`, `shelves_discover`, `books_list`, `books_export`, `book_show`, `comments_list`, `messages_folders`, `messages_list`, `annotations_list`, `notes_inspect`, `recent_reading_list`, `recent_reading_notes`, `dynamic_inventory_guidance`.
+- **Reads:** `api_map_routes`, `route_search`, `browser_routes`, `shelves_discover`, `books_list`, `books_export`, `book_show`, `year_in_books`, `comments_list`, `messages_folders`, `messages_list`, `annotations_list`, `notes_inspect`, `notes_books`, `recent_reading_list`, `recent_reading_notes`, `dynamic_inventory_guidance`.
 - **Plans (never submit):** `notes_publicize_plan`, `recent_reading_publicize_plan`, `annotations_thoughts_plan`, `bookshelf_move_plan`, `write_plan_notes_publicize`, `request_plan`.
 - **Writes (dry-run by default; gated):** `notes_publicize`, `notes_hide`, `recent_reading_publicize`, `quotes_add`, `quotes_remove`, `quotes_reorder`, **`shelf_add`**, **`shelf_remove`**, `request_execute`.
 
@@ -186,6 +186,8 @@ goodreads-cli shelves remove --book-id <id> --name to-read --execute
 goodreads-cli shelves discover --user 179929687 --json
 
 # Notes workflow
+goodreads-cli notes books --user-id 179929687 --limit 100 --json
+goodreads-cli stats year-in-books --user-id 179929687 --year 2025 --json
 goodreads-cli recent-reading publicize-plan --fixture-dir <dir> --json
 goodreads-cli notes publicize-plan --book-id <id> --details --json
 goodreads-cli notes publicize --book-id <id> --approved-book-id <id> --execute --json
