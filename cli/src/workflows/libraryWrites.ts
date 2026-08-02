@@ -133,11 +133,13 @@ async function ratingFromRss(userId: string, bookId: string): Promise<number | n
     }
     const parts = xml.split("<item>");
     for (const part of parts) {
-      if (!(part.includes(`<book_id>${bookId}</book_id>`) || part.includes(`book/show/${bookId}`))) {
+      if (!(
+        part.includes(`<book_id>${bookId}</book_id>`) || part.includes(`book/show/${bookId}`)
+      )) {
         continue;
       }
       const m = part.match(/<user_rating>(\d+)<\/user_rating>/i);
-            if (m?.[1]) return parseInt(m[1], 10);
+      if (m?.[1]) return parseInt(m[1], 10);
     }
   }
   return null;
@@ -168,18 +170,20 @@ export async function ls(o: LSO): Promise<CommandEnvelope<unknown>> {
       const xml = await r.text();
       const parts = xml.split("<item>");
       for (const part of parts) {
-        if (!(part.includes(`<book_id>${o.bookId}</book_id>`) || part.includes(`book/show/${o.bookId}`))) {
+        if (!(
+          part.includes(`<book_id>${o.bookId}</book_id>`) || part.includes(`book/show/${o.bookId}`)
+        )) {
           continue;
         }
         status = shelf;
         const rm = part.match(/<user_rating>(\d+)<\/user_rating>/i);
-                if (rm?.[1]) rating = parseInt(rm[1], 10);
-                const rev =
-                  part.match(/<user_review><!\[CDATA\[([\s\S]*?)\]\]><\/user_review>/i) ||
-                  part.match(/<user_review>([\s\S]*?)<\/user_review>/i);
-                const revBody = rev?.[1];
-                if (revBody && cleanText(revBody)) {
-                  const text = cleanText(revBody);
+        if (rm?.[1]) rating = parseInt(rm[1], 10);
+        const rev =
+          part.match(/<user_review><!\[CDATA\[([\s\S]*?)\]\]><\/user_review>/i) ||
+          part.match(/<user_review>([\s\S]*?)<\/user_review>/i);
+        const revBody = rev?.[1];
+        if (revBody && cleanText(revBody)) {
+          const text = cleanText(revBody);
           reviewExists = true;
           textLength = text.length;
           textSha256 = createHash("sha256").update(text, "utf8").digest("hex");
@@ -251,7 +255,12 @@ export async function ss(o: SSO): Promise<CommandEnvelope<unknown>> {
 
   let mutationVerified = false;
   let verifiedStatus: string | null = null;
-  if (execute && write.data && typeof write.data === "object" && (write.data as { submitted?: boolean }).submitted) {
+  if (
+    execute &&
+    write.data &&
+    typeof write.data === "object" &&
+    (write.data as { submitted?: boolean }).submitted
+  ) {
     const uid = o.userId || process.env.GOODREADS_USER_ID || "179929687";
     await new Promise((r) => setTimeout(r, 800));
     mutationVerified = await shelfContains(uid, o.status, o.bookId);

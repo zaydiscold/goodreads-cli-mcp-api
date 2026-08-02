@@ -2,7 +2,14 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { bookShow, booksExport, booksList, messagesFolders, notesInspect } from "../src/engine.js";
+import {
+  bookShow,
+  booksExport,
+  booksList,
+  messagesFolders,
+  notesInspect,
+  shelvesDiscover,
+} from "../src/engine.js";
 import { readShelfPagesFromFixtureDir } from "../src/shelf.js";
 
 function shelfHtml(options: { shelf: string; bookId?: string; title?: string }): string {
@@ -62,7 +69,7 @@ describe("Goodreads engine correctness", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
 
     await expect(booksList({ shelf: "read", source: "html" })).rejects.toThrow(
-      "fixture-dir is required when source is html",
+      "fixture-dir or user is required when source is html",
     );
     await expect(booksList({ shelf: "read", source: "rss" })).rejects.toThrow(
       "user is required when source is rss",
@@ -157,5 +164,121 @@ describe("Goodreads engine correctness", () => {
       notePersistEndpoint: "/notes/123/private-pair/note",
     });
     expect(privateResult.warnings).toHaveLength(1);
+  });
+
+  it("fetches live authenticated HTML shelf page when user is provided without fixture-dir", async () => {
+    const signedInHtml = `
+      <html><head><title>Reader's 'read' books on Goodreads (3 books)</title></head>
+      <body>
+        <a href="/user/sign_out">Sign Out</a>
+        <a href="/review/list/reader?shelf=read">read (3)</a>
+        <table id="booksBody">
+          <tr id="review_111">
+            <td><a href="/book/show/123-book">Live Book</a></td>
+            <td class="author"><a>Live Author</a></td>
+          </tr>
+        </table>
+        <div id="reviewPagination">
+          <em class="current">1</em>
+          <a href="/review/list/reader?page=2&amp;shelf=read">2</a>
+        </div>
+      </body></html>
+    `;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(signedInHtml, { status: 200, headers: { "content-type": "text/html" } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    process.env.GOODREADS_COOKIE = "test-session";
+
+    const result = await booksList({ shelf: "read", source: "html", user: "reader" });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const callUrl = fetchMock.mock.calls[0]?.[0] as string;
+    expect(callUrl).toContain("shelf=read");
+    expect(callUrl).toContain("per_page=100");
+    const callHeaders = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    expect(callHeaders.cookie).toBe("test-session");
+    expect(callHeaders.referer).toBe("https://www.goodreads.com/");
+
+    const data = dataOf<{
+      source: string;
+      rows: Array<{ bookId: string }>;
+      pagination: { complete: boolean; pagesSeen: number[] };
+    }>(result);
+    expect(data.source).toBe("html");
+    expect(data.rows).toHaveLength(1);
+    expect(data.rows[0]?.bookId).toBe("123");
+    expect(data.pagination.pagesSeen).toEqual([1]);
+    expect(data.pagination.complete).toBe(false); // 3 declared but 1 parsed
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([expect.stringContaining("Live HTML fetches a single page")]),
+    );
+
+    delete process.env.GOODREADS_COOKIE;
+  });
+
+  it("detects signed-out wall on live authenticated HTML shelf fetch", async () => {
+    const signedOutHtml = '<html>Sign in to Goodreads<a href="/user/sign_in">Sign In</a></html>';
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(signedOutHtml, { status: 200, headers: { "content-type": "text/html" } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    process.env.GOODREADS_COOKIE = "stale-session";
+
+    const result = await booksList({ shelf: "read", source: "html", user: "reader" });
+    const data = dataOf<{ signedOut: boolean; rows: unknown[] }>(result);
+    expect(data.signedOut).toBe(true);
+    expect(result.confidence).toBe("low");
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([expect.stringContaining("sign-in wall")]),
+    );
+
+    delete process.env.GOODREADS_COOKIE;
+  });
+
+  it("warns on shelf discovery when cookie is missing for live fetch", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          '<html><title>Books</title><a href="/review/list/reader?shelf=read">read (1)</a></html>',
+          { status: 200, headers: { "content-type": "text/html" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    delete process.env.GOODREADS_COOKIE;
+
+    const result = await shelvesDiscover({ user: "reader" });
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([expect.stringContaining("GOODREADS_COOKIE is not set")]),
+    );
+    const data = dataOf<{ shelves: Array<{ slug: string }> }>(result);
+    expect(data.shelves).toHaveLength(1);
+    expect(data.shelves[0]?.slug).toBe("read");
+  });
+
+  it("detects signed-out on shelf discovery when cookie is set but expired", async () => {
+    const signedOutHtml = '<html>Sign in to Goodreads<a href="/user/sign_in">Sign In</a></html>';
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(signedOutHtml, { status: 200, headers: { "content-type": "text/html" } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    process.env.GOODREADS_COOKIE = "expired-session";
+
+    const result = await shelvesDiscover({ user: "reader" });
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([expect.stringContaining("sign-in wall")]),
+    );
+    expect(result.confidence).toBe("low");
+
+    delete process.env.GOODREADS_COOKIE;
   });
 });

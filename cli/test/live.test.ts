@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  buildLiveRequestPlan,
-  executeLiveRequest,
-  extractCsrfToken,
-} from "../src/client/live.js";
+import { buildLiveRequestPlan, executeLiveRequest, extractCsrfToken } from "../src/client/live.js";
 import { requestExecute } from "../src/engine.js";
 import type { GoodreadsRoute } from "../src/lib.js";
 
@@ -191,12 +187,14 @@ describe("live request safety", () => {
     process.env.GOODREADS_CSRF_TOKEN = "secret-csrf";
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          '<html><a href="/user/sign_out">Sign Out</a><a href="/user/sign_in">Sign In</a>notes</html>',
-          { status: 200, headers: { "content-type": "text/html" } },
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            '<html><a href="/user/sign_out">Sign Out</a><a href="/user/sign_in">Sign In</a>notes</html>',
+            { status: 200, headers: { "content-type": "text/html" } },
+          ),
         ),
-      ),
     );
 
     const result = await executeLiveRequest(mutationRoute, {
@@ -275,12 +273,12 @@ describe("live request safety", () => {
 
 describe("csrf refresh from the same cookie session", () => {
   it("extracts csrf-token meta and authenticity_token inputs", () => {
-    expect(
-      extractCsrfToken('<meta name="csrf-token" content="abc123token" />'),
-    ).toBe("abc123token");
-    expect(
-      extractCsrfToken('<input name="authenticity_token" value="form-token-xyz" />'),
-    ).toBe("form-token-xyz");
+    expect(extractCsrfToken('<meta name="csrf-token" content="abc123token" />')).toBe(
+      "abc123token",
+    );
+    expect(extractCsrfToken('<input name="authenticity_token" value="form-token-xyz" />')).toBe(
+      "form-token-xyz",
+    );
     expect(extractCsrfToken("<html>nope</html>")).toBeNull();
   });
 

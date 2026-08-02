@@ -20,11 +20,19 @@ export function booksCommand(): Command {
 
   command
     .command("list")
-    .description("List one shelf from authenticated HTML fixtures or public RSS.")
+    .description(
+      "List one shelf from authenticated HTML fixtures, live authenticated HTML, or public RSS.",
+    )
     .requiredOption("--shelf <slug>", "Shelf slug, discovered with shelves discover.")
-    .option("--fixture-dir <dir>", "Directory containing shelf HTML fixtures.")
-    .option("--source <source>", "html or rss.", "html")
-    .option("--user <user>", "Goodreads numeric id or slug. Required for RSS/live fetches.")
+    .option(
+      "--fixture-dir <dir>",
+      "Directory containing shelf HTML fixtures (disables live fetch).",
+    )
+    .option(
+      "--source <source>",
+      "html or rss. Defaults to html when --fixture-dir is set, rss otherwise.",
+    )
+    .option("--user <user>", "Goodreads numeric id or slug. Required for live/RSS fetches.")
     .option("--base-url <url>", "Goodreads base URL.", "https://www.goodreads.com")
     .option("--json", "Emit JSON.", true)
     .action(async (options: BooksListOptions) => {

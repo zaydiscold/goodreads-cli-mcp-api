@@ -7,7 +7,7 @@
 // so they cannot drift. The CAPABILITIES registry below is the contract the
 // parity test enforces.
 import { readdir } from "node:fs/promises";
-import { fetchText, goodreadsUrl } from "./client/http.js";
+import { fetchAuthenticatedText, fetchText, goodreadsUrl } from "./client/http.js";
 import {
   buildLiveRequestPlan,
   executeLiveRequest,
@@ -439,13 +439,28 @@ export async function shelvesDiscover(options: {
   if (!options.fixture && !options.user) {
     throw new Error("user is required unless a fixture is supplied");
   }
-  const html = options.fixture
-    ? await readText(options.fixture)
-    : await fetchText(
-        goodreadsUrl(`/review/list/${options.user}`, options.baseUrl ?? DEFAULT_BASE_URL),
-      );
-  const parsed = parseShelfHtml(html);
+  let html: string;
   const warnings: string[] = [];
+  if (options.fixture) {
+    html = await readText(options.fixture);
+  } else {
+    const url = goodreadsUrl(`/review/list/${options.user}`, options.baseUrl ?? DEFAULT_BASE_URL);
+    const result = await fetchAuthenticatedText(url);
+    html = result.html;
+    if (result.signedOut) {
+      warnings.push(
+        "GOODREADS_COOKIE is set but the page returned the Goodreads sign-in wall. " +
+          "The cookie may be expired or the session was terminated. " +
+          "Re-extract GOODREADS_COOKIE from a logged-in browser.",
+      );
+    } else if (!process.env.GOODREADS_COOKIE) {
+      warnings.push(
+        "GOODREADS_COOKIE is not set. Shelf discovery may return the public sign-in page " +
+          "instead of authenticated shelf inventory. Set GOODREADS_COOKIE for live shelf reads.",
+      );
+    }
+  }
+  const parsed = parseShelfHtml(html);
   if (parsed.shelfInventory.length === 0) {
     warnings.push(
       "No shelf inventory was discovered. The page may be private, logged out, or structurally changed.",
@@ -475,17 +490,13 @@ export async function booksList(options: {
   const source = requestedSource ?? (options.fixtureDir ? "html" : "rss");
 
   if (source === "html") {
-    if (!options.fixtureDir) {
-      throw new Error("fixture-dir is required when source is html");
+    if (options.fixtureDir) {
+      return booksListFromFixtures(options.fixtureDir, shelf);
     }
-    const pages = await readShelfPagesFromFixtureDir(options.fixtureDir, shelf);
-    if (pages.length === 0)
-      throw new Error(`No shelf fixtures found for '${shelf}' in ${options.fixtureDir}`);
-    const data = summarizeShelfPages(pages);
-    return envelope(
-      { shelf, source, ...data },
-      { warnings: data.pagination.complete ? [] : ["Shelf export is incomplete."] },
-    );
+    if (!options.user) {
+      throw new Error("fixture-dir or user is required when source is html");
+    }
+    return booksListLiveHtml(shelf, options.user, options.baseUrl);
   }
 
   if (!options.user) throw new Error("user is required when source is rss");
@@ -502,6 +513,53 @@ export async function booksList(options: {
   return envelope(
     { shelf, source, rss },
     { warnings, confidence: rss.signals.rssMayCapAt100 ? "medium" : "high" },
+  );
+}
+
+async function booksListFromFixtures(fixtureDir: string, shelf: string): Promise<Envelope> {
+  const pages = await readShelfPagesFromFixtureDir(fixtureDir, shelf);
+  if (pages.length === 0)
+    throw new Error(`No shelf fixtures found for '${shelf}' in ${fixtureDir}`);
+  const data = summarizeShelfPages(pages);
+  return envelope(
+    { shelf, source: "html" as const, ...data },
+    { warnings: data.pagination.complete ? [] : ["Shelf export is incomplete."] },
+  );
+}
+
+async function booksListLiveHtml(shelf: string, user: string, baseUrl?: string): Promise<Envelope> {
+  const url = goodreadsUrl(
+    `/review/list/${user}?shelf=${encodeURIComponent(shelf)}&per_page=100`,
+    baseUrl ?? DEFAULT_BASE_URL,
+  );
+  const { html, signedOut } = await fetchAuthenticatedText(url);
+  const parsed = parseShelfHtml(html);
+  const data = summarizeShelfPages([parsed]);
+  const warnings: string[] = [];
+  if (signedOut) {
+    warnings.push(
+      "GOODREADS_COOKIE is set but the page returned the Goodreads sign-in wall. " +
+        "The cookie may be expired or the session was terminated.",
+    );
+  }
+  if (!data.pagination.complete) {
+    warnings.push(
+      "Live HTML fetches a single page (per_page=100). " +
+        "The shelf may contain more books than this page shows. " +
+        `Declared count: ${parsed.declaredBookCount ?? "unknown"}, ` +
+        `parsed this page: ${parsed.rows.length}. ` +
+        "Use pageLinks or per_page in follow-up calls to page through results.",
+    );
+  }
+  if (data.rows.length === 100) {
+    warnings.push(
+      "This page returned exactly 100 rows — the shelf likely has more books. " +
+        "Use per_page=100 and pagination links for additional pages.",
+    );
+  }
+  return envelope(
+    { shelf, source: "html" as const, ...data, signedOut },
+    { warnings, confidence: signedOut ? "low" : data.rows.length > 0 ? "high" : "medium" },
   );
 }
 
