@@ -161,9 +161,7 @@ export function extractCsrfToken(html: string): string | null {
     html.match(/name=["']csrf-token["']\s+content=["']([^"']+)["']/i) ||
     html.match(/content=["']([^"']+)["']\s+name=["']csrf-token["']/i);
   if (meta?.[1]) return meta[1];
-  const input = html.match(
-    /name=["']authenticity_token["'][^>]*value=["']([^"']+)["']/i,
-  );
+  const input = html.match(/name=["']authenticity_token["'][^>]*value=["']([^"']+)["']/i);
   return input?.[1] ?? null;
 }
 
@@ -203,7 +201,11 @@ export async function ensureFreshCsrf(
     signal: AbortSignal.timeout(30_000),
   });
   const html = await response.text();
-  const challenge = responseChallenge(response.status, response.headers.get("content-type") ?? "", html);
+  const challenge = responseChallenge(
+    response.status,
+    response.headers.get("content-type") ?? "",
+    html,
+  );
   if (challenge === "authentication") {
     throw new Error(
       "Goodreads cookie session is not signed in; re-extract GOODREADS_COOKIE from a logged-in browser",
