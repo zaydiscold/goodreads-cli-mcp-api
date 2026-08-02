@@ -14,6 +14,7 @@ import { quotesCommand } from "../src/commands/quotes.js";
 import { recentReadingCommand } from "../src/commands/recentReading.js";
 import { requestCommand } from "../src/commands/request.js";
 import { shelvesCommand } from "../src/commands/shelves.js";
+import { statsCommand } from "../src/commands/stats.js";
 import { writePlanCommand } from "../src/commands/writePlan.js";
 import { libraryCommand } from "../src/commands/libraryCommand.js";
 
@@ -29,6 +30,7 @@ const CLI_GROUPS = [
   apiMapCommand(),
   annotationsCommand(),
   shelvesCommand(),
+  statsCommand(),
   booksCommand(),
   bookCommand(),
   commentsCommand(),

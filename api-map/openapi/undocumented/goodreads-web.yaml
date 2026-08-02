@@ -1723,14 +1723,16 @@ paths:
 
   /user/year_in_books/{year}/{user_id}:
     get:
-      tags: [profile]
-      summary: Year in Books page.
+      tags: [profile, books, stats]
+      summary: Public Year in Books totals, averages, and book extrema.
       parameters:
         - name: year
           in: path
           required: true
           schema:
             type: integer
+            minimum: 2000
+            maximum: 2100
           example: 2025
         - name: user_id
           in: path
@@ -1739,8 +1741,11 @@ paths:
             type: integer
           example: 179929687
       x-observed:
-        artifact: goodreads/proofs/user-pages-map-batch2-2026-05-22.json
+        artifacts:
+          - goodreads/proofs/user-pages-map-batch2-2026-05-22.json
+          - proofs/year-in-books-live-2026-08-02.json
         status: 200
+        source: Brave CDP + independent Node fetch
       responses:
         "200":
           $ref: "#/components/responses/HtmlPage"

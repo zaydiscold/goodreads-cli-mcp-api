@@ -18,6 +18,17 @@ triggers:
 
 # Goodreads CLI + MCP
 
+## Zero-thought path for small agents
+
+For `add this book to Goodreads / want-to-read`:
+
+1. Resolve one numeric Goodreads book ID; do not silently choose fuzzy duplicates.
+2. `goodreads-cli shelves add --book-id ID --name to-read` (dry-run)
+3. `goodreads-cli shelves add --book-id ID --name to-read --execute` (only when the user asked)
+4. Verify membership with live authenticated My Books HTML or RSS; HTTP 200 alone is not proof.
+
+A local EPUB/PDF belongs to `amazon-kindle-cli kindle send`, not Goodreads. An Amazon wishlist request belongs to `amazon-kindle-cli wishlist add`; wishlist membership is not Kindle ownership. Use CLI first and load browser/CDP only when ID resolution or persisted auth actually fails.
+
 Drive your Goodreads account from the terminal. Amazon killed the public API in December 2020 — this CLI drives the undocumented web surface via a hand-mapped OpenAPI spec, CDP-captured routes, and live-verified write endpoints.
 
 **Repo:** `zaydiscold/goodreads-cli-mcp-api` at `~/Desktop/clis and apis/goodreads-cli` (mothership) / `~/Desktop/CLIs/goodreads-cli` (frostbyte)
@@ -29,12 +40,12 @@ Drive your Goodreads account from the terminal. Amazon killed the public API in 
 
 There is **no separate login** for notes vs shelves vs quotes. Same `GOODREADS_COOKIE`.
 
-| Env | Role |
-|---|---|
-| `GOODREADS_COOKIE` | Durable browser session |
-| `GOODREADS_CSRF_TOKEN` | Optional bootstrap; **auto-refreshed from cookie before every live Rails write** |
-| `GOODREADS_ALLOW_NOTES_PUBLICIZE=1` | Notes publicize/hide gate |
-| `GOODREADS_ALLOW_GENERIC_WRITES=1` | Generic `request execute` gate |
+| Env                                 | Role                                                                             |
+| ----------------------------------- | -------------------------------------------------------------------------------- |
+| `GOODREADS_COOKIE`                  | Durable browser session                                                          |
+| `GOODREADS_CSRF_TOKEN`              | Optional bootstrap; **auto-refreshed from cookie before every live Rails write** |
+| `GOODREADS_ALLOW_NOTES_PUBLICIZE=1` | Notes publicize/hide gate                                                        |
+| `GOODREADS_ALLOW_GENERIC_WRITES=1`  | Generic `request execute` gate                                                   |
 
 Live mutations always send `Referer` + `Origin` + `X-Requested-With`. Missing these → opaque HTTP 404 (not a second-login problem).
 
@@ -111,7 +122,10 @@ goodreads-cli shelves remove --book-id <id> --name to-read --execute
 MCP:
 
 ```json
-{ "name": "goodreads_shelf_add", "arguments": { "bookId": "58169", "shelf": "to-read", "execute": true } }
+{
+  "name": "goodreads_shelf_add",
+  "arguments": { "bookId": "58169", "shelf": "to-read", "execute": true }
+}
 ```
 
 Route: `POST /shelf/add_to_shelf` with `book_id`, `name`, optional `a=remove`.
@@ -135,17 +149,20 @@ Live-verified 2026-07-27: Catching the Big Fish (`58169`), Fantastic Mr. Fox (`6
 The endpoint returns 200 with or without body, but defaults to HIDING without `visible=true`. Verified via live CDP network capture of "Make all N visible" button (2026-06-08).
 
 **Publicize (make all visible):**
+
 ```bash
 source ~/.goodreads/auth.sh
 goodreads-cli notes publicize --book-id <id> --approved-book-id <id> --execute --json
 ```
 
 **Hide all:**
+
 ```bash
 goodreads-cli notes hide --book-id <id> --approved-book-id <id> --execute --json
 ```
 
 **VERIFY after every operation:**
+
 ```bash
 source ~/.goodreads/auth.sh
 curl -s -H "Cookie: $GOODREADS_COOKIE" \
@@ -184,6 +201,7 @@ goodreads-cli request execute --route "PUT /notes/{book_id}/share" \
 Goodreads loads shelf/notes data dynamically via XHR. Static HTML dumps are empty.
 
 **Working CDP approach:**
+
 1. Navigate to shelf: `https://www.goodreads.com/review/list/<user_id>?shelf=<slug>&per_page=100`
 2. Poll: `document.querySelectorAll('tr[id^="review_"], tr.bookalike').length`
 3. Once count > 0, save `document.body.innerHTML`
@@ -195,17 +213,17 @@ Goodreads loads shelf/notes data dynamically via XHR. Static HTML dumps are empt
 
 ## 7. Known Gaps
 
-| Area | Status |
-|---|---|
-| Shelf add/remove (to-read etc.) | ✅ Live-verified 2026-07-27 (`POST /shelf/add_to_shelf`) |
-| Per-note delete | ✅ Verified (`POST /notes/{id}/{annot} _method=delete`) |
-| Per-note visibility toggle | ⚠️ Inferred, not CDP-captured |
-| Per-note spoiler | ⚠️ Inferred, not CDP-captured |
-| Per-note like | ❌ Not mapped |
-| Per-note comment | ❌ Not mapped |
-| Quotes write (add/remove/reorder) | ✅ Mapped & live-verified 2026-06-08 |
-| Title/author → book_id resolver | ❌ Agent-side / web search; public `/search` often 202 bot wall |
-| Pagination (shelf pages 2+) | ❌ CLI only reads page 1 |
+| Area                              | Status                                                          |
+| --------------------------------- | --------------------------------------------------------------- |
+| Shelf add/remove (to-read etc.)   | ✅ Live-verified 2026-07-27 (`POST /shelf/add_to_shelf`)        |
+| Per-note delete                   | ✅ Verified (`POST /notes/{id}/{annot} _method=delete`)         |
+| Per-note visibility toggle        | ⚠️ Inferred, not CDP-captured                                   |
+| Per-note spoiler                  | ⚠️ Inferred, not CDP-captured                                   |
+| Per-note like                     | ❌ Not mapped                                                   |
+| Per-note comment                  | ❌ Not mapped                                                   |
+| Quotes write (add/remove/reorder) | ✅ Mapped & live-verified 2026-06-08                            |
+| Title/author → book_id resolver   | ❌ Agent-side / web search; public `/search` often 202 bot wall |
+| Pagination (shelf pages 2+)       | ❌ CLI only reads page 1                                        |
 
 ## 8. Shelf Gate
 
@@ -235,6 +253,7 @@ ssh mothership "claude --dangerously-skip-permissions -p '...'"
 ## 11. Self-Extension Protocol
 
 If you discover an endpoint not in `api-map/`:
+
 1. Add to `api-map/openapi/` and `api-map/markdown/`
 2. Write parser, fixture, test, or live-safe proof
 3. Open PR to `zaydiscold/goodreads-cli-mcp-api` main

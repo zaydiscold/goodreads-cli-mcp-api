@@ -27,6 +27,7 @@ import {
   type GoodreadsRoute,
 } from "./lib.js";
 import { parseBookPage } from "./parsers/bookPage.js";
+import { parseYearInBooksPage } from "./parsers/yearInBooksPage.js";
 import { parseCommentsPage } from "./parsers/commentsPage.js";
 import { parseMessagePage } from "./parsers/messagePage.js";
 import { parseNotesPage, redactNotesPrivateIdentifiers } from "./parsers/notesPage.js";
@@ -118,6 +119,13 @@ export const CAPABILITIES: Capability[] = [
     key: "book-show",
     cli: "book show",
     mcpTool: "goodreads_book_show",
+    readOnly: true,
+    risk: "read",
+  },
+  {
+    key: "year-in-books",
+    cli: "stats year-in-books",
+    mcpTool: "goodreads_year_in_books",
     readOnly: true,
     risk: "read",
   },
@@ -624,6 +632,47 @@ export async function bookShow(options: {
       );
   const parsed = parseBookPage(html);
   return envelope(parsed, { confidence: parsed.jsonLdBook.name ? "high" : "medium" });
+}
+
+export async function yearInBooks(options: {
+  userId: string;
+  year: number;
+  fixture?: string;
+  baseUrl?: string;
+}): Promise<Envelope> {
+  const userId = options.userId.trim();
+  if (!userId) throw new Error("user-id is required");
+  if (!Number.isInteger(options.year) || options.year < 2000 || options.year > 2100) {
+    throw new Error("year must be an integer from 2000 through 2100");
+  }
+  const html = options.fixture
+    ? await readText(options.fixture)
+    : await fetchText(
+        goodreadsUrl(
+          `/user/year_in_books/${options.year}/${encodeURIComponent(userId)}`,
+          options.baseUrl ?? DEFAULT_BASE_URL,
+        ),
+      );
+  const sample = html.slice(0, 64_000).toLowerCase();
+  const parsed = parseYearInBooksPage(html, { userId, year: options.year });
+  const complete = parsed.booksRead !== null && parsed.pagesRead !== null;
+  const signedOut =
+    !complete &&
+    /sign in to goodreads|name=["']sign_in|\/user\/sign_in|amazon sign-in/.test(sample);
+  const challenge = /captcha|robot check|automated access|not a robot/.test(sample);
+  const warnings: string[] = [];
+  if (signedOut) warnings.push("Goodreads returned a sign-in page instead of Year in Books data.");
+  if (challenge)
+    warnings.push("Goodreads returned an anti-bot challenge instead of Year in Books data.");
+  if (!complete && !signedOut && !challenge) {
+    warnings.push(
+      "Year in Books summary markers were missing; the page may have changed or be unavailable.",
+    );
+  }
+  return envelope(
+    { ...parsed, signedOut, challenge },
+    { warnings, confidence: complete && !signedOut && !challenge ? "high" : "low" },
+  );
 }
 
 // ---------------------------------------------------------------------------

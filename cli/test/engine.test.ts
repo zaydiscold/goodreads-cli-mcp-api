@@ -9,6 +9,7 @@ import {
   messagesFolders,
   notesInspect,
   shelvesDiscover,
+  yearInBooks,
 } from "../src/engine.js";
 import { readShelfPagesFromFixtureDir } from "../src/shelf.js";
 
@@ -113,6 +114,32 @@ describe("Goodreads engine correctness", () => {
     );
     const result = await bookShow({ fixture });
     expect(dataOf<{ jsonLdBook: { name: string } }>(result).jsonLdBook.name).toBe("Fixture Book");
+  });
+
+  it("fetches and parses a public Year in Books page through the shared engine", async () => {
+    const html = `
+      <html><head><title>Reader's Year in Books</title></head><body>
+        <a href="/user/sign_in">Sign In</a>
+        <div class="herobannerYearText">2025</div>
+        <div class="heroImageContainer">
+          <div class="heroImageContainer__avatarOrCount"><div class="heroImageContainer__count">12</div><div class="heroImageContainer__countLabel">books read</div></div>
+          <div class="heroImageContainer__avatarOrCount"><div class="heroImageContainer__count">4,200</div><div class="heroImageContainer__countLabel">pages read</div></div>
+        </div>
+        <div id="yyibAverageBookLengthLabel">Average book length in 2025</div><div class="yyibAverageBookLengthData">350 pages</div>
+        <div id="yyibAverageRatingLabel">Reader's average rating for 2025</div><div class="yyibAverageRatingData"><div class="yyibAverageRatingData__pageCount">4.2</div></div>
+      </body></html>
+    `;
+    const fetchMock = vi.fn().mockResolvedValue(new Response(html, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await yearInBooks({ userId: "reader-1", year: 2025 });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/user/year_in_books/2025/reader-1");
+    expect(dataOf<{ booksRead: number; pagesRead: number }>(result)).toMatchObject({
+      booksRead: 12,
+      pagesRead: 4200,
+    });
+    expect(result.confidence).toBe("high");
+    expect(dataOf<{ signedOut: boolean }>(result).signedOut).toBe(false);
   });
 
   it("exports and auto-discovers alternate shelf fixture names", async () => {

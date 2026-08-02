@@ -44,6 +44,7 @@ import {
   shelfAdd,
   shelfRemove,
   shelvesDiscover,
+  yearInBooks,
   writePlanNotesPublicize,
   type Envelope,
   ls,
@@ -219,6 +220,24 @@ registerTool(
     },
   },
   async ({ slugOrId, fixture, baseUrl }) => emit(await bookShow({ slugOrId, fixture, baseUrl })),
+);
+
+registerTool(
+  "goodreads_year_in_books",
+  {
+    title: "Goodreads Year in Books",
+    description:
+      "Read public Year in Books totals, averages and book extrema without emitting review text.",
+    annotations: toolAnnotations(true, "read"),
+    inputSchema: {
+      userId: z.string(),
+      year: z.number().int().min(2000).max(2100),
+      fixture: z.string().optional(),
+      baseUrl: z.string().optional(),
+    },
+  },
+  async ({ userId, year, fixture, baseUrl }) =>
+    emit(await yearInBooks({ userId, year, fixture, baseUrl })),
 );
 
 // ---------------------------------------------------------------------------
