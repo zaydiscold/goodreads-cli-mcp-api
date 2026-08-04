@@ -4,6 +4,11 @@ import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import { buildLiveRequestPlan } from "../src/client/live.js";
 import { parseBookPage } from "../src/parsers/bookPage.js";
+import {
+  parseAuthorPage,
+  parseRecommendationsPage,
+  parseSearchResultsPage,
+} from "../src/parsers/discoveryPage.js";
 import { parseYearInBooksPage } from "../src/parsers/yearInBooksPage.js";
 import { parseMessagePage } from "../src/parsers/messagePage.js";
 import { parseNotesPage } from "../src/parsers/notesPage.js";
@@ -422,6 +427,41 @@ describe("Goodreads parsers", () => {
         env: { GOODREADS_ALLOW_NOTES_PUBLICIZE: "1" },
       }).blockers,
     ).toHaveLength(0);
+  });
+
+  it("parses discovery cards as book metadata without prose or image URLs", () => {
+    const search = parseSearchResultsPage(`
+      <div class="searchSubNavContainer">showing 1-20 of 20 books</div>
+      <tr><a class="bookTitle" href="/book/show/123-example?from_search=true">Example Book</a>
+      <a class="authorName">Example Author</a><span class="minirating">4.2 avg rating</span>
+      <div class="reviewText">Private review prose must never be returned.</div></tr>
+    `);
+    const recommendations = parseRecommendationsPage(`
+      <div class="bookBox"><a href="/book/show/456-recommended"><img alt="Recommended Book"></a>
+      <p>Personal recommendation explanation must never be returned.</p></div>
+    `);
+    const author = parseAuthorPage(`
+      <h1 class="authorName">Example Author</h1><div class="aboutAuthorInfo">Long biography prose.</div>
+      <div class="elementList"><a class="bookTitle" href="/book/show/789-bibliography">Bibliography Book</a>
+      <span class="minirating">4.0 avg rating</span></div>
+    `);
+
+    expect(search).toMatchObject({
+      resultCountLabel: "showing 1-20 of 20 books",
+      books: [{ bookId: "123", title: "Example Book", author: "Example Author" }],
+    });
+    expect(recommendations.books).toEqual([
+      { bookId: "456", title: "Recommended Book", author: null, ratingSummary: null },
+    ]);
+    expect(author).toMatchObject({
+      name: "Example Author",
+      bioLength: "Long biography prose.".length,
+      books: [{ bookId: "789", title: "Bibliography Book" }],
+    });
+    const serialized = JSON.stringify({ search, recommendations, author });
+    expect(serialized).not.toContain("Private review prose");
+    expect(serialized).not.toContain("Personal recommendation explanation");
+    expect(serialized).not.toContain("Long biography prose");
   });
 
   it("loads sanitized authenticated browser route templates", async () => {
