@@ -15,6 +15,7 @@ import { Command } from "commander";
 import { annotationsCommand } from "./commands/annotations.js";
 import { apiMapCommand } from "./commands/apiMap.js";
 import { bookCommand } from "./commands/book.js";
+import { authorCommand, recommendationsCommand } from "./commands/discovery.js";
 import { booksCommand } from "./commands/books.js";
 import { commentsCommand } from "./commands/comments.js";
 import { messagesCommand } from "./commands/messages.js";
@@ -26,6 +27,7 @@ import { shelvesCommand } from "./commands/shelves.js";
 import { statsCommand } from "./commands/stats.js";
 import { writePlanCommand } from "./commands/writePlan.js";
 import { libraryCommand } from "./commands/libraryCommand.js";
+import { searchCommand } from "./commands/search.js";
 
 const program = new Command();
 
@@ -42,6 +44,9 @@ program.addCommand(shelvesCommand());
 program.addCommand(statsCommand());
 program.addCommand(booksCommand());
 program.addCommand(bookCommand());
+program.addCommand(searchCommand());
+program.addCommand(recommendationsCommand());
+program.addCommand(authorCommand());
 program.addCommand(commentsCommand());
 program.addCommand(messagesCommand());
 program.addCommand(notesCommand());

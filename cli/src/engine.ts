@@ -27,6 +27,11 @@ import {
   type GoodreadsRoute,
 } from "./lib.js";
 import { parseBookPage } from "./parsers/bookPage.js";
+import {
+  parseAuthorPage,
+  parseRecommendationsPage,
+  parseSearchResultsPage,
+} from "./parsers/discoveryPage.js";
 import { parseYearInBooksPage } from "./parsers/yearInBooksPage.js";
 import { parseCommentsPage } from "./parsers/commentsPage.js";
 import { parseMessagePage } from "./parsers/messagePage.js";
@@ -120,6 +125,27 @@ export const CAPABILITIES: Capability[] = [
     key: "book-show",
     cli: "book show",
     mcpTool: "goodreads_book_show",
+    readOnly: true,
+    risk: "read",
+  },
+  {
+    key: "search-books",
+    cli: "search books",
+    mcpTool: "goodreads_search_books",
+    readOnly: true,
+    risk: "read",
+  },
+  {
+    key: "recommendations-list",
+    cli: "recommendations list",
+    mcpTool: "goodreads_recommendations_list",
+    readOnly: true,
+    risk: "read",
+  },
+  {
+    key: "author-show",
+    cli: "author show",
+    mcpTool: "goodreads_author_show",
     readOnly: true,
     risk: "read",
   },
@@ -640,6 +666,102 @@ export async function bookShow(options: {
       );
   const parsed = parseBookPage(html);
   return envelope(parsed, { confidence: parsed.jsonLdBook.name ? "high" : "medium" });
+}
+
+function discoveryWarnings(html: string, signedOut: boolean, requiresAuth: boolean): string[] {
+  const sample = html.slice(0, 64_000).toLowerCase();
+  const warnings: string[] = [];
+  if (/captcha|robot check|automated access|not a robot/.test(sample)) {
+    warnings.push("Goodreads returned an anti-bot challenge instead of discovery results.");
+  }
+  if (requiresAuth && (!process.env.GOODREADS_COOKIE || signedOut)) {
+    warnings.push(
+      "Personalized recommendations require a current GOODREADS_COOKIE; Goodreads returned no authenticated recommendation session.",
+    );
+  }
+  return warnings;
+}
+
+export async function searchBooks(options: {
+  query: string;
+  limit?: number;
+  baseUrl?: string;
+}): Promise<Envelope> {
+  const query = options.query.trim();
+  if (!query) throw new Error("query is required");
+  const limit = options.limit ?? 20;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    throw new Error("limit must be an integer from 1 through 100");
+  }
+  const { html, signedOut } = await fetchAuthenticatedText(
+    goodreadsUrl(
+      `/search?q=${encodeURIComponent(query)}&search_type=books`,
+      options.baseUrl ?? DEFAULT_BASE_URL,
+    ),
+  );
+  const parsed = parseSearchResultsPage(html);
+  const warnings = discoveryWarnings(html, signedOut, false);
+  if (parsed.books.length === 0 && warnings.length === 0) {
+    warnings.push(
+      "No book candidates were parsed; the page may have changed or have no matching books.",
+    );
+  }
+  return envelope(
+    { ...parsed, query, totalAvailable: parsed.books.length, books: parsed.books.slice(0, limit) },
+    { warnings, confidence: parsed.books.length > 0 && warnings.length === 0 ? "high" : "low" },
+  );
+}
+
+export async function recommendationsList(
+  options: {
+    limit?: number;
+    baseUrl?: string;
+  } = {},
+): Promise<Envelope> {
+  const limit = options.limit ?? 20;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    throw new Error("limit must be an integer from 1 through 100");
+  }
+  const { html, signedOut } = await fetchAuthenticatedText(
+    goodreadsUrl("/recommendations", options.baseUrl ?? DEFAULT_BASE_URL),
+  );
+  const parsed = parseRecommendationsPage(html);
+  const warnings = discoveryWarnings(html, signedOut, true);
+  if (parsed.books.length === 0 && warnings.length === 0) {
+    warnings.push("No recommendation cards were parsed; the page may have changed.");
+  }
+  return envelope(
+    { ...parsed, totalAvailable: parsed.books.length, books: parsed.books.slice(0, limit) },
+    { warnings, confidence: parsed.books.length > 0 && warnings.length === 0 ? "high" : "low" },
+  );
+}
+
+export async function authorShow(options: {
+  authorSlug: string;
+  limit?: number;
+  baseUrl?: string;
+}): Promise<Envelope> {
+  const authorSlug = options.authorSlug.trim();
+  if (!authorSlug) throw new Error("author-slug is required");
+  const limit = options.limit ?? 20;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    throw new Error("limit must be an integer from 1 through 100");
+  }
+  const { html, signedOut } = await fetchAuthenticatedText(
+    goodreadsUrl(
+      `/author/show/${encodeURIComponent(authorSlug)}`,
+      options.baseUrl ?? DEFAULT_BASE_URL,
+    ),
+  );
+  const parsed = parseAuthorPage(html);
+  const warnings = discoveryWarnings(html, signedOut, false);
+  if (!parsed.name && warnings.length === 0) {
+    warnings.push("No author identity was parsed; the page may have changed or be unavailable.");
+  }
+  return envelope(
+    { ...parsed, totalAvailable: parsed.books.length, books: parsed.books.slice(0, limit) },
+    { warnings, confidence: parsed.name && warnings.length === 0 ? "high" : "low" },
+  );
 }
 
 export async function yearInBooks(options: {

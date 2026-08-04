@@ -92,6 +92,9 @@ All reads run live and free. All writes default to a dry-run; the notes workflow
 | `books list --shelf <s>`                               | "List one shelf" — from authenticated HTML fixtures or public RSS                                                        |
 | `books export --fixture-dir <d>`                       | "Export my shelves" — deduped by book, with per-shelf membership + completeness flags                                    |
 | `book show <slug-or-id>`                               | "Parse this book page" — JSON-LD + Next.js metadata                                                                      |
+| `search books --query "<title> <author>"`              | "Which Goodreads editions match?" — bounded candidate metadata; never silently selects one                               |
+| `recommendations list`                                 | "What does my current Goodreads session recommend?" — authenticated card metadata only                                    |
+| `author show --author-slug <id.slug>`                  | "What is on this public author page?" — identity, bio length, and bounded bibliography metadata                           |
 | `stats year-in-books --user-id <id> --year <yyyy>`     | "What did this reader finish that year?" — books/pages, averages and extrema without review text                         |
 | `recent-reading list / notes`                          | "Join my current/read shelves to my Kindle notes index"                                                                  |
 | `recent-reading publicize-plan / publicize`            | "Plan, then publicize, my recent books' highlights" (gated)                                                              |

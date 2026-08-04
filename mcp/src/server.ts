@@ -18,6 +18,7 @@ import {
   annotationsThoughtsPlan,
   apiMapRoutes,
   apiMapSearch,
+  authorShow,
   bookShow,
   booksExport,
   booksList,
@@ -40,10 +41,12 @@ import {
   recentReadingNotes,
   recentReadingPublicize,
   recentReadingPublicizePlan,
+  recommendationsList,
   requestExecute,
   requestPlan,
   shelfAdd,
   shelfRemove,
+  searchBooks,
   shelvesDiscover,
   yearInBooks,
   writePlanNotesPublicize,
@@ -221,6 +224,53 @@ registerTool(
     },
   },
   async ({ slugOrId, fixture, baseUrl }) => emit(await bookShow({ slugOrId, fixture, baseUrl })),
+);
+
+registerTool(
+  "goodreads_search_books",
+  {
+    title: "Goodreads Book Search",
+    description:
+      "Resolve a title and/or author into Goodreads book candidates for a user-approved choice; returns metadata only, never reviews or descriptions.",
+    annotations: toolAnnotations(true, "read"),
+    inputSchema: {
+      query: z.string(),
+      limit: z.number().int().min(1).max(100).default(20),
+      baseUrl: z.string().optional(),
+    },
+  },
+  async ({ query, limit, baseUrl }) => emit(await searchBooks({ query, limit, baseUrl })),
+);
+
+registerTool(
+  "goodreads_recommendations_list",
+  {
+    title: "Goodreads Recommendations",
+    description:
+      "List personalized Goodreads recommendation cards from the authenticated session as book metadata only; reports auth or anti-bot fallback explicitly.",
+    annotations: toolAnnotations(true, "read"),
+    inputSchema: {
+      limit: z.number().int().min(1).max(100).default(20),
+      baseUrl: z.string().optional(),
+    },
+  },
+  async ({ limit, baseUrl }) => emit(await recommendationsList({ limit, baseUrl })),
+);
+
+registerTool(
+  "goodreads_author_show",
+  {
+    title: "Goodreads Author Show",
+    description:
+      "Read a public Goodreads author identity, bio length, and bibliography metadata without returning biography prose or reviews.",
+    annotations: toolAnnotations(true, "read"),
+    inputSchema: {
+      authorSlug: z.string(),
+      limit: z.number().int().min(1).max(100).default(20),
+      baseUrl: z.string().optional(),
+    },
+  },
+  async ({ authorSlug, limit, baseUrl }) => emit(await authorShow({ authorSlug, limit, baseUrl })),
 );
 
 registerTool(

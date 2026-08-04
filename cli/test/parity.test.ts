@@ -8,12 +8,14 @@ import { annotationsCommand } from "../src/commands/annotations.js";
 import { bookCommand } from "../src/commands/book.js";
 import { booksCommand } from "../src/commands/books.js";
 import { commentsCommand } from "../src/commands/comments.js";
+import { authorCommand, recommendationsCommand } from "../src/commands/discovery.js";
 import { messagesCommand } from "../src/commands/messages.js";
 import { notesCommand } from "../src/commands/notes.js";
 import { quotesCommand } from "../src/commands/quotes.js";
 import { recentReadingCommand } from "../src/commands/recentReading.js";
 import { requestCommand } from "../src/commands/request.js";
 import { shelvesCommand } from "../src/commands/shelves.js";
+import { searchCommand } from "../src/commands/search.js";
 import { statsCommand } from "../src/commands/stats.js";
 import { writePlanCommand } from "../src/commands/writePlan.js";
 import { libraryCommand } from "../src/commands/libraryCommand.js";
@@ -33,6 +35,9 @@ const CLI_GROUPS = [
   statsCommand(),
   booksCommand(),
   bookCommand(),
+  searchCommand(),
+  recommendationsCommand(),
+  authorCommand(),
   commentsCommand(),
   messagesCommand(),
   notesCommand(),

@@ -3,12 +3,15 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  authorShow,
   bookShow,
   booksExport,
   booksList,
   messagesFolders,
   notesInspect,
   notesBooks,
+  recommendationsList,
+  searchBooks,
   shelvesDiscover,
   yearInBooks,
 } from "../src/engine.js";
@@ -327,6 +330,49 @@ describe("Goodreads engine correctness", () => {
     const data = dataOf<{ shelves: Array<{ slug: string }> }>(result);
     expect(data.shelves).toHaveLength(1);
     expect(data.shelves[0]?.slug).toBe("read");
+  });
+
+  it("fetches mapped discovery reads through the shared engine and reports bot walls", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          '<a class="bookTitle" href="/book/show/123-example">Example</a><a class="authorName">Author</a>',
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          '<div class="bookBox"><a href="/book/show/456-rec"><img alt="Rec"></a></div>',
+          {
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(new Response('<h1 class="authorName">Author</h1>', { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const search = await searchBooks({ query: "Example", limit: 1 });
+    const recommendations = await recommendationsList({ limit: 1 });
+    const author = await authorShow({ authorSlug: "1.Author", limit: 1 });
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/search?q=Example&search_type=books");
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/recommendations");
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain("/author/show/1.Author");
+    expect(dataOf<{ books: Array<{ bookId: string }> }>(search).books).toEqual([
+      { bookId: "123", title: "Example", author: "Author", ratingSummary: null },
+    ]);
+    expect(dataOf<{ books: Array<{ bookId: string }> }>(recommendations).books[0]?.bookId).toBe(
+      "456",
+    );
+    expect(dataOf<{ name: string }>(author).name).toBe("Author");
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("robot check", { status: 200 })));
+    const blocked = await searchBooks({ query: "Example" });
+    expect(blocked.confidence).toBe("low");
+    expect(blocked.warnings).toContain(
+      "Goodreads returned an anti-bot challenge instead of discovery results.",
+    );
   });
 
   it("detects signed-out on shelf discovery when cookie is set but expired", async () => {

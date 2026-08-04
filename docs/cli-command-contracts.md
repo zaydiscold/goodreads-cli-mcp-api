@@ -160,6 +160,29 @@ Fixture proof:
 goodreads/fixtures/parsed/book-gate-of-the-feral-gods.parsed.json
 ```
 
+## Discovery reads
+
+### `search books --query <query>`
+
+Uses `GET /search?q=<query>&search_type=books` to return a bounded list of
+candidate edition IDs, titles, author names, and rating summaries. It never
+chooses a candidate on the caller's behalf and excludes descriptions, reviews,
+and image URLs. A robot/challenge response is reported as low confidence, not
+as an empty successful result.
+
+### `recommendations list`
+
+Uses authenticated `GET /recommendations` and returns recommendation-card book
+metadata only. It requires a current `GOODREADS_COOKIE`; signed-out and
+anti-bot states are explicit warnings. Do not expose recommendation explanations
+or other account-private prose.
+
+### `author show --author-slug <id.slug>`
+
+Uses public `GET /author/show/:author_slug` and returns the author name, the
+length of the rendered biography, and bounded bibliography metadata. It does
+not return biography prose or book reviews.
+
 ## `notes list --paginate auto`
 
 Purpose: list Kindle notes/highlights metadata without raw highlight text.
