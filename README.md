@@ -240,3 +240,7 @@ Built on the trio pattern (CLI + skill + MCP) pioneered by [Matt Van Horn's Prin
 - Prefer **one edition per work** on `to-read` (skip study guides / alternate storybooks unless asked).
 - If CSRF refresh hits an anti-bot challenge, set `GOODREADS_SKIP_CSRF_REFRESH=1` and use a fresh `GOODREADS_CSRF_TOKEN` from a browser session, then retry the write.
 - Product direction: a tiny web UI that logs into Goodreads + Amazon, accepts bookstore photos / camera roll, and runs bidirectional list sync on top of these CLIs.
+
+## Related tools
+
+- **[free-book-download](https://github.com/zaydiscold/agent-skills/tree/main/skills/research/free-book-download)** — Agent skill for downloading free books from OceanofPDF, Libgen, and Z-Library via DuckDuckGo-first search. Includes the full LibGen mirror set used by this repo's sibling [book-review-tracker](https://github.com/zaydiscold/book-review-tracker).
