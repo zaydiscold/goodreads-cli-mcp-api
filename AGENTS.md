@@ -49,7 +49,7 @@ proofs/         sanitized run proofs (counts/status/timing only — no highlight
    then wire a `commands/*.ts` subcommand **and** a `mcp/src/server.ts`
    `registerTool` for it. The parity test tells you if you forgot one.
 
-2. **Safety: reads are free, writes gate.** Reads run live. Every write builds a
+2. **Safety: live-capable reads are free, writes gate.** Some reads are live while fixture/catalog/plan commands remain local; consult `docs/evidence-confidence-ledger.md`. Every write builds a
    dry-run plan by default. Notes publicize/hide require all three gates —
    `--execute`, an exact `--approved-book-id`, and `GOODREADS_ALLOW_NOTES_PUBLICIZE=1`
    (enforced in `checkPublicizeApproval`). Quote and shelf writes default to dry-run
@@ -123,6 +123,7 @@ Public Goodreads reads once received a raw browser cookie jar containing Amazon/
 - `cli/test/cookie.test.ts` must prove mixed Amazon/Goodreads input is reduced while required Goodreads auth survives.
 - Do not raise redirect limits to hide routing defects.
 - HTTP 200 or nonempty HTML is not semantic proof. Public-read acceptance requires parsed domain data with no auth/SSO cookie leakage. Authenticated-write acceptance requires a reversible mutation, route-specific account-state readback, and rollback verification; a dry-run alone is not a live ship gate.
+- Keep `docs/evidence-confidence-ledger.md` current for every public CLI command and MCP tool. Use its explicit tiers; never generalize one live route or mutation receipt to an entire family.
 - The repaired cookie/client files must remain inside the Prettier baseline.
 
 Focused, non-duplicative gate after cookie, redirect, public search, shelf-auth, or affected client changes:

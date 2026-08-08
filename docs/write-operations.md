@@ -1,7 +1,7 @@
 # Write Operations
 
 The personal Goodreads CLI is live read/write capable. It is not PP-side
-software. Reads run live; every mutating route defaults to a dry-run plan.
+software. Live-capable reads send requests when their required inputs/auth are present; fixture, catalog, and plan-only commands do not. Every mutating route defaults to a dry-run plan. See `evidence-confidence-ledger.md` for the exact tier of each capability.
 
 **One cookie session drives every write.** Notes, shelves, quotes, and generic
 route execute all use `GOODREADS_COOKIE`. CSRF is refreshed from that cookie

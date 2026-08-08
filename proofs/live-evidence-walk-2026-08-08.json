@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-08-08",
+  "kind": "sanitized-live-evidence-derivative",
+  "privacy": {
+    "rawResponsesRetained": false,
+    "credentialsRetained": false,
+    "accountIdentifiersRetained": false,
+    "bookOrNoteContentRetained": false
+  },
+  "limitations": [
+    "This receipt records semantic outcomes from a live authenticated walk; it is not a raw HTTP capture or cryptographic attestation.",
+    "A passing representative input does not certify every pagination branch, object, or error state.",
+    "Historical snapshots do not automatically inherit this receipt."
+  ],
+  "reads": [
+    {
+      "capability": "public-search",
+      "tier": "live-read",
+      "semantic": "nonempty parsed candidates"
+    },
+    {
+      "capability": "public-book-detail",
+      "tier": "live-read",
+      "semantic": "normalized book metadata"
+    },
+    {
+      "capability": "public-author-detail",
+      "tier": "live-read",
+      "semantic": "author metadata and bibliography"
+    },
+    { "capability": "year-in-books", "tier": "live-read", "semantic": "annual totals and extrema" },
+    { "capability": "shelf-discovery", "tier": "live-read", "semantic": "five parsed shelves" },
+    {
+      "capability": "authenticated-shelf-books",
+      "tier": "live-read",
+      "semantic": "100 parsed rows plus pagination; signedOut=false"
+    },
+    {
+      "capability": "personalized-recommendations",
+      "tier": "live-read",
+      "semantic": "nonempty parsed cards"
+    },
+    {
+      "capability": "annotated-book-index",
+      "tier": "live-read",
+      "semantic": "nonempty redacted metadata"
+    },
+    {
+      "capability": "library-state",
+      "tier": "live-read",
+      "semantic": "authenticated status/rating/review state"
+    },
+    {
+      "capability": "message-folder-catalog",
+      "tier": "unit",
+      "semantic": "static catalog only; not a live inbox read"
+    },
+    {
+      "capability": "generic-request-plan",
+      "tier": "unit",
+      "semantic": "canonical non-mutating book-route plan"
+    }
+  ],
+  "reversibleWrites": [
+    {
+      "capability": "shelf-status",
+      "transition": "to-read -> currently-reading -> to-read",
+      "tier": "rollback-verified",
+      "verifier": "authenticated review edit state"
+    },
+    {
+      "capability": "rating",
+      "transition": "0 -> 1 -> 0",
+      "tier": "rollback-verified",
+      "verifier": "authenticated review edit state"
+    },
+    {
+      "capability": "review-text",
+      "transition": "absent -> temporary marker -> absent",
+      "tier": "rollback-verified",
+      "verifier": "authenticated review edit state"
+    },
+    {
+      "capability": "quote-create-remove",
+      "transition": "absent -> created -> absent",
+      "tier": "rollback-verified",
+      "verifier": "canonical authenticated quote list"
+    },
+    {
+      "capability": "quote-reorder",
+      "transition": "original -> down -> original",
+      "tier": "rollback-verified",
+      "verifier": "canonical authenticated quote order"
+    },
+    {
+      "capability": "notes-visibility",
+      "transition": "29 visible -> 29 hidden -> 29 visible",
+      "tier": "rollback-verified",
+      "verifier": "per-note parsed visibility counts"
+    }
+  ]
+}

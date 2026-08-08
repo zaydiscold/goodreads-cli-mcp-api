@@ -31,7 +31,7 @@ tested in `src/profile.ts`.
 
 ## Write boundary
 
-- Reads run live; writes produce dry-run plans by default.
+- Live-capable reads send requests when required inputs/auth are present; fixture/catalog/plan tools remain local. Writes produce dry-run plans by default. See `../docs/evidence-confidence-ledger.md`.
 - Notes publicize/hide require `execute`, exact book approval, and
   `GOODREADS_ALLOW_NOTES_PUBLICIZE=1`.
 - The generic executor requires `execute`, exact `approvedRoute`, and
