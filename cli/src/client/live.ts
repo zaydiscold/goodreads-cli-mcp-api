@@ -1,4 +1,5 @@
 import type { GoodreadsRoute } from "../lib.js";
+import { explainFetchFailure, normalizeGoodreadsCookie } from "./cookie.js";
 
 export interface LiveRequestPlan {
   execute: boolean;
@@ -187,19 +188,24 @@ export async function ensureFreshCsrf(
   if (process.env.GOODREADS_SKIP_CSRF_REFRESH === "1") {
     return process.env.GOODREADS_CSRF_TOKEN ?? null;
   }
-  const cookie = process.env.GOODREADS_COOKIE;
+  const cookie = normalizeGoodreadsCookie(process.env.GOODREADS_COOKIE);
   if (!cookie) return process.env.GOODREADS_CSRF_TOKEN ?? null;
 
-  const response = await fetch(CSRF_REFRESH_URL, {
-    method: "GET",
-    headers: {
-      cookie,
-      "user-agent": "goodreads-cli/1.0.0 (+https://github.com/zaydiscold/goodreads-cli-mcp-api)",
-      accept: "text/html,application/xhtml+xml",
-    },
-    redirect: "follow",
-    signal: AbortSignal.timeout(30_000),
-  });
+  let response: Response;
+  try {
+    response = await fetch(CSRF_REFRESH_URL, {
+      method: "GET",
+      headers: {
+        cookie,
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+        accept: "text/html,application/xhtml+xml",
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (err) {
+    throw explainFetchFailure(err, CSRF_REFRESH_URL);
+  }
   const html = await response.text();
   const challenge = responseChallenge(
     response.status,
@@ -229,11 +235,11 @@ export async function ensureFreshCsrf(
 
 function requestHeaders(plan: LiveRequestPlan): Record<string, string> {
   const headers: Record<string, string> = {
-    "user-agent": "goodreads-cli/1.0.0 (+https://github.com/zaydiscold/goodreads-cli-mcp-api)",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
     accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
   };
   if (plan.requiresCookie && process.env.GOODREADS_COOKIE) {
-    headers.cookie = process.env.GOODREADS_COOKIE;
+    headers.cookie = normalizeGoodreadsCookie(process.env.GOODREADS_COOKIE);
   }
   if (plan.requiresCsrf && process.env.GOODREADS_CSRF_TOKEN) {
     headers["x-csrf-token"] = process.env.GOODREADS_CSRF_TOKEN;

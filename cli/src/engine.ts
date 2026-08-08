@@ -7,7 +7,7 @@
 // so they cannot drift. The CAPABILITIES registry below is the contract the
 // parity test enforces.
 import { readdir } from "node:fs/promises";
-import { fetchAuthenticatedText, fetchText, goodreadsUrl } from "./client/http.js";
+import { fetchAuthenticatedText, fetchPublicText, fetchText, goodreadsUrl } from "./client/http.js";
 import {
   buildLiveRequestPlan,
   executeLiveRequest,
@@ -693,14 +693,16 @@ export async function searchBooks(options: {
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
     throw new Error("limit must be an integer from 1 through 100");
   }
-  const { html, signedOut } = await fetchAuthenticatedText(
+  // Public search must not send Amazon SSO cookies (at-main/session-token/…).
+  // Those keep writes signed-in but 302-loop /search under undici follow.
+  const html = await fetchPublicText(
     goodreadsUrl(
       `/search?q=${encodeURIComponent(query)}&search_type=books`,
       options.baseUrl ?? DEFAULT_BASE_URL,
     ),
   );
   const parsed = parseSearchResultsPage(html);
-  const warnings = discoveryWarnings(html, signedOut, false);
+  const warnings = discoveryWarnings(html, false, false);
   if (parsed.books.length === 0 && warnings.length === 0) {
     warnings.push(
       "No book candidates were parsed; the page may have changed or have no matching books.",
