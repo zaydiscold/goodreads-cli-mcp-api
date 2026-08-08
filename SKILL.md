@@ -96,9 +96,9 @@ GOODREADS_MCP_PROFILE=notes ~/Desktop/CLIs/goodreads-cli/scripts/goodreads-mcp.s
 
 The `full` profile exposes all legacy tools; `core` and `notes` reduce discovery cost while preserving the same tool implementations. All names are prefixed `goodreads_`:
 
-- **Reads:** `api_map_routes`, `route_search`, `browser_routes`, `shelves_discover`, `books_list`, `books_export`, `book_show`, `search_books`, `recommendations_list`, `author_show`, `year_in_books`, `comments_list`, `messages_folders`, `messages_list`, `annotations_list`, `notes_inspect`, `notes_books`, `recent_reading_list`, `recent_reading_notes`, `dynamic_inventory_guidance`.
+- **Reads:** `api_map_routes`, `route_search`, `browser_routes`, `shelves_discover`, `books_list`, `books_export`, `book_show`, `search_books`, `recommendations_list`, `author_show`, `year_in_books`, `comments_list`, `messages_folders`, `messages_list`, `annotations_list`, `notes_inspect`, `notes_books`, `recent_reading_list`, `recent_reading_notes`, `library_show`, `dynamic_inventory_guidance`.
 - **Plans (never submit):** `notes_publicize_plan`, `recent_reading_publicize_plan`, `annotations_thoughts_plan`, `bookshelf_move_plan`, `write_plan_notes_publicize`, `request_plan`.
-- **Writes (dry-run by default; gated):** `notes_publicize`, `notes_hide`, `recent_reading_publicize`, `quotes_add`, `quotes_remove`, `quotes_reorder`, **`shelf_add`**, **`shelf_remove`**, `request_execute`.
+- **Writes (dry-run by default; gated):** `notes_publicize`, `notes_hide`, `recent_reading_publicize`, `quotes_add`, `quotes_remove`, `quotes_reorder`, **`shelf_add`**, **`shelf_remove`**, `set_status`, `rating_update`, `review_upsert`, `request_execute`.
 
 `core` profile includes `shelf_add` / `shelf_remove` so agents can fulfill “add this to want to read” without the full tool surface.
 
@@ -222,17 +222,17 @@ Goodreads loads shelf/notes data dynamically via XHR. Static HTML dumps are empt
 
 ## 7. Known Gaps
 
-| Area                              | Status                                                          |
-| --------------------------------- | --------------------------------------------------------------- |
-| Shelf add/remove (to-read etc.)   | ✅ Live-verified 2026-07-27 (`POST /shelf/add_to_shelf`)        |
-| Per-note delete                   | ✅ Verified (`POST /notes/{id}/{annot} _method=delete`)         |
-| Per-note visibility toggle        | ⚠️ Inferred, not CDP-captured                                   |
-| Per-note spoiler                  | ⚠️ Inferred, not CDP-captured                                   |
-| Per-note like                     | ❌ Not mapped                                                   |
-| Per-note comment                  | ❌ Not mapped                                                   |
-| Quotes write (add/remove/reorder) | ✅ Mapped & live-verified 2026-06-08                            |
-| Title/author → book_id resolver   | ❌ Agent-side / web search; public `/search` often 202 bot wall |
-| Pagination (shelf pages 2+)       | ❌ CLI only reads page 1                                        |
+| Area                              | Status                                                                                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Shelf add/remove (to-read etc.)   | ✅ Live-verified 2026-07-27 (`POST /shelf/add_to_shelf`)                                                                                   |
+| Per-note delete                   | ⚠️ Mapped generic route only; no first-class tool or retained live delete/readback receipt                                                 |
+| Per-note visibility toggle        | ⚠️ Inferred, not CDP-captured                                                                                                              |
+| Per-note spoiler                  | ⚠️ Inferred, not CDP-captured                                                                                                              |
+| Per-note like                     | ❌ Not mapped                                                                                                                              |
+| Per-note comment                  | ❌ Not mapped                                                                                                                              |
+| Quotes write (add/remove/reorder) | ✅ Mapped & live-verified 2026-06-08                                                                                                       |
+| Title/author → book_id resolver   | ❌ Agent-side / web search; public `/search` often 202 bot wall                                                                            |
+| Pagination (shelf pages 2+)       | ⚠️ Live HTML list currently requests one 100-row page; export can combine caller-provided fixture pages but was not live-walked end to end |
 
 ## 8. Shelf Gate
 
