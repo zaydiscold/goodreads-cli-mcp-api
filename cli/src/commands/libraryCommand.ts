@@ -40,7 +40,7 @@ export function libraryCommand(): Command {
     );
   cmd
     .command("rating")
-    .description("Set/clear star rating via POST /review/update/{book_id}.")
+    .description("Set/clear star rating via POST /review/rate/{book_id}.")
     .requiredOption("--book-id <id>")
     .option("--action <action>", "set")
     .option("--rating <n>")

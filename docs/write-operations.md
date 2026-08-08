@@ -14,13 +14,16 @@ before each live Rails mutation — you do not maintain a second login.
 - `--dry-run` forces a preview even when execution flags are present.
 - Mutating routes print `[WRITES TO LIVE GOODREADS]` to stderr before execution.
 - Authenticated writes require caller-owned `GOODREADS_COOKIE`.
-- Rails-form writes auto-refresh CSRF from the cookie (or accept form `authenticity_token`).
-- Live mutations always send browser-like headers:
+- Rails-form writes auto-refresh CSRF from the signed-in `/review/list` page (or accept form `authenticity_token`). The public homepage is intentionally not used because it can return a WAF challenge while account pages remain authenticated.
+- Live mutations always send browser-like `Referer` and `Origin` headers:
   - `Referer: https://www.goodreads.com/`
   - `Origin: https://www.goodreads.com`
-  - `X-Requested-With: XMLHttpRequest`
-  Without these, Goodreads often returns **opaque HTTP 404** (body may be empty
-  or a short error). This is not a separate auth failure.
+- Shelf, rating, notes, and quote helpers additionally send
+  `X-Requested-With: XMLHttpRequest`. `/review/update/{book_id}` and `/quotes`
+  intentionally do not: they are normal Rails forms returning trusted `302`
+  redirects, and forcing XHR semantics causes HTTP 500.
+- Same-origin redirects to `/user/sign_in` or `/user/new` are authentication
+  failures, not accepted writes.
 - `goodreads-cli notes publicize` and `goodreads-cli recent-reading publicize` require `--execute`, an exact `--approved-book-id`, and `GOODREADS_ALLOW_NOTES_PUBLICIZE=1`.
 - Notes publicize writes use numeric `book_id`; reload verification uses `/notes/{book_slug}/{user_slug}` from the notes link.
 - `goodreads-cli shelves add` / `shelves remove` (MCP: `goodreads_shelf_add` / `goodreads_shelf_remove`) require `--execute` and drive `POST /shelf/add_to_shelf`.

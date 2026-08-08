@@ -333,6 +333,8 @@ describe("Goodreads engine correctness", () => {
   });
 
   it("fetches mapped discovery reads through the shared engine and reports bot walls", async () => {
+    process.env.GOODREADS_COOKIE =
+      "_session_id2=goodreads; aws-waf-token=waf; at-main=amazon; session-token=retail";
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -359,6 +361,22 @@ describe("Goodreads engine correctness", () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/search?q=Example&search_type=books");
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/recommendations");
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain("/author/show/1.Author");
+    const searchHeaders = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    const recommendationHeaders = (fetchMock.mock.calls[1]?.[1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    const authorHeaders = (fetchMock.mock.calls[2]?.[1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    expect(searchHeaders.cookie).toBe("_session_id2=goodreads; aws-waf-token=waf");
+    expect(authorHeaders.cookie).toBe("_session_id2=goodreads; aws-waf-token=waf");
+    expect(recommendationHeaders.cookie).toContain("at-main=amazon");
+    expect(recommendationHeaders.cookie).toContain("session-token=retail");
     expect(dataOf<{ books: Array<{ bookId: string }> }>(search).books).toEqual([
       { bookId: "123", title: "Example", author: "Author", ratingSummary: null },
     ]);
@@ -373,6 +391,7 @@ describe("Goodreads engine correctness", () => {
     expect(blocked.warnings).toContain(
       "Goodreads returned an anti-bot challenge instead of discovery results.",
     );
+    delete process.env.GOODREADS_COOKIE;
   });
 
   it("detects signed-out on shelf discovery when cookie is set but expired", async () => {

@@ -4,6 +4,7 @@ import {
   executeLiveRequest,
   type LiveExecuteOptions,
 } from "../client/live.js";
+import { fetchAuthenticatedText, fetchPublicText } from "../client/http.js";
 import { envelope, cleanText, loadApiMapRoutes, type GoodreadsRoute } from "../lib.js";
 import { emitLiveMutationWarning, riskLevelForRoute } from "../risk.js";
 import type { CommandEnvelope } from "../types/index.js";
@@ -97,52 +98,47 @@ export interface RVO {
 
 const EXCLUSIVE = new Set(["to-read", "currently-reading", "read"]);
 
-/** Public RSS membership check — no private highlight text. */
-async function shelfContains(userId: string, shelf: string, bookId: string): Promise<boolean> {
-  const url = `https://www.goodreads.com/review/list_rss/${encodeURIComponent(userId)}?shelf=${encodeURIComponent(shelf)}`;
-  const r = await fetch(url, {
-    headers: {
-      "user-agent": "goodreads-cli",
-      accept: "application/rss+xml, application/xml, text/xml, */*",
-    },
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!r.ok) return false;
-  const xml = await r.text();
-  return (
-    xml.includes(`<book_id>${bookId}</book_id>`) ||
-    xml.includes(`book/show/${bookId}`) ||
-    new RegExp(`book_id>${bookId}<`).test(xml)
-  );
+export interface LibraryEditState {
+  status: string | null;
+  rating: number | null;
+  reviewText: string;
 }
 
-async function ratingFromRss(userId: string, bookId: string): Promise<number | null> {
-  for (const shelf of ["read", "currently-reading", "to-read"]) {
-    const url = `https://www.goodreads.com/review/list_rss/${encodeURIComponent(userId)}?shelf=${encodeURIComponent(shelf)}`;
-    const r = await fetch(url, {
-      headers: {
-        "user-agent": "goodreads-cli",
-        accept: "application/rss+xml, application/xml, text/xml, */*",
-      },
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!r.ok) continue;
-    const xml = await r.text();
-    if (!xml.includes(`<book_id>${bookId}</book_id>`) && !xml.includes(`book/show/${bookId}`)) {
-      continue;
-    }
-    const parts = xml.split("<item>");
-    for (const part of parts) {
-      if (!(
-        part.includes(`<book_id>${bookId}</book_id>`) || part.includes(`book/show/${bookId}`)
-      )) {
-        continue;
-      }
-      const m = part.match(/<user_rating>(\d+)<\/user_rating>/i);
-      if (m?.[1]) return parseInt(m[1], 10);
-    }
-  }
-  return null;
+function decodeHtmlEntities(value: string): string {
+  const named: Record<string, string> = {
+    amp: "&",
+    apos: "'",
+    gt: ">",
+    lt: "<",
+    quot: '"',
+  };
+  return value.replace(/&(#x[0-9a-f]+|#\d+|amp|apos|gt|lt|quot);/gi, (_match, entity: string) => {
+    if (entity.startsWith("#x")) return String.fromCodePoint(Number.parseInt(entity.slice(2), 16));
+    if (entity.startsWith("#")) return String.fromCodePoint(Number.parseInt(entity.slice(1), 10));
+    return named[entity.toLowerCase()] ?? _match;
+  });
+}
+
+/** Parse immediate account state from authenticated `/review/edit/{book_id}` HTML. */
+export function parseLibraryEditState(html: string): LibraryEditState {
+  const chosen = html.match(/chosen:\s*\[([^\]]*)\]/i)?.[1] ?? "";
+  const chosenShelves = [...chosen.matchAll(/["']([^"']+)["']/g)].map((match) => match[1]!);
+  const exclusive = chosenShelves.find((shelf) => EXCLUSIVE.has(shelf));
+  const shelfLink = html.match(
+    /class=["']shelfLink["'][^>]*href=["'][^"']*[?&]shelf=([^"'&]+)/i,
+  )?.[1];
+  const ratingRaw = html.match(/data-rating=["']([0-5](?:\.\d+)?)["']/i)?.[1];
+  const reviewRaw =
+    html.match(/<textarea[^>]*name=["']review\[review\]["'][^>]*>([\s\S]*?)<\/textarea>/i)?.[1] ??
+    html.match(
+      /<textarea[^>]*id=["']review_review_usertext["'][^>]*>([\s\S]*?)<\/textarea>/i,
+    )?.[1] ??
+    "";
+  return {
+    status: exclusive ?? shelfLink ?? null,
+    rating: ratingRaw === undefined ? null : Number(ratingRaw),
+    reviewText: cleanText(decodeHtmlEntities(reviewRaw)),
+  };
 }
 
 // eslint-disable-next-line complexity -- multi-shelf RSS + optional HTML enrichment
@@ -159,15 +155,7 @@ export async function ls(o: LSO): Promise<CommandEnvelope<unknown>> {
     const url = `https://www.goodreads.com/review/list_rss/${encodeURIComponent(uid)}?shelf=${shelf}`;
     sources.push(url);
     try {
-      const r = await fetch(url, {
-        headers: {
-          "user-agent": "goodreads-cli",
-          accept: "application/rss+xml, application/xml, text/xml, */*",
-        },
-        signal: AbortSignal.timeout(30_000),
-      });
-      if (!r.ok) continue;
-      const xml = await r.text();
+      const xml = await fetchPublicText(url);
       const parts = xml.split("<item>");
       for (const part of parts) {
         if (!(
@@ -196,22 +184,25 @@ export async function ls(o: LSO): Promise<CommandEnvelope<unknown>> {
     }
   }
 
-  if (process.env.GOODREADS_COOKIE && status === "unknown") {
-    const url = `https://www.goodreads.com/review/list/${encodeURIComponent(uid)}?v=2&shelf=read&per_page=100`;
+  if (process.env.GOODREADS_COOKIE) {
+    const url = `https://www.goodreads.com/review/edit/${encodeURIComponent(o.bookId)}`;
     sources.push(url);
     try {
-      const r = await fetch(url, {
-        headers: {
-          cookie: process.env.GOODREADS_COOKIE || "",
-          "user-agent": "goodreads-cli",
-          accept: "text/html",
-        },
-        signal: AbortSignal.timeout(30_000),
-      });
-      const h = await r.text();
-      const es = o.bookId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const sm = h.match(new RegExp("bookShelf-" + es + '"[^>]*>([^<]+)', "i"));
-      if (sm) status = cleanText(sm[1]).toLowerCase();
+      const { html, signedOut } = await fetchAuthenticatedText(url);
+      if (!signedOut) {
+        const immediate = parseLibraryEditState(html);
+        if (immediate.status) status = immediate.status;
+        if (immediate.rating !== null) rating = immediate.rating;
+        if (immediate.reviewText) {
+          reviewExists = true;
+          textLength = immediate.reviewText.length;
+          textSha256 = createHash("sha256").update(immediate.reviewText, "utf8").digest("hex");
+        } else {
+          reviewExists = false;
+          textLength = 0;
+          textSha256 = "";
+        }
+      }
     } catch {
       // ignore
     }
@@ -261,10 +252,11 @@ export async function ss(o: SSO): Promise<CommandEnvelope<unknown>> {
     typeof write.data === "object" &&
     (write.data as { submitted?: boolean }).submitted
   ) {
-    const uid = o.userId || process.env.GOODREADS_USER_ID || "179929687";
     await new Promise((r) => setTimeout(r, 800));
-    mutationVerified = await shelfContains(uid, o.status, o.bookId);
-    verifiedStatus = mutationVerified ? o.status : null;
+    const again = await ls({ bookId: o.bookId, userId: o.userId });
+    const state = again.data as { status?: string };
+    verifiedStatus = state.status ?? null;
+    mutationVerified = verifiedStatus === o.status;
   }
 
   return envelope({
@@ -279,11 +271,7 @@ export async function ss(o: SSO): Promise<CommandEnvelope<unknown>> {
   });
 }
 
-/**
- * Rating via mapped Rails POST /review/update/{book_id}.
- * Form fields used by Goodreads shelf UJS variants:
- *   review[rating] = 1..5, or 0 to clear.
- */
+/** Rating via the live My Books star-widget contract. */
 export async function ru(o: RUO): Promise<CommandEnvelope<unknown>> {
   const execute = Boolean(o.execute);
   if (o.action === "set") {
@@ -300,24 +288,26 @@ export async function ru(o: RUO): Promise<CommandEnvelope<unknown>> {
   }
 
   const stars = o.action === "clear" ? 0 : (o.rating as number);
-  const route = await routeBySelector("POST /review/update/{book_id}");
-  const form: Record<string, string> = {
-    "review[rating]": String(stars),
-    rating: String(stars),
-  };
+  const route = await routeBySelector("POST /review/rate/{book_id}");
+  const form: Record<string, string> = { format: "json", rating: String(stars) };
   const write = await runWrite(
     route,
-    { pathParams: { book_id: o.bookId }, form },
+    {
+      pathParams: { book_id: o.bookId },
+      query: { redirect_edit: "true", shelf: "all", stars_click: "true" },
+      form,
+    },
     execute,
-    `Confirm rating for book ${o.bookId} via RSS user_rating.`,
+    `Confirm rating for book ${o.bookId} via authenticated /review/edit readback.`,
   );
 
   let mutationVerified = false;
   let verifiedRating: number | null = null;
   if (execute && (write.data as { submitted?: boolean } | undefined)?.submitted) {
-    const uid = process.env.GOODREADS_USER_ID || "179929687";
     await new Promise((r) => setTimeout(r, 800));
-    verifiedRating = await ratingFromRss(uid, o.bookId);
+    const again = await ls({ bookId: o.bookId });
+    const state = again.data as { rating?: number | null };
+    verifiedRating = state.rating ?? null;
     if (o.action === "clear") mutationVerified = !verifiedRating || verifiedRating === 0;
     else mutationVerified = verifiedRating === o.rating;
   }
@@ -327,7 +317,7 @@ export async function ru(o: RUO): Promise<CommandEnvelope<unknown>> {
     bookId: o.bookId,
     action: o.action,
     rating: o.action === "clear" ? 0 : o.rating,
-    transport: "POST /review/update/{book_id}",
+    transport: "POST /review/rate/{book_id}",
     implementationStatus: "live",
     write,
     mutationVerified,
@@ -367,8 +357,12 @@ export async function rv(o: RVO): Promise<CommandEnvelope<unknown>> {
 
   const route = await routeBySelector("POST /review/update/{book_id}");
   const form: Record<string, string> = {
+    utf8: "✓",
     "review[review]": o.reviewText,
-    "review[body]": o.reviewText,
+    "review[spoiler_flag]": "0",
+    "review[sell_flag]": "0",
+    next: "Post",
+    source: "form",
   };
   const write = await runWrite(
     route,

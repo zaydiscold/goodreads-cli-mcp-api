@@ -2638,10 +2638,64 @@ paths:
         "200":
           $ref: "#/components/responses/XhrHtmlOrJson"
 
+  /review/rate/{book_id}:
+    post:
+      tags: [shelves]
+      summary: Set or clear the signed-in user's star rating for one book.
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: redirect_edit
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: shelf
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: stars_click
+          in: query
+          required: false
+          schema:
+            type: boolean
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [format, rating]
+              properties:
+                authenticity_token:
+                  type: string
+                format:
+                  type: string
+                  enum: [json]
+                rating:
+                  type: integer
+                  minimum: 0
+                  maximum: 5
+      x-observed:
+        artifact: live My Books markup and application JavaScript
+        source: authenticated reversible 0-to-1-to-0 test 2026-08-08
+        status: 200
+        submitted: true
+      x-safety:
+        default: dry-run
+        requires_approved_write_capture: true
+      responses:
+        "200":
+          $ref: "#/components/responses/XhrHtmlOrJson"
+
   /review/update/{book_id}:
     post:
       tags: [shelves]
-      summary: Inline review/date/notes field update for one book.
+      summary: Submit the normal Rails review-edit form for one book.
       parameters:
         - name: book_id
           in: path
@@ -2656,9 +2710,10 @@ paths:
               type: object
               additionalProperties: true
       x-observed:
-        artifact: goodreads/proofs/bookshelf-script-routes-2026-05-22.json
-        source: static JS mining
-        submitted: false
+        artifact: authenticated /review/edit/{book_id} form
+        source: live reversible review create/clear test 2026-08-08
+        status: 302
+        submitted: true
       x-safety:
         default: dry-run
         requires_approved_write_capture: true
