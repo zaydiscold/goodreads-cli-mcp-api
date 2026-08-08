@@ -72,3 +72,10 @@ silently.
 | HTTP 404 + empty / tiny body on POST | Often missing Referer/Origin (fixed in client) or wrong book_id | Client sends headers; check body text |
 | HTTP 404 + `Sorry, we couldn't find that book.` | Wrong numeric `book_id` | Resolve id from editions page / book page |
 | CSRF refresh throws authentication | Cookie not signed in | Re-login + re-extract cookie |
+
+## Cookie jar rules (2026-08)
+
+- **Full jar for writes.** Keep Amazon SSO cookies on `.goodreads.com` (`at-main`, `session-token`, `ubid-main`, …) plus `_session_id2` / `jwt_token` / `aws-waf-token`. Stripping SSO cookies makes `POST /shelf/add_to_shelf` return 403/`/user/new`.
+- **Public search is separate.** `/search` can 302-loop when the full SSO jar is sent. `searchBooks` uses `fetchPublicText` (SSO cookies stripped) or anonymous GET.
+- **User-Agent.** Goodreads `Vary: User-Agent`. Prefer a real Chrome UA; the old `goodreads-cli/1.0.0` token is easier to WAF-challenge after burst traffic.
+- **Extract:** CDP `Network.getAllCookies` while on a logged-in Goodreads tab (notes or account settings). Write `~/.goodreads/auth.sh` with `shlex.quote` single quotes (values embed `"`).
