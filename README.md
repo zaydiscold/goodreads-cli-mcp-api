@@ -81,7 +81,7 @@ For cron-based automation on WSL, see [`wsl-sync.sh`](./wsl-sync.sh) — a daily
 
 ## Command tour — what answers what
 
-All reads run live and free. Public reads use a cookie-stripped/anonymous lane; authenticated reads and writes use the normalized browser session. All writes default to a dry-run, and the notes workflow needs the three explicit gates below. CSRF is refreshed from the signed-in `/review/list` page before live Rails mutations (see [`docs/auth.md`](./docs/auth.md)).
+Live-capable reads send real requests when their required inputs/auth are present. Some commands are intentionally fixture-only or plan-only; the exact boundary is recorded in the [`capability evidence ledger`](./docs/evidence-confidence-ledger.md). Public live reads use a cookie-stripped/anonymous lane; authenticated live reads and writes use the normalized browser session. All writes default to a dry-run, and the notes workflow needs the three explicit gates below. CSRF is refreshed from the signed-in `/review/list` page before live Rails mutations (see [`docs/auth.md`](./docs/auth.md)).
 
 | Command                                                | The question it answers                                                                                                  |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
