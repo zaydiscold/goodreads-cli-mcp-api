@@ -9,9 +9,7 @@ import {
 describe("normalizeGoodreadsCookie", () => {
   it("dedupes cookie names with last value winning and keeps SSO cookies", () => {
     const raw = "_session_id2=a; at-main=amazon; _session_id2=b; jwt_token=j";
-    expect(normalizeGoodreadsCookie(raw)).toBe(
-      "_session_id2=b; at-main=amazon; jwt_token=j",
-    );
+    expect(normalizeGoodreadsCookie(raw)).toBe("_session_id2=b; at-main=amazon; jwt_token=j");
   });
 
   it("returns empty string for missing input", () => {
