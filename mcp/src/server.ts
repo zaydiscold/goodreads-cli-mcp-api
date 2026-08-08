@@ -800,7 +800,7 @@ registerTool(
   {
     title: "Rating Update",
     description:
-      "Set or clear star rating. Uses POST /review/update/{book_id}; dry-run unless execute=true.",
+      "Set or clear star rating. Uses POST /review/rate/{book_id}; dry-run unless execute=true.",
     inputSchema: {
       bookId: z.string(),
       action: z.enum(["set", "clear"]),

@@ -7,7 +7,7 @@
 // so they cannot drift. The CAPABILITIES registry below is the contract the
 // parity test enforces.
 import { readdir } from "node:fs/promises";
-import { fetchAuthenticatedText, fetchPublicText, fetchText, goodreadsUrl } from "./client/http.js";
+import { fetchAuthenticatedText, fetchPublicText, goodreadsUrl } from "./client/http.js";
 import {
   buildLiveRequestPlan,
   executeLiveRequest,
@@ -542,7 +542,7 @@ export async function booksList(options: {
   }
 
   if (!options.user) throw new Error("user is required when source is rss");
-  const xml = await fetchText(
+  const xml = await fetchPublicText(
     goodreadsUrl(
       `/review/list_rss/${options.user}?shelf=${encodeURIComponent(shelf)}`,
       options.baseUrl ?? DEFAULT_BASE_URL,
@@ -661,7 +661,7 @@ export async function bookShow(options: {
   }
   const html = options.fixture
     ? await readText(options.fixture)
-    : await fetchText(
+    : await fetchPublicText(
         goodreadsUrl(`/book/show/${options.slugOrId}`, options.baseUrl ?? DEFAULT_BASE_URL),
       );
   const parsed = parseBookPage(html);
@@ -749,14 +749,14 @@ export async function authorShow(options: {
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
     throw new Error("limit must be an integer from 1 through 100");
   }
-  const { html, signedOut } = await fetchAuthenticatedText(
+  const html = await fetchPublicText(
     goodreadsUrl(
       `/author/show/${encodeURIComponent(authorSlug)}`,
       options.baseUrl ?? DEFAULT_BASE_URL,
     ),
   );
   const parsed = parseAuthorPage(html);
-  const warnings = discoveryWarnings(html, signedOut, false);
+  const warnings = discoveryWarnings(html, false, false);
   if (!parsed.name && warnings.length === 0) {
     warnings.push("No author identity was parsed; the page may have changed or be unavailable.");
   }
@@ -779,7 +779,7 @@ export async function yearInBooks(options: {
   }
   const html = options.fixture
     ? await readText(options.fixture)
-    : await fetchText(
+    : await fetchPublicText(
         goodreadsUrl(
           `/user/year_in_books/${options.year}/${encodeURIComponent(userId)}`,
           options.baseUrl ?? DEFAULT_BASE_URL,
@@ -971,7 +971,7 @@ export async function notesBooks(options: {
   if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
     throw new Error("limit must be an integer from 1 through 500");
   }
-  const raw = await fetchText(
+  const raw = await fetchPublicText(
     goodreadsUrl(
       `/notes/${encodeURIComponent(userId)}/load_more`,
       options.baseUrl ?? DEFAULT_BASE_URL,
@@ -1098,11 +1098,13 @@ export async function quotesAdd(options: {
 }): Promise<Envelope> {
   const route = await routeBySelector("POST /quotes");
   const form: Record<string, string> = {
+    utf8: "✓",
     "quote[body]": options.body,
     "quote[author_name]": options.author,
+    commit: "Save",
   };
   if (options.title) form["quote[title]"] = options.title;
-  if (options.tags) form["quote[tags]"] = options.tags;
+  if (options.tags) form["quote[tags_string]"] = options.tags;
   return runWrite(
     route,
     { form },

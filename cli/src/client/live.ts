@@ -47,8 +47,14 @@ export interface LiveRequestResult {
 
 export const TRUSTED_GOODREADS_ORIGIN = "https://www.goodreads.com";
 
-/** Authenticated page used to mint a fresh Rails CSRF from the same cookie session. */
-export const CSRF_REFRESH_URL = `${TRUSTED_GOODREADS_ORIGIN}/`;
+/**
+ * Authenticated page used to mint a fresh Rails CSRF from the same cookie session.
+ * `/` is an unreliable refresh target because Goodreads may WAF-challenge it even
+ * while account pages remain signed in. `/review/list` resolves to the current
+ * user's shelf page without requiring a hardcoded user id.
+ */
+export const CSRF_REFRESH_URL = `${TRUSTED_GOODREADS_ORIGIN}/review/list`;
+const NORMAL_RAILS_FORM_PATHS = new Set(["/review/update/{book_id}", "/quotes"]);
 
 function isTrustedGoodreadsUrl(url: URL): boolean {
   return url.protocol === "https:" && url.origin === TRUSTED_GOODREADS_ORIGIN;
@@ -251,7 +257,12 @@ function requestHeaders(plan: LiveRequestPlan): Record<string, string> {
   if (plan.mutatesAccount) {
     headers.referer = `${TRUSTED_GOODREADS_ORIGIN}/`;
     headers.origin = TRUSTED_GOODREADS_ORIGIN;
-    headers["x-requested-with"] = "XMLHttpRequest";
+    // `/review/update/{book_id}` is a normal Rails form that redirects to
+    // `/review/show/{review_id}`. Goodreads returns HTTP 500 when this form is
+    // misrepresented as an XHR request. Shelf/rating/notes helpers are XHR.
+    if (!NORMAL_RAILS_FORM_PATHS.has(plan.path)) {
+      headers["x-requested-with"] = "XMLHttpRequest";
+    }
   }
   return headers;
 }
@@ -303,13 +314,17 @@ async function summarizeResponse(
     );
   }
   const redirectLocation = validateRedirect(response, plan);
-  const challenge = responseChallenge(response.status, contentType, text);
+  const redirectPath = redirectLocation ? new URL(redirectLocation, plan.url).pathname : null;
+  const challenge =
+    redirectPath && /\/user\/(?:sign_in|new)/.test(redirectPath)
+      ? ("authentication" as const)
+      : responseChallenge(response.status, contentType, text);
   return {
     status: response.status,
     contentType,
     bodyShape: contentType.includes("json") ? "json" : "text",
     byteLength: text.length,
-    requestAccepted: response.ok && challenge === null,
+    requestAccepted: (response.ok || redirected) && challenge === null,
     mutationVerified: false,
     redirected,
     redirectLocation,
