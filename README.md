@@ -49,7 +49,7 @@ the `core` profile the practical default for agents (now includes shelf add/remo
 | Compact JSON bytes                 | 17,034 | 4,830 | **71.64%** |
 | Visible tools                      |     30 |    10 |          — |
 
-Token table above is the v1.0.0 baseline (28→8). Current tip is **32 full / 12 core** after shelf add/remove, Year in Books, and annotated-book metadata; profiles still hide registrations only — all capabilities use the same CLI/MCP engine and full remains available for compatibility.
+Token table above is the historical v1.0.0 baseline (28→8), not the current manifest. Current runtime truth is **39 full / 14 core / 14 notes**; profiles hide registrations only—all capabilities use the same CLI/MCP engine and full remains available for compatibility. `tools/list` and `mcp/src/profile.ts` are authoritative if these counts change.
 
 ## What it does
 
@@ -75,7 +75,7 @@ The thing that makes this more than a script: **the CLI and the MCP server share
 
 That invariant is enforced by code, not vigilance: a `CAPABILITIES` registry in the engine is checked **in both directions** by [`cli/test/parity.test.ts`](./cli/test/parity.test.ts) — every capability must have a CLI command **and** an MCP tool, with no orphans on either side. Add a command without its MCP twin and CI goes red.
 
-Live tool truth is always `tools/list`; the tested `full` profile currently exposes 32 tools.
+Live tool truth is always `tools/list`; the tested `full` profile currently exposes 39 unique tools.
 
 For cron-based automation on WSL, see [`wsl-sync.sh`](./wsl-sync.sh) — a daily sync script that pulls reading data to your Windows Desktop.
 
@@ -245,7 +245,7 @@ Built on the trio pattern (CLI + skill + MCP) pioneered by [Matt Van Horn's Prin
 >
 > _A library is only as private as the reader guarding it. You're the reader. Publicize on purpose._
 >
-> **Loot dropped:** one (1) hand-mapped API, 28 MCP tools, and the receipts in `api-map/`.
+> **Loot dropped:** one (1) hand-mapped API, 39 MCP tools, and the receipts in `api-map/`.
 > _Read deliberately. Ship the complete thing. Return your books on time._ 📚
 
 <!-- Zayd Khan // cold // www.zayd.wtf -->
