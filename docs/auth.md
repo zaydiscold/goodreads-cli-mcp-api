@@ -1,15 +1,17 @@
 # Auth
 
 Goodreads uses **one** browser cookie session for every authenticated read and
-write. There is no separate login per feature. Notes publicize, shelf add/remove,
-quotes, and generic route execute all share:
+write. There is no separate login per feature. Public discovery is a separate
+request lane: it strips account/SSO cookies to avoid redirect loops and never
+borrows credentials merely because they are configured. Notes publicize, shelf
+add/remove, ratings, reviews, quotes, and generic authenticated execution share:
 
-| Env | Role |
-|---|---|
-| `GOODREADS_COOKIE` | Durable session. Extract once from a logged-in browser. |
-| `GOODREADS_CSRF_TOKEN` | Rails CSRF. **Stale values 404 writes.** The CLI refreshes this automatically from the cookie before live mutations. |
-| `GOODREADS_ALLOW_NOTES_PUBLICIZE=1` | Extra gate for notes publicize/hide |
-| `GOODREADS_ALLOW_GENERIC_WRITES=1` | Extra gate for raw `request execute` mutations |
+| Env                                 | Role                                                                                                                 |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `GOODREADS_COOKIE`                  | Durable session. Extract once from a logged-in browser.                                                              |
+| `GOODREADS_CSRF_TOKEN`              | Rails CSRF. **Stale values 404 writes.** The CLI refreshes this automatically from the cookie before live mutations. |
+| `GOODREADS_ALLOW_NOTES_PUBLICIZE=1` | Extra gate for notes publicize/hide                                                                                  |
+| `GOODREADS_ALLOW_GENERIC_WRITES=1`  | Extra gate for raw `request execute` mutations                                                                       |
 
 ## One session, all functions
 
@@ -39,7 +41,7 @@ Current implementation rules:
 - Shelf add/remove requires cookie + execute (CSRF auto-refreshed); no extra env gate beyond dry-run default.
 - `GOODREADS_COOKIE` is required for authenticated live mutations.
 - Live Rails mutations send `Referer`, `Origin`, and `X-Requested-With`. Without them Goodreads returns opaque HTTP 404s (same lesson as `publicize.py`).
-- Before every live Rails mutation the client GETs `https://www.goodreads.com/` with the cookie and extracts a fresh `csrf-token` unless:
+- Before every live Rails mutation the client GETs the signed-in `https://www.goodreads.com/review/list` page with the cookie and extracts a fresh `csrf-token`. The public homepage is intentionally avoided because it can WAF-challenge while account pages remain authenticated. Refresh is skipped only when:
   - the caller already supplied form `authenticity_token`, or
   - `GOODREADS_SKIP_CSRF_REFRESH=1` (tests / offline only).
 
@@ -66,16 +68,16 @@ silently.
 
 ## Doctor signals
 
-| Symptom | Meaning | Fix |
-|---|---|---|
-| `currentUser: null` / Sign In wall on authenticated GET | Cookie dead | Re-extract from browser |
-| HTTP 404 + empty / tiny body on POST | Often missing Referer/Origin (fixed in client) or wrong book_id | Client sends headers; check body text |
-| HTTP 404 + `Sorry, we couldn't find that book.` | Wrong numeric `book_id` | Resolve id from editions page / book page |
-| CSRF refresh throws authentication | Cookie not signed in | Re-login + re-extract cookie |
+| Symptom                                                 | Meaning                                                         | Fix                                       |
+| ------------------------------------------------------- | --------------------------------------------------------------- | ----------------------------------------- |
+| `currentUser: null` / Sign In wall on authenticated GET | Cookie dead                                                     | Re-extract from browser                   |
+| HTTP 404 + empty / tiny body on POST                    | Often missing Referer/Origin (fixed in client) or wrong book_id | Client sends headers; check body text     |
+| HTTP 404 + `Sorry, we couldn't find that book.`         | Wrong numeric `book_id`                                         | Resolve id from editions page / book page |
+| CSRF refresh throws authentication                      | Cookie not signed in                                            | Re-login + re-extract cookie              |
 
 ## Cookie jar rules (2026-08)
 
 - **Full jar for writes.** Keep Amazon SSO cookies on `.goodreads.com` (`at-main`, `session-token`, `ubid-main`, …) plus `_session_id2` / `jwt_token` / `aws-waf-token`. Stripping SSO cookies makes `POST /shelf/add_to_shelf` return 403/`/user/new`.
-- **Public search is separate.** `/search` can 302-loop when the full SSO jar is sent. `searchBooks` uses `fetchPublicText` (SSO cookies stripped) or anonymous GET.
+- **Public reads are separate.** Search, public book/author/genre/list/quote/work/stats pages, and public RSS use `fetchPublicText`: account/SSO cookies are stripped or the request is anonymous. `/search` can 302-loop when the full SSO jar is sent.
 - **User-Agent.** Goodreads `Vary: User-Agent`. Prefer a real Chrome UA; the old `goodreads-cli/1.0.0` token is easier to WAF-challenge after burst traffic.
 - **Extract:** CDP `Network.getAllCookies` while on a logged-in Goodreads tab (notes or account settings). Write `~/.goodreads/auth.sh` with `shlex.quote` single quotes (values embed `"`).

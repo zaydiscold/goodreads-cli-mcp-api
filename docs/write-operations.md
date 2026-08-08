@@ -27,6 +27,8 @@ before each live Rails mutation — you do not maintain a second login.
 - `goodreads-cli notes publicize` and `goodreads-cli recent-reading publicize` require `--execute`, an exact `--approved-book-id`, and `GOODREADS_ALLOW_NOTES_PUBLICIZE=1`.
 - Notes publicize writes use numeric `book_id`; reload verification uses `/notes/{book_slug}/{user_slug}` from the notes link.
 - `goodreads-cli shelves add` / `shelves remove` (MCP: `goodreads_shelf_add` / `goodreads_shelf_remove`) require `--execute` and drive `POST /shelf/add_to_shelf`.
+- `goodreads-cli library rating` uses `POST /review/rate/{book_id}`; `library review` and status updates use the normal Rails review form at `POST /review/update/{book_id}`. Verification comes from authenticated `/review/edit/{book_id}`, not RSS.
+- Quote creation uses the normal Rails `POST /quotes` form. Remove/reorder use their dedicated mapped routes; verify against `/quotes/list/{user_slug}`, not the generic `/quotes/list` discovery page.
 
 ## Shelf add / remove (want-to-read)
 
@@ -60,12 +62,11 @@ a=remove    # remove from exclusive shelf
 That is not an auth problem — resolve the numeric id (editions pages work when
 `/book/show/{id}` is bot-walled with 202).
 
-Verify membership after write:
+Verify membership after a write with authenticated account state. RSS is a public fallback and may be capped or stale; it is not the primary immediate write verifier:
 
 ```bash
 curl -s -b "$GOODREADS_COOKIE" \
-  "https://www.goodreads.com/review/list_rss/179929687?shelf=to-read" \
-  | grep -o '<book_id>[0-9]*</book_id>' | head
+  "https://www.goodreads.com/review/edit/<book-id>"
 ```
 
 ## Risk Levels
@@ -97,3 +98,11 @@ An accepted HTTP response is not verification. After a live mutation, reload
 the relevant Goodreads page (or RSS) and verify the account-visible state before
 claiming success. Envelope fields: `requestAccepted` vs `mutationVerified`
 (always false until an independent read proves state).
+
+## Current live evidence (2026-08-08)
+
+Reversible account tests passed and were restored: shelf status, rating, review
+text, quote create/remove, quote reorder, and notes visibility. The exact cycles
+and verifier surfaces are recorded in the root README. Historical capture docs
+describe what was known at their evidence date; they do not override this current
+runtime contract.

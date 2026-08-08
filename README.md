@@ -57,13 +57,13 @@ Full read **and** write across Goodreads:
 
 - **Want to Read / shelves** — add or remove books on `to-read`, `currently-reading`, `read`, or custom shelves (live `POST /shelf/add_to_shelf`); discover inventory + counts; list and export (HTML pagination or RSS).
 - **Bookstore → shelf** — agent takes a photo (or title/author), resolves the numeric book id, and shelves it. Built so you can snap stacks in a shop and clear the backlog without opening the site.
-- **One cookie, every write** — notes, shelves, quotes, and raw routes share `GOODREADS_COOKIE`. CSRF is auto-minted from that session before Rails mutations, with browser-like `Referer`/`Origin` headers so new write features don't fail the old "stale token / opaque 404" way.
+- **One authenticated session, surface-specific cookie routing** — account reads and writes share `GOODREADS_COOKIE`, but public discovery reads deliberately strip account/SSO cookies. Rails mutations mint CSRF from the signed-in `/review/list` page and use the request shape each endpoint actually expects.
 - **Books** — parse any public book page (JSON-LD + Next.js metadata).
 - **Year in Books** — public yearly books/pages totals, average length/rating, and shortest/longest/most/least-shelved/highest-rated book metadata without emitting review text.
 - **Kindle Notes & Highlights** — list annotated books and available counts from public JSON, inspect notes metadata, plan + execute publicize/hide (gated), and join your current/read shelves to your notes index.
 - **Annotations** — per-highlight annotation metadata (visibility, spoiler, persist endpoints) without raw highlight text.
-- **Quotes** — add, remove, and reorder your quotes (up/down/top/bottom).
-- **Ratings & Reviews** — searchable modern AppSync **GraphQL** operation metadata (`RateBook`/`UnrateBook`, catalog-only until freshly recaptured) plus mapped web review routes.
+- **Quotes** — add, remove, and reorder your quotes (up/down/top/bottom); create/remove and down/up restoration were live-verified against the canonical user quote list.
+- **Ratings & Reviews** — live Rails rating (`POST /review/rate/{book_id}`) and review-form (`POST /review/update/{book_id}`) workflows with authenticated `/review/edit/{book_id}` readback. Modern AppSync `RateBook`/`UnrateBook` metadata remains catalog-only until freshly recaptured.
 - **Comments & Messages** — inspect comment/message route + form shape without emitting bodies.
 - **Raw route driving** — plan or execute mapped Goodreads-web routes directly; AppSync entries are intentionally discovery-only.
 
@@ -81,7 +81,7 @@ For cron-based automation on WSL, see [`wsl-sync.sh`](./wsl-sync.sh) — a daily
 
 ## Command tour — what answers what
 
-All reads run live and free. All writes default to a dry-run; the notes workflow needs the three explicit gates below. **One browser cookie drives every write** — CSRF is auto-refreshed from that cookie before live Rails mutations (see [`docs/auth.md`](./docs/auth.md)).
+All reads run live and free. Public reads use a cookie-stripped/anonymous lane; authenticated reads and writes use the normalized browser session. All writes default to a dry-run, and the notes workflow needs the three explicit gates below. CSRF is refreshed from the signed-in `/review/list` page before live Rails mutations (see [`docs/auth.md`](./docs/auth.md)).
 
 | Command                                                | The question it answers                                                                                                  |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
@@ -93,13 +93,13 @@ All reads run live and free. All writes default to a dry-run; the notes workflow
 | `books export --fixture-dir <d>`                       | "Export my shelves" — deduped by book, with per-shelf membership + completeness flags                                    |
 | `book show <slug-or-id>`                               | "Parse this book page" — JSON-LD + Next.js metadata                                                                      |
 | `search books --query "<title> <author>"`              | "Which Goodreads editions match?" — bounded candidate metadata; never silently selects one                               |
-| `recommendations list`                                 | "What does my current Goodreads session recommend?" — authenticated card metadata only                                    |
-| `author show --author-slug <id.slug>`                  | "What is on this public author page?" — identity, bio length, and bounded bibliography metadata                           |
+| `recommendations list`                                 | "What does my current Goodreads session recommend?" — authenticated card metadata only                                   |
+| `author show --author-slug <id.slug>`                  | "What is on this public author page?" — identity, bio length, and bounded bibliography metadata                          |
 | `stats year-in-books --user-id <id> --year <yyyy>`     | "What did this reader finish that year?" — books/pages, averages and extrema without review text                         |
 | `recent-reading list / notes`                          | "Join my current/read shelves to my Kindle notes index"                                                                  |
 | `recent-reading publicize-plan / publicize`            | "Plan, then publicize, my recent books' highlights" (gated)                                                              |
-| `notes books --user-id <id>`                        | "Which books have Kindle annotations?" — ASIN/title/author and available counts, never annotation text                   |
-| `notes inspect`                                     | "What's in this notes page?" — counts + visibility, no highlight text                                                    |
+| `notes books --user-id <id>`                           | "Which books have Kindle annotations?" — ASIN/title/author and available counts, never annotation text                   |
+| `notes inspect`                                        | "What's in this notes page?" — counts + visibility, no highlight text                                                    |
 | `notes publicize-plan`                                 | "Build the verified plan for one book's notes"                                                                           |
 | `notes publicize` / `notes hide`                       | "Make all highlights public / hidden for a book" (gated)                                                                 |
 | `annotations list / thoughts-plan`                     | "Per-highlight annotation metadata; plan a per-note thought"                                                             |
@@ -137,6 +137,21 @@ GOODREADS_ALLOW_GENERIC_WRITES=1 goodreads-cli request execute \
 ```
 
 Every live mutation prints a `[WRITES TO LIVE GOODREADS]` warning to stderr, and the rule is **verify after every write** — never trust an HTTP 200; reload the notes page and confirm the visible count.
+
+### Live reversible write matrix (2026-08-08)
+
+The current HTTP contracts were exercised against the authenticated account and restored:
+
+| Surface          | Live cycle                              | Independent verification                           |
+| ---------------- | --------------------------------------- | -------------------------------------------------- |
+| Shelf status     | `to-read → currently-reading → to-read` | authenticated `/review/edit/{book_id}`             |
+| Rating           | `0 → 1 → 0`                             | authenticated `/review/edit/{book_id}`             |
+| Review text      | absent → temporary marker → absent      | authenticated `/review/edit/{book_id}`             |
+| Quote            | create → canonical slug → remove        | `/quotes/list/{user_slug}`                         |
+| Quote order      | down one position → up one position     | exact quote-id ordering on the canonical user list |
+| Notes visibility | 29 visible → 29 hidden → 29 visible     | parsed per-note visibility on the detail page      |
+
+`requestAccepted` means only that Goodreads accepted the HTTP request. The account-state readback above is what proved each mutation and rollback.
 
 ## Use it from an agent (MCP)
 
