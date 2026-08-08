@@ -115,6 +115,24 @@ repos use it as a *seed* — not a spec we only follow. The API map here is hand
 a generator produced, and we may spin up separate repos to keep building on top of what's here rather than
 conforming back to the generator. The map is the product; Printing Press just gave us a good place to start.
 
+## Recent regression guard: mixed SSO cookies
+
+Public Goodreads reads once received a raw browser cookie jar containing Amazon/SSO cookies. `/search` could then redirect through SSO until undici exhausted its redirect limit. Removing every cookie is also wrong because authenticated shelf writes need Goodreads session state.
+
+- Public Goodreads requests must pass through `publicGoodreadsCookie(...)`; never send a raw multi-origin cookie jar.
+- `cli/test/cookie.test.ts` must prove mixed Amazon/Goodreads input is reduced while required Goodreads auth survives.
+- Do not raise redirect limits to hide routing defects.
+- HTTP 200 or nonempty HTML is not semantic proof. Live acceptance requires parsed search books, authenticated shelf data, and a shelf-add dry-run with CSRF plus `submitted=false`.
+- The repaired cookie/client files must remain inside the Prettier baseline.
+
+Focused, non-duplicative gate after cookie, redirect, public search, shelf-auth, or affected client changes:
+
+```bash
+pnpm regression:recent
+```
+
+This composes the existing source-integrity check, focused cookie test, and formatting check. Before release, also run the full repository gates and external live ship gate.
+
 ## House rules
 
 - Keep fixtures and any raw captures in the gitignored `fixtures/` — promote only
