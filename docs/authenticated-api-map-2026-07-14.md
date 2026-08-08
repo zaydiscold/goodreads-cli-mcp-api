@@ -1,5 +1,9 @@
 # Authenticated Goodreads API-map expansion — 2026-07-14
 
+> **Historical capture report.** “Not submitted during this pass” describes the
+> July evidence session, not current implementation status. Use [`auth.md`](auth.md)
+> and [`write-operations.md`](write-operations.md) for operational truth.
+
 ## Scope and privacy boundary
 
 This pass inspected the user's already-authenticated Goodreads session through the shared debug
@@ -27,14 +31,14 @@ No dedicated MCP tools were added. The existing `api-map search` CLI command and
 The prior map inferred `/visibility` and `/spoiler` suffix routes. Inspection of the currently
 loaded Goodreads application JavaScript showed those guesses were wrong.
 
-| Method | Route template | Form/query keys | Meaning | State |
-| --- | --- | --- | --- | --- |
-| `PUT` | `/notes/{book_id}/share` | `visible` | Bulk show/hide annotations | Previously live verified |
-| `PUT` | `/notes/{book_id}/{annotation_pair_id}` | exactly one of `visible`, `is_spoiler` | Per-annotation privacy/spoiler update | Source verified, not submitted |
-| `DELETE` | `/notes/{book_id}/{annotation_pair_id}` | query `reading_note_id`; optional body `book_id` | Delete the entire annotation | Source verified, not submitted |
-| `POST` | `/notes/{book_id}/{annotation_pair_id}/note` | `text`, `annotation_pair_id` | Add personal note text | Source verified, not submitted |
-| `PUT` | `/notes/{book_id}/{annotation_pair_id}/note` | `text` | Update personal note text | Source verified, not submitted |
-| `DELETE` | `/notes/{book_id}/{annotation_pair_id}/note` | none observed | Delete note text but preserve annotation | Source verified, not submitted |
+| Method   | Route template                               | Form/query keys                                  | Meaning                                  | State                          |
+| -------- | -------------------------------------------- | ------------------------------------------------ | ---------------------------------------- | ------------------------------ |
+| `PUT`    | `/notes/{book_id}/share`                     | `visible`                                        | Bulk show/hide annotations               | Previously live verified       |
+| `PUT`    | `/notes/{book_id}/{annotation_pair_id}`      | exactly one of `visible`, `is_spoiler`           | Per-annotation privacy/spoiler update    | Source verified, not submitted |
+| `DELETE` | `/notes/{book_id}/{annotation_pair_id}`      | query `reading_note_id`; optional body `book_id` | Delete the entire annotation             | Source verified, not submitted |
+| `POST`   | `/notes/{book_id}/{annotation_pair_id}/note` | `text`, `annotation_pair_id`                     | Add personal note text                   | Source verified, not submitted |
+| `PUT`    | `/notes/{book_id}/{annotation_pair_id}/note` | `text`                                           | Update personal note text                | Source verified, not submitted |
+| `DELETE` | `/notes/{book_id}/{annotation_pair_id}/note` | none observed                                    | Delete note text but preserve annotation | Source verified, not submitted |
 
 The older Rails-compatible `POST` plus `_method=delete` operation remains mapped because it was
 independently verified in June 2026. The two incorrect suffix routes were removed from both
@@ -44,28 +48,28 @@ OpenAPI and generated endpoint Markdown.
 
 All writes below are disabled or dry-run by default and were **not submitted** during this pass.
 
-| Area | Method and route | Observed keys or behavior | Evidence |
-| --- | --- | --- | --- |
-| Account | `GET /user/edit` | optional `tab`, `widget[shelf]` | Authenticated DOM, HTTP 200 |
-| Account | `POST /user/update` | `tab`; nested `user[...]` and `user_preference[...]`; four form families | Authenticated DOM |
-| Account | `POST /user/edit_fav_genres` | dynamic `favorites[<genre>]` fields | Authenticated DOM |
-| Account | `POST /user/sign_out` | session-terminating action | Authenticated DOM |
-| Account | `POST /amazon/login/destroy` | Rails method override + CSRF | Authenticated DOM |
-| Account | `POST /ap/signin` | interactive Amazon sign-in/link flow | Authenticated DOM |
-| Account | `POST /book_link/edit_list` | `country`, `sort` | Authenticated DOM |
-| Shelves | `POST /review/list/{user}` | inline review text, private notes, read/start dates, reading session | Authenticated DOM |
-| Shelves | `POST /review/destroy/{review_id}` | destructive review removal | Authenticated DOM |
-| Shelves | `POST /review/import` | exactly one of uploaded `import[file]` or `import[url]` | Authenticated DOM |
-| Shelves | `POST /review/destroy_all` | account-wide destructive action | Authenticated DOM |
-| Shelves | `HEAD /review_porter/export/{user_id}/goodreads_export.csv` | current account returned 404 when no prepared export existed | Authenticated network |
-| Discovery | `GET /amazon_purchases/books` | `last_row`, `next_page_token`, `origin` | Authenticated network, HTTP 200 |
-| Discovery | `POST /user_not_interested_works` | `user_not_interested_work[book_id]` | Authenticated DOM |
-| Discovery | `GET /quotes/search` | `q` | Authenticated DOM |
-| Social | `GET /friend/find_friend` | `q`, optional `n` | Authenticated DOM |
-| Social | `POST /comment` | `comment[body_usertext]`, target `id`, target `type` | Authenticated DOM |
-| Notes | `POST /kindle_book_mapping_flags` | `book_id`, `reason`, optional `other_reason` | Authenticated DOM |
-| UI | `GET /sign_in_prompt` | `countOverride`; returned HTTP 204 in the authenticated state | Authenticated network |
-| Analytics | `GET /dfp/impression` | ad-impression request | Authenticated network, CLI omitted |
+| Area      | Method and route                                            | Observed keys or behavior                                                | Evidence                           |
+| --------- | ----------------------------------------------------------- | ------------------------------------------------------------------------ | ---------------------------------- |
+| Account   | `GET /user/edit`                                            | optional `tab`, `widget[shelf]`                                          | Authenticated DOM, HTTP 200        |
+| Account   | `POST /user/update`                                         | `tab`; nested `user[...]` and `user_preference[...]`; four form families | Authenticated DOM                  |
+| Account   | `POST /user/edit_fav_genres`                                | dynamic `favorites[<genre>]` fields                                      | Authenticated DOM                  |
+| Account   | `POST /user/sign_out`                                       | session-terminating action                                               | Authenticated DOM                  |
+| Account   | `POST /amazon/login/destroy`                                | Rails method override + CSRF                                             | Authenticated DOM                  |
+| Account   | `POST /ap/signin`                                           | interactive Amazon sign-in/link flow                                     | Authenticated DOM                  |
+| Account   | `POST /book_link/edit_list`                                 | `country`, `sort`                                                        | Authenticated DOM                  |
+| Shelves   | `POST /review/list/{user}`                                  | inline review text, private notes, read/start dates, reading session     | Authenticated DOM                  |
+| Shelves   | `POST /review/destroy/{review_id}`                          | destructive review removal                                               | Authenticated DOM                  |
+| Shelves   | `POST /review/import`                                       | exactly one of uploaded `import[file]` or `import[url]`                  | Authenticated DOM                  |
+| Shelves   | `POST /review/destroy_all`                                  | account-wide destructive action                                          | Authenticated DOM                  |
+| Shelves   | `HEAD /review_porter/export/{user_id}/goodreads_export.csv` | current account returned 404 when no prepared export existed             | Authenticated network              |
+| Discovery | `GET /amazon_purchases/books`                               | `last_row`, `next_page_token`, `origin`                                  | Authenticated network, HTTP 200    |
+| Discovery | `POST /user_not_interested_works`                           | `user_not_interested_work[book_id]`                                      | Authenticated DOM                  |
+| Discovery | `GET /quotes/search`                                        | `q`                                                                      | Authenticated DOM                  |
+| Social    | `GET /friend/find_friend`                                   | `q`, optional `n`                                                        | Authenticated DOM                  |
+| Social    | `POST /comment`                                             | `comment[body_usertext]`, target `id`, target `type`                     | Authenticated DOM                  |
+| Notes     | `POST /kindle_book_mapping_flags`                           | `book_id`, `reason`, optional `other_reason`                             | Authenticated DOM                  |
+| UI        | `GET /sign_in_prompt`                                       | `countOverride`; returned HTTP 204 in the authenticated state            | Authenticated network              |
+| Analytics | `GET /dfp/impression`                                       | ad-impression request                                                    | Authenticated network, CLI omitted |
 
 Existing routes were also reconfirmed, including `/notifications/track`, `/message/move_batch`,
 `/tooltips`, shelf pages, notes pagination, quotes, and recommendations.
@@ -74,11 +78,11 @@ Existing routes were also reconfirmed, including `/notifications/track`, `/messa
 
 The live book page emitted these current operations with HTTP 200:
 
-| Operation | Type | Variable keys | Execution |
-| --- | --- | --- | --- |
-| `myReviewCard` | query | `id` | Catalog only |
-| `getReviews` | query | `filters`, `pagination` | Catalog only |
-| `getSimilarBooks` | query | `id`, `limit` | Catalog only |
+| Operation         | Type  | Variable keys                    | Execution                 |
+| ----------------- | ----- | -------------------------------- | ------------------------- |
+| `myReviewCard`    | query | `id`                             | Catalog only              |
+| `getReviews`      | query | `filters`, `pagination`          | Catalog only              |
+| `getSimilarBooks` | query | `id`, `limit`                    | Catalog only              |
 | `GetAdsTargeting` | query | `legacyId`, `legacyResourceType` | Omitted from agent search |
 
 The catalog retains earlier authenticated CDP evidence for `getUser`, `getGiveaways`,

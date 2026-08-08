@@ -1,5 +1,9 @@
 # Goodreads Current API Sweep
 
+> **Historical research snapshot.** Do not use its “future” or “dry-run only”
+> statements as current product truth. See [`../README.md`](../README.md) and
+> [`../docs/write-operations.md`](../docs/write-operations.md).
+
 Generated: 2026-05-22T09:20:00Z
 
 ## Scope
@@ -164,7 +168,7 @@ POST /review/update_session_shelf_settings
 Single-book row shelf chooser:
 
 ```js
-window.shelfChooser.summon(event, { bookId: 9656394, chosen: ["currently-reading"] })
+window.shelfChooser.summon(event, { bookId: 9656394, chosen: ["currently-reading"] });
 ```
 
 `ShelfChooser.submitShelf()` sends:

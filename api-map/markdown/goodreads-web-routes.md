@@ -48,84 +48,85 @@ The CLI should not print cookie values. For replay, import cookies into a jar fr
 
 ## Observed Routes
 
-| Method | Route | Surface | Source | CLI use |
-|---|---|---|---|---|
-| GET | `/` | home/feed | network seed | feed/activity parser |
-| GET | `/user/show/:user_slug` | profile | browser map | `profile show` |
-| GET | `/user/delayable_user_show/:user_id` | profile XHR | browser map | delayed profile sections |
-| GET | `/review/list` | current user's My Books page | nav capture | `books list --me` |
-| GET | `/review/list/:user` | shelves/books | browser map | `books list`, `shelf show`, `export shelves` |
-| GET | `/review/list_rss/:user` | public shelf RSS XML | external + curl proof | `books rss`, public fallback |
-| GET | `/tooltips` | book metadata XHR | shelf/list pages | batch book metadata enrichment |
-| GET | `/book` | explore/books hub | sitemap + nav capture | `books explore` |
-| GET | `/book/show/:book_slug` | book detail | browser map | `book show` |
-| GET | `/book/popular_by_date/:year/:month` | new releases | nav capture | `books new-releases` |
-| GET | `/book/similar/:work_slug` | readers also enjoyed | related-work sitemap | `book similar` |
-| GET | `/work/editions/:work_id` | editions | robots allow rule | `book editions` |
-| GET | `/work/quotes/:work_id` | work quotes | robots allow rule | `book quotes` |
-| GET | `/opensearch.xml` | search descriptor | curl proof | canonical search template |
-| GET | `/search/search` | book search | opensearch proof | `search books` |
-| GET | `/quotes` | public quotes index | nav capture | `quotes discover` |
-| GET | `/quotes/:quote_slug` | public quote detail | quote sitemap | `quotes show` |
-| GET | `/quotes/list` | user quotes | browser map | `quotes list` |
-| GET | `/quotes/widget/:user_slug` | user quotes widget | browser map | alternate quote source |
-| GET | `/comment/list/:user_slug` | comments/posts | browser map | `comments list` |
-| GET | `/notes/:user_slug` | notes/highlights index | browser map | `notes list` |
-| GET | `/notes/:user_id/load_more` | notes pagination XHR | browser map | notes pagination |
-| GET | `/notes/:book_slug/:user_slug` | notes book detail | browser map | `notes show --book-slug` |
-| PUT | `/notes/:book_id/share` | notes publicize write | approved write proof | `notes publicize --execute` |
-| POST | `/notes/:book_id/:annotation_pair_id/note` | per-note thought write | DOM only, unsubmitted | disabled until capture |
-| GET | `/notifications` | notifications | browser map | `notifications list` |
-| POST | `/notifications/track` | analytics | browser map | omit from CLI |
-| GET | `/friend/requests` | friend requests | browser map | `friends requests` |
-| GET | `/friend` | friends | browser map | `friends list` |
-| GET | `/topic` | discussions/groups | browser map | `topics list --scope groups` |
-| GET | `/message/inbox` | messages | browser map | `messages inbox` |
-| GET | `/message/:folder` | message folders | discovery map | `messages list --folder` |
-| GET | `/message/show/:message_id` | message detail | discovery map | `messages show` |
-| POST | `/message/move_batch` | message folder/read action | DOM only, unsubmitted | dry-run only |
-| GET | `/message/mark_all_as_read` | mark all inbox read | DOM only, unclicked | dry-run only |
-| GET | `/user/year_in_books/:year/:user_id` | yearly reading summary | browser map | `year-in-books show` |
-| GET | `/list` | Listopia index | sitemap + nav capture | `lists discover` |
-| GET | `/list/show/:list_id` | public lists | browser map | `lists show` |
-| GET | `/award` | awards index | sitemap + public probe | `awards list` |
-| GET | `/award/show/:award_slug` | award detail | award sitemap | `awards show` |
-| GET | `/choiceawards` | Goodreads Choice Awards | nav capture + public probe | `choice-awards show` |
-| GET | `/author` | authors index | sitemap + public probe | `authors discover` |
-| GET | `/author/show/:author_slug` | author detail | author sitemap | `author show` |
-| GET | `/giveaway` | giveaways index | sitemap + nav capture | `giveaways list` |
-| GET | `/group` | groups index | sitemap + nav capture | `groups list` |
-| GET | `/group/show/:group_slug` | group detail | group sitemap | `groups show` |
-| GET | `/news` | news/interviews index | sitemap + nav capture | `news list` |
-| GET | `/interviews` | interviews index | public probe | `interviews list` |
-| GET | `/interviews/show/:interview_slug` | interview detail | interview sitemap | `interviews show` |
-| GET | `/ask_the_author` | Ask the Author index | nav capture + public probe | `ask-author list` |
-| GET | `/questions/:question_slug` | book/author question detail | question sitemap | `questions show` |
-| GET | `/recommendations` | recommendations | browser map | `recs list` |
-| GET | `/recommendations/to_me` | friends' recommendations | nav capture | `recs friends` |
-| GET | `/amazon_purchases` | Amazon purchases import page | discovery map | `amazon-purchases inspect` |
-| GET | `/shelf` | top public shelves | discovery map | `discovery shelves` |
-| GET | `/shelf/show/:shelf_slug` | public shelf landing | discovery map | `discovery shelf show` |
-| GET | `/genres` | all genres | genre capture | `genres list` |
-| GET | `/genres/list` | all genre shelves | discovery map | `genres list --all` |
-| GET | `/genres/search` | genre finder | discovery map | `genres search` |
-| GET | `/genres/:genre_slug` | genre page | genre capture | `genres show` |
-| GET | `/user/top_readers` | people discovery | discovery map | `people top-readers` |
-| GET | `/user/top_reviewers` | people discovery | discovery map | `people top-reviewers` |
-| GET | `/user/best_reviewers` | people discovery | discovery map | `people popular-reviewers` |
-| GET | `/user_following/most_followed` | people discovery | discovery map | `people most-followed` |
-| GET | `/review/stats/:user` | reading stats | nav capture | `reading-stats` |
-| GET | `/review/drafts` | review drafts | nav capture | `reviews drafts` |
-| GET | `/review/duplicates` | duplicates tool | nav capture | `books duplicates` |
-| GET | `/review/import` | import/export page | nav capture | `export shelves` fallback |
-| POST | `/user_shelves` | create custom shelf | DOM only, unsubmitted | dry-run only |
-| POST | `/shelf/update/:shelf_id` | shelf table settings | DOM only, unsubmitted | dry-run only |
-| POST | `/review/update_list/:user_id` | batch add/remove selected reviews to shelf | DOM/script only, unsubmitted for shelves | dry-run only |
-| POST | `/shelf/add_to_shelf` | single-book shelf add | script-mining proof | dry-run only |
-| POST | `/shelf/remove_book` | single-book shelf remove | script-mining proof | dry-run only |
-| POST | `/shelf/move_batch` | reorder shelf positions | script-mining proof | dry-run only |
-| POST | `/shelf/move_to_position` | move one shelf/book position | script-mining proof | dry-run only |
-| POST | `/review/update/:book_id` | inline review/date/note update | script-mining proof | dry-run only |
+| Method | Route                                      | Surface                                     | Source                                                  | CLI use                                                            |
+| ------ | ------------------------------------------ | ------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------ |
+| GET    | `/`                                        | home/feed                                   | network seed                                            | feed/activity parser                                               |
+| GET    | `/user/show/:user_slug`                    | profile                                     | browser map                                             | `profile show`                                                     |
+| GET    | `/user/delayable_user_show/:user_id`       | profile XHR                                 | browser map                                             | delayed profile sections                                           |
+| GET    | `/review/list`                             | current user's My Books page                | nav capture                                             | `books list --me`                                                  |
+| GET    | `/review/list/:user`                       | shelves/books                               | browser map                                             | `books list`, `shelf show`, `export shelves`                       |
+| GET    | `/review/list_rss/:user`                   | public shelf RSS XML                        | external + curl proof                                   | `books rss`, public fallback                                       |
+| GET    | `/tooltips`                                | book metadata XHR                           | shelf/list pages                                        | batch book metadata enrichment                                     |
+| GET    | `/book`                                    | explore/books hub                           | sitemap + nav capture                                   | `books explore`                                                    |
+| GET    | `/book/show/:book_slug`                    | book detail                                 | browser map                                             | `book show`                                                        |
+| GET    | `/book/popular_by_date/:year/:month`       | new releases                                | nav capture                                             | `books new-releases`                                               |
+| GET    | `/book/similar/:work_slug`                 | readers also enjoyed                        | related-work sitemap                                    | `book similar`                                                     |
+| GET    | `/work/editions/:work_id`                  | editions                                    | robots allow rule                                       | `book editions`                                                    |
+| GET    | `/work/quotes/:work_id`                    | work quotes                                 | robots allow rule                                       | `book quotes`                                                      |
+| GET    | `/opensearch.xml`                          | search descriptor                           | curl proof                                              | canonical search template                                          |
+| GET    | `/search/search`                           | book search                                 | opensearch proof                                        | `search books`                                                     |
+| GET    | `/quotes`                                  | public quotes index                         | nav capture                                             | `quotes discover`                                                  |
+| GET    | `/quotes/:quote_slug`                      | public quote detail                         | quote sitemap                                           | `quotes show`                                                      |
+| GET    | `/quotes/list`                             | user quotes                                 | browser map                                             | `quotes list`                                                      |
+| GET    | `/quotes/widget/:user_slug`                | user quotes widget                          | browser map                                             | alternate quote source                                             |
+| GET    | `/comment/list/:user_slug`                 | comments/posts                              | browser map                                             | `comments list`                                                    |
+| GET    | `/notes/:user_slug`                        | notes/highlights index                      | browser map                                             | `notes list`                                                       |
+| GET    | `/notes/:user_id/load_more`                | notes pagination XHR                        | browser map                                             | notes pagination                                                   |
+| GET    | `/notes/:book_slug/:user_slug`             | notes book detail                           | browser map                                             | `notes show --book-slug`                                           |
+| PUT    | `/notes/:book_id/share`                    | notes publicize write                       | approved write proof                                    | `notes publicize --execute`                                        |
+| POST   | `/notes/:book_id/:annotation_pair_id/note` | per-note thought write                      | DOM only, unsubmitted                                   | disabled until capture                                             |
+| GET    | `/notifications`                           | notifications                               | browser map                                             | `notifications list`                                               |
+| POST   | `/notifications/track`                     | analytics                                   | browser map                                             | omit from CLI                                                      |
+| GET    | `/friend/requests`                         | friend requests                             | browser map                                             | `friends requests`                                                 |
+| GET    | `/friend`                                  | friends                                     | browser map                                             | `friends list`                                                     |
+| GET    | `/topic`                                   | discussions/groups                          | browser map                                             | `topics list --scope groups`                                       |
+| GET    | `/message/inbox`                           | messages                                    | browser map                                             | `messages inbox`                                                   |
+| GET    | `/message/:folder`                         | message folders                             | discovery map                                           | `messages list --folder`                                           |
+| GET    | `/message/show/:message_id`                | message detail                              | discovery map                                           | `messages show`                                                    |
+| POST   | `/message/move_batch`                      | message folder/read action                  | DOM only, unsubmitted                                   | dry-run only                                                       |
+| GET    | `/message/mark_all_as_read`                | mark all inbox read                         | DOM only, unclicked                                     | dry-run only                                                       |
+| GET    | `/user/year_in_books/:year/:user_id`       | yearly reading summary                      | browser map                                             | `year-in-books show`                                               |
+| GET    | `/list`                                    | Listopia index                              | sitemap + nav capture                                   | `lists discover`                                                   |
+| GET    | `/list/show/:list_id`                      | public lists                                | browser map                                             | `lists show`                                                       |
+| GET    | `/award`                                   | awards index                                | sitemap + public probe                                  | `awards list`                                                      |
+| GET    | `/award/show/:award_slug`                  | award detail                                | award sitemap                                           | `awards show`                                                      |
+| GET    | `/choiceawards`                            | Goodreads Choice Awards                     | nav capture + public probe                              | `choice-awards show`                                               |
+| GET    | `/author`                                  | authors index                               | sitemap + public probe                                  | `authors discover`                                                 |
+| GET    | `/author/show/:author_slug`                | author detail                               | author sitemap                                          | `author show`                                                      |
+| GET    | `/giveaway`                                | giveaways index                             | sitemap + nav capture                                   | `giveaways list`                                                   |
+| GET    | `/group`                                   | groups index                                | sitemap + nav capture                                   | `groups list`                                                      |
+| GET    | `/group/show/:group_slug`                  | group detail                                | group sitemap                                           | `groups show`                                                      |
+| GET    | `/news`                                    | news/interviews index                       | sitemap + nav capture                                   | `news list`                                                        |
+| GET    | `/interviews`                              | interviews index                            | public probe                                            | `interviews list`                                                  |
+| GET    | `/interviews/show/:interview_slug`         | interview detail                            | interview sitemap                                       | `interviews show`                                                  |
+| GET    | `/ask_the_author`                          | Ask the Author index                        | nav capture + public probe                              | `ask-author list`                                                  |
+| GET    | `/questions/:question_slug`                | book/author question detail                 | question sitemap                                        | `questions show`                                                   |
+| GET    | `/recommendations`                         | recommendations                             | browser map                                             | `recs list`                                                        |
+| GET    | `/recommendations/to_me`                   | friends' recommendations                    | nav capture                                             | `recs friends`                                                     |
+| GET    | `/amazon_purchases`                        | Amazon purchases import page                | discovery map                                           | `amazon-purchases inspect`                                         |
+| GET    | `/shelf`                                   | top public shelves                          | discovery map                                           | `discovery shelves`                                                |
+| GET    | `/shelf/show/:shelf_slug`                  | public shelf landing                        | discovery map                                           | `discovery shelf show`                                             |
+| GET    | `/genres`                                  | all genres                                  | genre capture                                           | `genres list`                                                      |
+| GET    | `/genres/list`                             | all genre shelves                           | discovery map                                           | `genres list --all`                                                |
+| GET    | `/genres/search`                           | genre finder                                | discovery map                                           | `genres search`                                                    |
+| GET    | `/genres/:genre_slug`                      | genre page                                  | genre capture                                           | `genres show`                                                      |
+| GET    | `/user/top_readers`                        | people discovery                            | discovery map                                           | `people top-readers`                                               |
+| GET    | `/user/top_reviewers`                      | people discovery                            | discovery map                                           | `people top-reviewers`                                             |
+| GET    | `/user/best_reviewers`                     | people discovery                            | discovery map                                           | `people popular-reviewers`                                         |
+| GET    | `/user_following/most_followed`            | people discovery                            | discovery map                                           | `people most-followed`                                             |
+| GET    | `/review/stats/:user`                      | reading stats                               | nav capture                                             | `reading-stats`                                                    |
+| GET    | `/review/drafts`                           | review drafts                               | nav capture                                             | `reviews drafts`                                                   |
+| GET    | `/review/duplicates`                       | duplicates tool                             | nav capture                                             | `books duplicates`                                                 |
+| GET    | `/review/import`                           | import/export page                          | nav capture                                             | `export shelves` fallback                                          |
+| POST   | `/user_shelves`                            | create custom shelf                         | DOM only, unsubmitted                                   | dry-run only                                                       |
+| POST   | `/shelf/update/:shelf_id`                  | shelf table settings                        | DOM only, unsubmitted                                   | dry-run only                                                       |
+| POST   | `/review/update_list/:user_id`             | batch add/remove selected reviews to shelf  | DOM/script only, unsubmitted for shelves                | dry-run only                                                       |
+| POST   | `/shelf/add_to_shelf`                      | single-book exclusive-shelf/status mutation | authenticated reversible live test 2026-08-08           | implemented; dry-run default, `--execute` live                     |
+| POST   | `/shelf/remove_book`                       | single-book shelf remove                    | script-mining proof                                     | dry-run only                                                       |
+| POST   | `/shelf/move_batch`                        | reorder shelf positions                     | script-mining proof                                     | dry-run only                                                       |
+| POST   | `/shelf/move_to_position`                  | move one shelf/book position                | script-mining proof                                     | dry-run only                                                       |
+| POST   | `/review/rate/:book_id`                    | rating mutation                             | authenticated reversible `0 → 1 → 0` test 2026-08-08    | implemented; dry-run default, authenticated readback               |
+| POST   | `/review/update/:book_id`                  | normal Rails review-edit form               | authenticated reversible review/status tests 2026-08-08 | implemented; dry-run default, trusted 302 + authenticated readback |
 
 ## Shelf Routes
 

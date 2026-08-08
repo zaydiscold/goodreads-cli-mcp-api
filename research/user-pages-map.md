@@ -1,5 +1,9 @@
 # Goodreads Authenticated User Pages Map
 
+> **Historical capture snapshot.** Route and form evidence remains useful, but
+> implementation status has moved on. Current behavior is documented in
+> [`../docs/auth.md`](../docs/auth.md) and [`../docs/write-operations.md`](../docs/write-operations.md).
+
 Generated: 2026-05-22T08:25:00Z
 
 ## Artifact
@@ -24,20 +28,20 @@ Privacy boundary:
 
 ## Pages Captured
 
-| Label | Final URL | Title | Links | Forms |
-|---|---|---|---:|---:|
-| friend_requests | `/friend/requests?ref=nav_my_friends` | Friend Requests | 101 | 3 |
-| notifications | `/notifications?ref=nav_my_notifs` | Notifications | 129 | 2 |
-| group_discussions | `/topic?discussion_filter=groups` | Discussions | 128 | 2 |
-| profile | `/user/show/179929687-zayd-khan` | Zayd Khan profile | 398 | 51 |
-| my_books_all | `/review/list/179929687` | 182 books | 784 | 9 |
-| my_books_read | `/review/list/179929687?shelf=read` | 38 read books | 799 | 9 |
-| my_books_currently_reading | `/review/list/179929687?shelf=currently-reading` | 6 currently-reading books | 308 | 9 |
-| my_books_to_read | `/review/list/179929687?shelf=to-read` | 132 to-read books | 791 | 9 |
-| my_quotes | `/quotes/list` | 30 quotes | 544 | 5 |
-| my_comments | `/comment/list/179929687-zayd-khan?ref=nav_profile_comment` | recent posts/comments | 94 | 3 |
-| kindle_notes | `/notes/179929687-zayd-khan` | Kindle Notes & Highlights | 118 | 2 |
-| recommendations | `/recommendations` | Recommended for You | 219 | 27 |
+| Label                      | Final URL                                                   | Title                     | Links | Forms |
+| -------------------------- | ----------------------------------------------------------- | ------------------------- | ----: | ----: |
+| friend_requests            | `/friend/requests?ref=nav_my_friends`                       | Friend Requests           |   101 |     3 |
+| notifications              | `/notifications?ref=nav_my_notifs`                          | Notifications             |   129 |     2 |
+| group_discussions          | `/topic?discussion_filter=groups`                           | Discussions               |   128 |     2 |
+| profile                    | `/user/show/179929687-zayd-khan`                            | Zayd Khan profile         |   398 |    51 |
+| my_books_all               | `/review/list/179929687`                                    | 182 books                 |   784 |     9 |
+| my_books_read              | `/review/list/179929687?shelf=read`                         | 38 read books             |   799 |     9 |
+| my_books_currently_reading | `/review/list/179929687?shelf=currently-reading`            | 6 currently-reading books |   308 |     9 |
+| my_books_to_read           | `/review/list/179929687?shelf=to-read`                      | 132 to-read books         |   791 |     9 |
+| my_quotes                  | `/quotes/list`                                              | 30 quotes                 |   544 |     5 |
+| my_comments                | `/comment/list/179929687-zayd-khan?ref=nav_profile_comment` | recent posts/comments     |    94 |     3 |
+| kindle_notes               | `/notes/179929687-zayd-khan`                                | Kindle Notes & Highlights |   118 |     2 |
+| recommendations            | `/recommendations`                                          | Recommended for You       |   219 |    27 |
 
 ## Batch 2 Pages Captured
 
@@ -53,20 +57,20 @@ Mode:
 0600
 ```
 
-| Label | Route | Title | Links | Forms |
-|---|---|---|---:|---:|
-| message_inbox | `/message/inbox?ref=nav_my_messages` | my inbox | 100 | 3 |
-| year_in_books_2025 | `/user/year_in_books/2025/179929687` | Zayd's Year in Books | 115 | 2 |
-| friends_index | `/friend` | Friends | 151 | 4 |
-| list_show_1 | `/list/show/1` | Best Books Ever | 2473 | 224 |
-| review_list_slug_read | `/review/list/179929687-zayd-khan?shelf=read` | read shelf | 797 | 9 |
-| review_list_numeric_all | `/review/list/179929687` | all books | 784 | 9 |
-| review_list_numeric_to_read | `/review/list/179929687?shelf=to-read` | to-read shelf | 791 | 9 |
-| book_show_gate_feral_gods | `/book/show/57905101-the-gate-of-the-feral-gods` | book page | 145 | 1 |
-| review_list_slug_currently_reading | `/review/list/179929687-zayd-khan?shelf=currently-reading` | currently-reading shelf | 308 | 9 |
-| notes_list_ref | `/notes/179929687-zayd-khan?ref=us_w` | My Kindle Notes & Highlights | 118 | 2 |
-| notes_detail_inevitable_ruin | `/notes/220329192-this-inevitable-ruin/179929687-zayd-khan?ref=abp` | notes detail | 224 | 14 |
-| profile_text_fragment_notes | `/user/show/179929687-zayd-khan` | profile | 421 | 53 |
+| Label                              | Route                                                               | Title                        | Links | Forms |
+| ---------------------------------- | ------------------------------------------------------------------- | ---------------------------- | ----: | ----: |
+| message_inbox                      | `/message/inbox?ref=nav_my_messages`                                | my inbox                     |   100 |     3 |
+| year_in_books_2025                 | `/user/year_in_books/2025/179929687`                                | Zayd's Year in Books         |   115 |     2 |
+| friends_index                      | `/friend`                                                           | Friends                      |   151 |     4 |
+| list_show_1                        | `/list/show/1`                                                      | Best Books Ever              |  2473 |   224 |
+| review_list_slug_read              | `/review/list/179929687-zayd-khan?shelf=read`                       | read shelf                   |   797 |     9 |
+| review_list_numeric_all            | `/review/list/179929687`                                            | all books                    |   784 |     9 |
+| review_list_numeric_to_read        | `/review/list/179929687?shelf=to-read`                              | to-read shelf                |   791 |     9 |
+| book_show_gate_feral_gods          | `/book/show/57905101-the-gate-of-the-feral-gods`                    | book page                    |   145 |     1 |
+| review_list_slug_currently_reading | `/review/list/179929687-zayd-khan?shelf=currently-reading`          | currently-reading shelf      |   308 |     9 |
+| notes_list_ref                     | `/notes/179929687-zayd-khan?ref=us_w`                               | My Kindle Notes & Highlights |   118 |     2 |
+| notes_detail_inevitable_ruin       | `/notes/220329192-this-inevitable-ruin/179929687-zayd-khan?ref=abp` | notes detail                 |   224 |    14 |
+| profile_text_fragment_notes        | `/user/show/179929687-zayd-khan`                                    | profile                      |   421 |    53 |
 
 Route implications:
 
@@ -94,77 +98,77 @@ goodreads/proofs/nav-bookshelves-links-2026-05-22-v2.json
 
 Important profile menu links observed:
 
-| Label | Route |
-|---|---|
-| Zayd Khan / Profile | `/user/show/179929687-zayd-khan` |
-| Friends | `/friend?ref=nav_my_friends` |
-| Groups | `/group?ref=nav_comm_groups` |
-| Discussions | `/topic?ref=nav_comm_discuss` |
-| Comments | `/comment/list/179929687-zayd-khan?ref=nav_profile_comment` |
-| Kindle Notes & Highlights | `/notes?ref=nav_profile_knh` |
-| Quotes | `/quotes?ref=nav_comm_quotes` |
-| Favorite genres | `/user/edit_fav_genres?...` |
-| Friends' recommendations | `/recommendations/to_me?ref=nav_profile_friendrec` |
-| Account settings | `/user/edit?ref=nav_profile_settings` |
-| Help | `/help?action_type=help_nav_bar&ref=nav_profile_help` |
-| Sign out | `/user/sign_out?ref=nav_profile_signout` |
+| Label                     | Route                                                       |
+| ------------------------- | ----------------------------------------------------------- |
+| Zayd Khan / Profile       | `/user/show/179929687-zayd-khan`                            |
+| Friends                   | `/friend?ref=nav_my_friends`                                |
+| Groups                    | `/group?ref=nav_comm_groups`                                |
+| Discussions               | `/topic?ref=nav_comm_discuss`                               |
+| Comments                  | `/comment/list/179929687-zayd-khan?ref=nav_profile_comment` |
+| Kindle Notes & Highlights | `/notes?ref=nav_profile_knh`                                |
+| Quotes                    | `/quotes?ref=nav_comm_quotes`                               |
+| Favorite genres           | `/user/edit_fav_genres?...`                                 |
+| Friends' recommendations  | `/recommendations/to_me?ref=nav_profile_friendrec`          |
+| Account settings          | `/user/edit?ref=nav_profile_settings`                       |
+| Help                      | `/help?action_type=help_nav_bar&ref=nav_profile_help`       |
+| Sign out                  | `/user/sign_out?ref=nav_profile_signout`                    |
 
 Important Browse/Community links observed:
 
-| Label | Route |
-|---|---|
-| Recommendations | `/recommendations?ref=nav_brws_recs` |
-| Choice Awards | `/choiceawards?ref=nav_brws_gca` |
-| Giveaways | `/giveaway?ref=nav_brws_giveaways` |
-| New Releases | `/new_releases?ref=nav_brws_newrels` |
-| Lists | `/list?ref=nav_brws_lists` |
-| Genres | `/genres?ref=nav_brws_genres` |
-| News & Interviews | `/news?ref=nav_brws_news` |
-| Groups | `/group?ref=nav_comm_groups` |
-| Discussions | `/topic?ref=nav_comm_discuss` |
-| Quotes | `/quotes?ref=nav_comm_quotes` |
-| Ask the Author | `/ask_the_author?ref=nav_comm_askauthor` |
-| People | `/user/best_reviewers?ref=nav_comm_people` |
+| Label             | Route                                      |
+| ----------------- | ------------------------------------------ |
+| Recommendations   | `/recommendations?ref=nav_brws_recs`       |
+| Choice Awards     | `/choiceawards?ref=nav_brws_gca`           |
+| Giveaways         | `/giveaway?ref=nav_brws_giveaways`         |
+| New Releases      | `/new_releases?ref=nav_brws_newrels`       |
+| Lists             | `/list?ref=nav_brws_lists`                 |
+| Genres            | `/genres?ref=nav_brws_genres`              |
+| News & Interviews | `/news?ref=nav_brws_news`                  |
+| Groups            | `/group?ref=nav_comm_groups`               |
+| Discussions       | `/topic?ref=nav_comm_discuss`              |
+| Quotes            | `/quotes?ref=nav_comm_quotes`              |
+| Ask the Author    | `/ask_the_author?ref=nav_comm_askauthor`   |
+| People            | `/user/best_reviewers?ref=nav_comm_people` |
 
 Genre index capture:
 
-| Label | Route |
-|---|---|
-| Art | `/genres/art` |
-| Business | `/genres/business` |
-| Cookbooks | `/genres/cookbooks` |
-| Crime | `/genres/crime` |
-| Fantasy | `/genres/fantasy` |
-| Fiction | `/genres/fiction` |
+| Label              | Route                        |
+| ------------------ | ---------------------------- |
+| Art                | `/genres/art`                |
+| Business           | `/genres/business`           |
+| Cookbooks          | `/genres/cookbooks`          |
+| Crime              | `/genres/crime`              |
+| Fantasy            | `/genres/fantasy`            |
+| Fiction            | `/genres/fiction`            |
 | Historical Fiction | `/genres/historical-fiction` |
-| History | `/genres/history` |
+| History            | `/genres/history`            |
 
 The `/genres?ref=nav_brws_genres` page produced 184 total links and 74 genre links. The user-visible `All Genres` and `Favorite Genres` labels were not literal anchors on the genre index page; the route-level equivalent for all genres is `/genres`.
 
 Important My Books and tools links observed:
 
-| Label | Route |
-|---|---|
-| My Books | `/review/list/179929687?ref=nav_mybooks` |
-| Batch Edit | `/review/list/179929687#` |
-| Settings | `/review/list/179929687#` |
-| Stats | `/review/stats/179929687` |
-| Print | `/review/list/179929687?print=true` |
-| All | `/review/list/179929687?shelf=%23ALL%23` |
-| Want to Read | `/review/list/179929687-zayd-khan?shelf=to-read` |
-| Currently Reading | `/review/list/179929687-zayd-khan?shelf=currently-reading` |
-| Read | `/review/list/179929687-zayd-khan?shelf=read` |
-| Did Not Finish | `/review/list/179929687-zayd-khan?shelf=did-not-finish` |
-| for-the-aesthetic | `/review/list/179929687-zayd-khan?shelf=for-the-aesthetic` |
-| want-to-read-again | `/review/list/179929687-zayd-khan?shelf=want-to-read-again` |
-| Review Drafts | `/review/drafts` |
-| Kindle Notes & Highlights | `/notes?ref=nav_profile_knh` |
-| Reading Challenge | `/readingchallenges?ref=web_ingress` |
-| Reading stats | `/review/stats/179929687-zayd-khan` |
-| Amazon book purchases | `/amazon_purchases?source=bn` |
-| Find duplicates | `/review/duplicates` |
-| Widgets | `/user/edit?tab=widgets` |
-| Import and export | `/review/import` |
+| Label                     | Route                                                       |
+| ------------------------- | ----------------------------------------------------------- |
+| My Books                  | `/review/list/179929687?ref=nav_mybooks`                    |
+| Batch Edit                | `/review/list/179929687#`                                   |
+| Settings                  | `/review/list/179929687#`                                   |
+| Stats                     | `/review/stats/179929687`                                   |
+| Print                     | `/review/list/179929687?print=true`                         |
+| All                       | `/review/list/179929687?shelf=%23ALL%23`                    |
+| Want to Read              | `/review/list/179929687-zayd-khan?shelf=to-read`            |
+| Currently Reading         | `/review/list/179929687-zayd-khan?shelf=currently-reading`  |
+| Read                      | `/review/list/179929687-zayd-khan?shelf=read`               |
+| Did Not Finish            | `/review/list/179929687-zayd-khan?shelf=did-not-finish`     |
+| for-the-aesthetic         | `/review/list/179929687-zayd-khan?shelf=for-the-aesthetic`  |
+| want-to-read-again        | `/review/list/179929687-zayd-khan?shelf=want-to-read-again` |
+| Review Drafts             | `/review/drafts`                                            |
+| Kindle Notes & Highlights | `/notes?ref=nav_profile_knh`                                |
+| Reading Challenge         | `/readingchallenges?ref=web_ingress`                        |
+| Reading stats             | `/review/stats/179929687-zayd-khan`                         |
+| Amazon book purchases     | `/amazon_purchases?source=bn`                               |
+| Find duplicates           | `/review/duplicates`                                        |
+| Widgets                   | `/user/edit?tab=widgets`                                    |
+| Import and export         | `/review/import`                                            |
 
 ## Discovery Pages Batch
 
@@ -182,18 +186,18 @@ Mode:
 
 Captured without submitting forms or clicking write links:
 
-| Label | Route | Notes |
-|---|---|---|
-| amazon_purchases | `/amazon_purchases?source=bb` | Add Amazon books to Goodreads import surface; includes load-more link state. |
-| shelf_index | `/shelf` | Top public shelves; form submits `GET /shelf/show` with `shelf=<name>`. |
-| genres_list | `/genres/list` | Alphabetical genre shelf index; includes `GET /genres/search` finder. |
-| genre_historical_fiction | `/genres/historical-fiction` | Concrete user-requested genre page. |
-| people_best_reviewers | `/user/best_reviewers?ref=nav_comm_people` | People discovery landing from Community nav. |
-| user_top_readers | `/user/top_readers` | People subpage. |
-| user_top_reviewers | `/user/top_reviewers` | People subpage. |
-| user_best_reviewers | `/user/best_reviewers` | Most popular reviewers. |
-| user_most_followed | `/user_following/most_followed` | Most-followed users. |
-| message_inbox | `/message/inbox?ref=nav_my_messages` | Folder links, message detail link, batch move/read form. |
+| Label                    | Route                                      | Notes                                                                        |
+| ------------------------ | ------------------------------------------ | ---------------------------------------------------------------------------- |
+| amazon_purchases         | `/amazon_purchases?source=bb`              | Add Amazon books to Goodreads import surface; includes load-more link state. |
+| shelf_index              | `/shelf`                                   | Top public shelves; form submits `GET /shelf/show` with `shelf=<name>`.      |
+| genres_list              | `/genres/list`                             | Alphabetical genre shelf index; includes `GET /genres/search` finder.        |
+| genre_historical_fiction | `/genres/historical-fiction`               | Concrete user-requested genre page.                                          |
+| people_best_reviewers    | `/user/best_reviewers?ref=nav_comm_people` | People discovery landing from Community nav.                                 |
+| user_top_readers         | `/user/top_readers`                        | People subpage.                                                              |
+| user_top_reviewers       | `/user/top_reviewers`                      | People subpage.                                                              |
+| user_best_reviewers      | `/user/best_reviewers`                     | Most popular reviewers.                                                      |
+| user_most_followed       | `/user_following/most_followed`            | Most-followed users.                                                         |
+| message_inbox            | `/message/inbox?ref=nav_my_messages`       | Folder links, message detail link, batch move/read form.                     |
 
 Message inbox nuance:
 
@@ -220,24 +224,24 @@ Mode:
 
 Current live shelf names/counts from the authenticated table capture:
 
-| Shelf | Count |
-|---|---:|
-| All | 28 |
-| to-read | 132 |
-| currently-reading | 7 |
-| read | 40 |
-| did-not-finish | 6 |
-| for-the-aesthetic | 2 |
-| want-to-read-again | 2 |
+| Shelf              | Count |
+| ------------------ | ----: |
+| All                |    28 |
+| to-read            |   132 |
+| currently-reading  |     7 |
+| read               |    40 |
+| did-not-finish     |     6 |
+| for-the-aesthetic  |     2 |
+| want-to-read-again |     2 |
 
 These values are Zayd's current account inventory, not a global Goodreads enum. The CLI should discover shelves from the active account before listing, exporting, or moving books. `to-read`, `currently-reading`, and `read` are useful common aliases, but the discovered sidebar/form inventory wins.
 
 Pagination matters on the main bookshelf pages. Fixture parsing proved:
 
-| Shelf | Declared Count | Pages Seen | Unique Review IDs Parsed |
-|---|---:|---:|---:|
-| read | 40 | 2 | 40 |
-| to-read | 132 | 5 | 132 |
+| Shelf   | Declared Count | Pages Seen | Unique Review IDs Parsed |
+| ------- | -------------: | ---------: | -----------------------: |
+| read    |             40 |          2 |                       40 |
+| to-read |            132 |          5 |                      132 |
 
 By contrast, the public RSS fallback returned only 100 items for the 132-book `to-read` shelf. Use authenticated HTML/table pagination for full export.
 

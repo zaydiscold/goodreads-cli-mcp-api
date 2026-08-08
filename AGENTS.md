@@ -111,7 +111,7 @@ plus the AllTrails / GoDaddy / Squarespace siblings. The npm package and bin nam
 
 **Lineage — Printing Press is a starting point, not a cage.** The CLI + skill + MCP trio pattern is
 borrowed from [Matt Van Horn's Printing Press](https://github.com/mvanhorn/cli-printing-press), and these
-repos use it as a *seed* — not a spec we only follow. The API map here is hand-extended well past anything
+repos use it as a _seed_ — not a spec we only follow. The API map here is hand-extended well past anything
 a generator produced, and we may spin up separate repos to keep building on top of what's here rather than
 conforming back to the generator. The map is the product; Printing Press just gave us a good place to start.
 
@@ -122,7 +122,7 @@ Public Goodreads reads once received a raw browser cookie jar containing Amazon/
 - Public Goodreads requests must pass through `publicGoodreadsCookie(...)`; never send a raw multi-origin cookie jar.
 - `cli/test/cookie.test.ts` must prove mixed Amazon/Goodreads input is reduced while required Goodreads auth survives.
 - Do not raise redirect limits to hide routing defects.
-- HTTP 200 or nonempty HTML is not semantic proof. Live acceptance requires parsed search books, authenticated shelf data, and a shelf-add dry-run with CSRF plus `submitted=false`.
+- HTTP 200 or nonempty HTML is not semantic proof. Public-read acceptance requires parsed domain data with no auth/SSO cookie leakage. Authenticated-write acceptance requires a reversible mutation, route-specific account-state readback, and rollback verification; a dry-run alone is not a live ship gate.
 - The repaired cookie/client files must remain inside the Prettier baseline.
 
 Focused, non-duplicative gate after cookie, redirect, public search, shelf-auth, or affected client changes:
