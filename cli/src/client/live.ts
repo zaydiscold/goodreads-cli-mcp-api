@@ -197,7 +197,8 @@ export async function ensureFreshCsrf(
       method: "GET",
       headers: {
         cookie,
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+        "user-agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
         accept: "text/html,application/xhtml+xml",
       },
       redirect: "follow",
@@ -235,7 +236,8 @@ export async function ensureFreshCsrf(
 
 function requestHeaders(plan: LiveRequestPlan): Record<string, string> {
   const headers: Record<string, string> = {
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+    "user-agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
     accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
   };
   if (plan.requiresCookie && process.env.GOODREADS_COOKIE) {
