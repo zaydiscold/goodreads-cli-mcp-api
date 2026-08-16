@@ -1,1 +1,1 @@
-api-map/openapi/undocumented/goodreads-web.yaml -text whitespace=cr-at-eol
+*.sh text eol=lf
