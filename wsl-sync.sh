@@ -2,15 +2,17 @@
 # Goodreads daily sync — pulls latest reading data via goodreads-cli
 # Runs from WSL, writes to the Windows Desktop.
 
+set -u
+
 # Config: point these at your own setup
-CLI_DIR="${GOODREADS_CLI_DIR:-/mnt/c/Users/$USER/Desktop/clis and apis/goodreads-cli}"
-OUT_DIR="${GOODREADS_SYNC_OUT:-/mnt/c/Users/$USER/Desktop/career/goodreads-sync}"
+CLI_DIR="${GOODREADS_CLI_DIR:-/mnt/c/Users/ZaydK/Desktop/clis and apis/goodreads-cli}"
+OUT_DIR="${GOODREADS_SYNC_OUT:-/mnt/c/Users/ZaydK/Desktop/career/goodreads-sync}"
 GOODREADS_USER="${GOODREADS_USER:-}"
 mkdir -p "$OUT_DIR"
 
 cd "$CLI_DIR" || exit 1
 
-echo "=== $(date) ===" >> "$OUT_DIR/sync.log"
+echo "=== $(date --iso-8601=seconds) ===" >> "$OUT_DIR/sync.log"
 
 if [[ -z "$GOODREADS_USER" ]]; then
   echo "sync: FAIL (set GOODREADS_USER to a Goodreads user id or slug)" >> "$OUT_DIR/sync.log"
@@ -18,7 +20,7 @@ if [[ -z "$GOODREADS_USER" ]]; then
 fi
 
 if [[ ! -f cli/dist/index.js ]]; then
-  corepack pnpm build >> "$OUT_DIR/sync.log" 2>&1 || {
+  pnpm build >> "$OUT_DIR/sync.log" 2>&1 || {
     echo "build: FAIL" >> "$OUT_DIR/sync.log"
     exit 1
   }
