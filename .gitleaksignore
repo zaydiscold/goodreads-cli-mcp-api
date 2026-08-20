@@ -1,0 +1,4 @@
+# Exact false-positive fingerprints from static public HTML fixture.
+# Keep path scanning active: only these line/rule matches are suppressed.
+fixtures/second-wave/similar.html:generic-api-key:23
+fixtures/second-wave/similar.html:jwt:23
