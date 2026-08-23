@@ -72,7 +72,7 @@ All 39 `cli/src/engine.ts` capability keys are classified here. `dynamic-invento
 | `recommendations-list`          | `live-read`                                                                |
 | `author-show`                   | `live-read`                                                                |
 | `year-in-books`                 | `live-read`                                                                |
-| `comments-list`                 | `unit` / fixture parser                                                    |
+| `comments-list`                 | `live-read` authenticated HTML + fixture parser                            |
 | `messages-folders`              | `unit` / static catalog                                                    |
 | `messages-list`                 | `unit` / fixture parser                                                    |
 | `annotations-list`              | `unit` / fixture parser                                                    |
