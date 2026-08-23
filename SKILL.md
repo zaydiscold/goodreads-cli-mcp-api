@@ -96,13 +96,13 @@ GOODREADS_MCP_PROFILE=notes ~/Desktop/CLIs/goodreads-cli/scripts/goodreads-mcp.s
 
 The `full` profile exposes all legacy tools; `core` and `notes` reduce discovery cost while preserving the same tool implementations. All names are prefixed `goodreads_`:
 
-- **Reads:** `api_map_routes`, `route_search`, `browser_routes`, `shelves_discover`, `books_list`, `books_export`, `book_show`, `search_books`, `recommendations_list`, `author_show`, `year_in_books`, `comments_list`, `messages_folders`, `messages_list`, `annotations_list`, `notes_inspect`, `notes_books`, `recent_reading_list`, `recent_reading_notes`, `library_show`, `dynamic_inventory_guidance`.
+- **Reads:** `api_map_routes`, `route_search`, `browser_routes`, `shelves_discover`, `books_list`, `books_export`, `book_show`, `similar_books`, `search_books`, `recommendations_list`, `author_show`, `year_in_books`, `comments_list`, `messages_folders`, `messages_list`, `annotations_list`, `notes_inspect`, `notes_books`, `recent_reading_list`, `recent_reading_notes`, `library_show`, `dynamic_inventory_guidance`.
 - **Plans (never submit):** `notes_publicize_plan`, `recent_reading_publicize_plan`, `annotations_thoughts_plan`, `bookshelf_move_plan`, `write_plan_notes_publicize`, `request_plan`.
 - **Writes (dry-run by default; gated):** `notes_publicize`, `notes_hide`, `recent_reading_publicize`, `quotes_add`, `quotes_remove`, `quotes_reorder`, **`shelf_add`**, **`shelf_remove`**, `set_status`, `rating_update`, `review_upsert`, `request_execute`.
 
 `core` profile includes `shelf_add` / `shelf_remove` so agents can fulfill “add this to want to read” without the full tool surface.
 
-`search_books` and `recommendations_list` are also in `core`. Search returns ranked Goodreads candidates rather than choosing an edition; ask the user to select when candidates are ambiguous. Discovery readers emit identity/rating metadata only—never descriptions, reviews, recommendation explanations, image URLs, or author biography prose. Goodreads can return a 202/robot wall; treat the returned low-confidence warning as a failed lookup, not an empty result.
+`search_books`, `similar_books`, and `recommendations_list` are also in `core`. Search returns ranked Goodreads candidates rather than choosing an edition; ask the user to select when candidates are ambiguous. Discovery readers emit identity/rating metadata only—never descriptions, reviews, recommendation explanations, image URLs, or author biography prose. Goodreads can return a 202/robot wall; treat the returned low-confidence warning as a failed lookup, not an empty result.
 
 ## 3. Add to Want to Read (shelf add/remove)
 
@@ -184,6 +184,7 @@ goodreads-cli recent-reading list --fixture-dir <dir> --shelves read,currently-r
 
 # Discovery reads (all read-only; select a search candidate explicitly)
 goodreads-cli search books --query "The BFG Roald Dahl" --limit 10 --json
+goodreads-cli book similar 3634639-dune --limit 20 --json
 goodreads-cli recommendations list --limit 20 --json
 goodreads-cli author show --author-slug 4273.Roald_Dahl --limit 20 --json
 

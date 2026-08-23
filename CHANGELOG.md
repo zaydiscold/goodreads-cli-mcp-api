@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — 2026-08-22
+
+### Similar books read surface
+
+- Added `book similar <work-slug>` and `goodreads_similar_books` over one shared engine.
+- Parses Goodreads' public `ReactComponents.SimilarBooksList` hydration props into bounded book/work identity and rating metadata.
+- Excludes the source work, duplicates, descriptions, reviews, and image URLs; ships in `full` and `core` MCP profiles.
+- Live-read verified against `GET /book/similar/{work_slug}` without account cookies or browser runtime dependencies.
+
 ## Unreleased — 2026-08-01
 
 ### Bookstore haul + Kindle parity (live)

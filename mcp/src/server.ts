@@ -47,6 +47,7 @@ import {
   shelfAdd,
   shelfRemove,
   searchBooks,
+  similarBooks,
   shelvesDiscover,
   yearInBooks,
   writePlanNotesPublicize,
@@ -224,6 +225,24 @@ registerTool(
     },
   },
   async ({ slugOrId, fixture, baseUrl }) => emit(await bookShow({ slugOrId, fixture, baseUrl })),
+);
+
+registerTool(
+  "goodreads_similar_books",
+  {
+    title: "Goodreads Similar Books",
+    description:
+      "List public Readers-also-enjoyed metadata for a Goodreads work; excludes descriptions, reviews, and image URLs.",
+    annotations: toolAnnotations(true, "read"),
+    inputSchema: {
+      workSlug: z.string().optional(),
+      fixture: z.string().optional(),
+      limit: z.number().int().min(1).max(100).default(20),
+      baseUrl: z.string().optional(),
+    },
+  },
+  async ({ workSlug, fixture, limit, baseUrl }) =>
+    emit(await similarBooks({ workSlug, fixture, limit, baseUrl })),
 );
 
 registerTool(

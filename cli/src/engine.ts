@@ -31,6 +31,7 @@ import {
   parseAuthorPage,
   parseRecommendationsPage,
   parseSearchResultsPage,
+  parseSimilarBooksPage,
 } from "./parsers/discoveryPage.js";
 import { parseYearInBooksPage } from "./parsers/yearInBooksPage.js";
 import { parseCommentsPage } from "./parsers/commentsPage.js";
@@ -125,6 +126,13 @@ export const CAPABILITIES: Capability[] = [
     key: "book-show",
     cli: "book show",
     mcpTool: "goodreads_book_show",
+    readOnly: true,
+    risk: "read",
+  },
+  {
+    key: "similar-books",
+    cli: "book similar",
+    mcpTool: "goodreads_similar_books",
     readOnly: true,
     risk: "read",
   },
@@ -666,6 +674,48 @@ export async function bookShow(options: {
       );
   const parsed = parseBookPage(html);
   return envelope(parsed, { confidence: parsed.jsonLdBook.name ? "high" : "medium" });
+}
+
+export async function similarBooks(options: {
+  workSlug?: string;
+  fixture?: string;
+  limit?: number;
+  baseUrl?: string;
+}): Promise<Envelope> {
+  const workSlug = options.workSlug?.trim();
+  const hasWorkSlug = Boolean(workSlug);
+  const hasFixture = Boolean(options.fixture?.trim());
+  if (hasWorkSlug === hasFixture) {
+    throw new Error("exactly one of workSlug or fixture is required");
+  }
+  const limit = options.limit ?? 20;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    throw new Error("limit must be an integer from 1 through 100");
+  }
+  const html = options.fixture
+    ? await readText(options.fixture)
+    : await fetchPublicText(
+        goodreadsUrl(
+          `/book/similar/${encodeURIComponent(workSlug as string)}`,
+          options.baseUrl ?? DEFAULT_BASE_URL,
+        ),
+      );
+  const parsed = parseSimilarBooksPage(html);
+  const warnings = discoveryWarnings(html, false, false);
+  if (parsed.books.length === 0 && warnings.length === 0) {
+    warnings.push(
+      "No similar-book cards were parsed; the page may have changed or be unavailable.",
+    );
+  }
+  return envelope(
+    {
+      ...parsed,
+      workSlug: workSlug ?? null,
+      totalAvailable: parsed.books.length,
+      books: parsed.books.slice(0, limit),
+    },
+    { warnings, confidence: parsed.books.length > 0 && warnings.length === 0 ? "high" : "low" },
+  );
 }
 
 function discoveryWarnings(html: string, signedOut: boolean, requiresAuth: boolean): string[] {

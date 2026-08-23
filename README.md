@@ -8,7 +8,7 @@ Snap a photo of a stack at a bookstore, hand it to your agent, and it can land t
 
 > **Bookstore photos → lists (live).** Agent photo → title resolve → `shelves add --name to-read --execute` is a **working path**. Pair it with the sibling [amazon-kindle-cli-mcp-api](https://github.com/zaydiscold/amazon-kindle-cli-mcp-api) (`wishlist add` / `parity` / `sync goodreads-plan`) for Goodreads ↔ Amazon wishlist / Kindle parity on the same haul — one photo stack, both lists.
 
-**Current expansion:** live authenticated My Books HTML plus public `stats year-in-books`; both run through the shared CLI/MCP engine with signed-out/challenge detection and redaction-first output.
+**Current expansion:** live authenticated My Books HTML plus public Year in Books and Readers-also-enjoyed metadata; all run through the shared CLI/MCP engine with signed-out/challenge detection and redaction-first output.
 
 ---
 
@@ -49,7 +49,7 @@ the `core` profile the practical default for agents (now includes shelf add/remo
 | Compact JSON bytes                 | 17,034 | 4,830 | **71.64%** |
 | Visible tools                      |     30 |    10 |          — |
 
-Token table above is the historical v1.0.0 baseline (28→8), not the current manifest. Current runtime truth is **39 full / 14 core / 14 notes**; profiles hide registrations only—all capabilities use the same CLI/MCP engine and full remains available for compatibility. `tools/list` and `mcp/src/profile.ts` are authoritative if these counts change.
+Token table above is the historical v1.0.0 baseline (28→8), not the current manifest. Current runtime truth is **40 full / 15 core / 14 notes**; profiles hide registrations only—all capabilities use the same CLI/MCP engine and full remains available for compatibility. `tools/list` and `mcp/src/profile.ts` are authoritative if these counts change.
 
 ## What it does
 
@@ -58,7 +58,7 @@ Full read **and** write across Goodreads:
 - **Want to Read / shelves** — add or remove books on `to-read`, `currently-reading`, `read`, or custom shelves (live `POST /shelf/add_to_shelf`); discover inventory + counts; list and export (HTML pagination or RSS).
 - **Bookstore → shelf** — agent takes a photo (or title/author), resolves the numeric book id, and shelves it. Built so you can snap stacks in a shop and clear the backlog without opening the site.
 - **One authenticated session, surface-specific cookie routing** — account reads and writes share `GOODREADS_COOKIE`, but public discovery reads deliberately strip account/SSO cookies. Rails mutations mint CSRF from the signed-in `/review/list` page and use the request shape each endpoint actually expects.
-- **Books** — parse any public book page (JSON-LD + Next.js metadata).
+- **Books** — parse any public book page (JSON-LD + Next.js metadata) and list public Readers-also-enjoyed candidates from Goodreads' server-rendered React props.
 - **Year in Books** — public yearly books/pages totals, average length/rating, and shortest/longest/most/least-shelved/highest-rated book metadata without emitting review text.
 - **Kindle Notes & Highlights** — list annotated books and available counts from public JSON, inspect notes metadata, plan + execute publicize/hide (gated), and join your current/read shelves to your notes index.
 - **Annotations** — per-highlight annotation metadata (visibility, spoiler, persist endpoints) without raw highlight text.
@@ -75,7 +75,7 @@ The thing that makes this more than a script: **the CLI and the MCP server share
 
 That invariant is enforced by code, not vigilance: a `CAPABILITIES` registry in the engine is checked **in both directions** by [`cli/test/parity.test.ts`](./cli/test/parity.test.ts) — every capability must have a CLI command **and** an MCP tool, with no orphans on either side. Add a command without its MCP twin and CI goes red.
 
-Live tool truth is always `tools/list`; the tested `full` profile currently exposes 39 unique tools.
+Live tool truth is always `tools/list`; the tested `full` profile currently exposes 40 unique tools.
 
 For cron-based automation on WSL, see [`wsl-sync.sh`](./wsl-sync.sh) — a daily sync script that pulls reading data to your Windows Desktop.
 
@@ -92,6 +92,7 @@ Live-capable reads send real requests when their required inputs/auth are presen
 | `books list --shelf <s>`                               | "List one shelf" — from authenticated HTML fixtures or public RSS                                                        |
 | `books export --fixture-dir <d>`                       | "Export my shelves" — deduped by book, with per-shelf membership + completeness flags                                    |
 | `book show <slug-or-id>`                               | "Parse this book page" — JSON-LD + Next.js metadata                                                                      |
+| `book similar <work-slug>`                             | "What did readers also enjoy?" — public metadata only; descriptions and images are omitted                               |
 | `search books --query "<title> <author>"`              | "Which Goodreads editions match?" — bounded candidate metadata; never silently selects one                               |
 | `recommendations list`                                 | "What does my current Goodreads session recommend?" — authenticated card metadata only                                   |
 | `author show --author-slug <id.slug>`                  | "What is on this public author page?" — identity, bio length, and bounded bibliography metadata                          |
