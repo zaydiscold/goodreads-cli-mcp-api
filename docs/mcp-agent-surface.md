@@ -14,6 +14,7 @@ by about 71% and 51%. See [token-efficiency.md](./token-efficiency.md).
 - `goodreads_route_search` searches mapped capabilities such as notes publicizing, shelf exports, message folders, friends, and profile pages.
 - `goodreads_browser_routes` lists sanitized authenticated Chrome CDP route templates from the 2026-05-26 recapture.
 - `goodreads_search_books` resolves title/author input into bounded Goodreads candidate metadata; it never auto-selects an edition.
+- `goodreads_similar_books` lists public Readers-also-enjoyed metadata for one work and omits descriptions, reviews, and image URLs.
 - `goodreads_recommendations_list` reads authenticated recommendation-card metadata only and reports signed-out or bot-wall states explicitly.
 - `goodreads_author_show` reads public author identity, biography length, and bounded bibliography metadata without biography prose.
 - `goodreads_bookshelf_move_plan` returns a dry-run form plan for moving an existing review row to another shelf.

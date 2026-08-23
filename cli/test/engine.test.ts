@@ -12,6 +12,7 @@ import {
   notesBooks,
   recommendationsList,
   searchBooks,
+  similarBooks,
   shelvesDiscover,
   yearInBooks,
 } from "../src/engine.js";
@@ -118,6 +119,39 @@ describe("Goodreads engine correctness", () => {
     );
     const result = await bookShow({ fixture });
     expect(dataOf<{ jsonLdBook: { name: string } }>(result).jsonLdBook.name).toBe("Fixture Book");
+  });
+
+  it("reads a similar-books fixture through the shared engine with a bounded limit", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "goodreads-similar-books-"));
+    const fixture = join(dir, "similar.html");
+    await writeFile(
+      fixture,
+      `<div data-react-class="ReactComponents.SimilarBooksList" data-react-props='{"similarBooks":[{"book":{"bookId":"100","workId":"10","bookUrl":"/book/show/100.Source","title":"Source","author":{"name":"Source Author"}}}]}'></div>
+       <div data-react-class="ReactComponents.SimilarBooksList" data-react-props='{"similarBooks":[{"book":{"bookId":"200","workId":"20","bookUrl":"/book/show/200.First","title":"First","author":{"name":"First Author"}}},{"book":{"bookId":"201","workId":"21","bookUrl":"/book/show/201.Second","title":"Second","author":{"name":"Second Author"}}}]}'></div>`,
+    );
+
+    await expect(similarBooks({})).rejects.toThrow(
+      "exactly one of workSlug or fixture is required",
+    );
+    const result = await similarBooks({ fixture, limit: 1 });
+    expect(dataOf<{ totalAvailable: number; books: Array<{ bookId: string }> }>(result)).toEqual(
+      expect.objectContaining({
+        totalAvailable: 2,
+        books: [
+          {
+            bookId: "200",
+            workId: "20",
+            bookUrl: "/book/show/200.First",
+            title: "First",
+            author: "First Author",
+            avgRating: null,
+            ratingsCount: null,
+            numPages: null,
+          },
+        ],
+      }),
+    );
+    expect(result.confidence).toBe("high");
   });
 
   it("fetches and parses a public Year in Books page through the shared engine", async () => {

@@ -8,6 +8,7 @@ import {
   parseAuthorPage,
   parseRecommendationsPage,
   parseSearchResultsPage,
+  parseSimilarBooksPage,
 } from "../src/parsers/discoveryPage.js";
 import { parseYearInBooksPage } from "../src/parsers/yearInBooksPage.js";
 import { parseMessagePage } from "../src/parsers/messagePage.js";
@@ -462,6 +463,46 @@ describe("Goodreads parsers", () => {
     expect(serialized).not.toContain("Private review prose");
     expect(serialized).not.toContain("Personal recommendation explanation");
     expect(serialized).not.toContain("Long biography prose");
+  });
+
+  it("parses similar-book React props, excludes the source work, and drops private prose", () => {
+    const parsed = parseSimilarBooksPage(`
+      <h1>Readers who enjoyed</h1>
+      <div data-react-class="ReactComponents.Breadcrumbs"
+        data-react-props='{"pageLinks":[{"text":"Source Author","url":"/author/show/1.Source"},{"text":"Source Book","url":"/book/show/100.Source_Book"},{"text":"Similar books"}]}'></div>
+      <div data-react-class="ReactComponents.SimilarBooksList"
+        data-react-props='{"similarBooks":[{"book":{"bookId":"100","workId":"10","bookUrl":"/book/show/100.Source_Book","title":"Source Book","avgRating":4.1,"ratingsCount":100,"author":{"name":"Source Author"},"description":{"truncatedHtml":"source prose"},"imageUrl":"secret-image"}}]}'></div>
+      <div data-react-class="ReactComponents.SimilarBooksList"
+        data-react-props='{"similarBooks":[{"book":{"bookId":"200","workId":"20","bookUrl":"/book/show/200.First","title":"First Similar","numPages":320,"avgRating":4.2,"ratingsCount":200,"author":{"name":"First Author"},"description":{"truncatedHtml":"private prose"},"imageUrl":"secret-image"}},{"book":{"bookId":"201","workId":"21","bookUrl":"/book/show/201.Second","bookTitleBare":"Second Similar","avgRating":3.9,"ratingsCount":50,"author":{"name":"Second Author"}}}]}'></div>
+      <div data-react-class="ReactComponents.SimilarBooksList"
+        data-react-props='{"similarBooks":[{"book":{"bookId":"200","workId":"20","bookUrl":"/book/show/200.First","title":"First Similar","author":{"name":"First Author"}}}]}'></div>
+    `);
+
+    expect(parsed).toMatchObject({
+      kind: "similar_books",
+      source: { bookId: "100", workId: "10", title: "Source Book", author: "Source Author" },
+      books: [
+        {
+          bookId: "200",
+          workId: "20",
+          title: "First Similar",
+          author: "First Author",
+          avgRating: 4.2,
+          ratingsCount: 200,
+          numPages: 320,
+        },
+        {
+          bookId: "201",
+          workId: "21",
+          title: "Second Similar",
+          author: "Second Author",
+        },
+      ],
+    });
+    const serialized = JSON.stringify(parsed);
+    expect(serialized).not.toContain("private prose");
+    expect(serialized).not.toContain("source prose");
+    expect(serialized).not.toContain("secret-image");
   });
 
   it("loads sanitized authenticated browser route templates", async () => {
