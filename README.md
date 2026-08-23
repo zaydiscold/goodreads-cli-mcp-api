@@ -98,7 +98,7 @@ Live-capable reads send real requests when their required inputs/auth are presen
 | `notes publicize` / `notes hide`                       | "Make all highlights public / hidden for a book" (gated)                                                                 |
 | `annotations list / thoughts-plan`                     | "Per-highlight annotation metadata; plan a per-note thought"                                                             |
 | `quotes add / remove / reorder`                        | "Manage my quotes" (dry-run unless `--execute`)                                                                          |
-| `comments list` / `messages folders` / `messages list` | "Inspect comment/message page shape without bodies"                                                                      |
+| `comments list` / `messages folders` / `messages list` | "Inspect live authenticated comment metadata or message-page shape without bodies"                                       |
 | `write-plan books move` / `write-plan notes publicize` | "Static dry-run mutation plans"                                                                                          |
 | `request plan` / `request execute`                     | "Drive any mapped route raw" (reads run live; mutations require three explicit gates)                                    |
 

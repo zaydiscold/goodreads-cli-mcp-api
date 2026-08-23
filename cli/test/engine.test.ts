@@ -7,6 +7,7 @@ import {
   bookShow,
   booksExport,
   booksList,
+  commentsList,
   messagesFolders,
   notesInspect,
   notesBooks,
@@ -103,6 +104,38 @@ describe("Goodreads engine correctness", () => {
     });
     expect(result.confidence).toBe("high");
     expect(result.warnings).toEqual([]);
+  });
+
+  it("reads authenticated comments metadata live without emitting comment text", async () => {
+    process.env.GOODREADS_COOKIE = "session-token=goodreads-only";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          '<html><head><title>Reader recent posts</title></head><body><a href="/user/sign_out">sign out</a><a href="/comment/show/11">private body one</a><a href="/comment/show/12">private body two</a></body></html>',
+          { status: 200, headers: { "content-type": "text/html" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await commentsList({ userSlug: "123-reader" });
+    const data = dataOf<{
+      route: string;
+      source: string;
+      signedOut: boolean;
+      parsed: { commentLinkCount: number; commentLinks: Array<{ labelLength: number }> };
+    }>(result);
+
+    expect(data).toMatchObject({
+      route: "/comment/list/123-reader",
+      source: "authenticated-html",
+      signedOut: false,
+      parsed: { commentLinkCount: 2 },
+    });
+    expect(JSON.stringify(data)).not.toContain("private body one");
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/comment/list/123-reader");
+    delete process.env.GOODREADS_COOKIE;
   });
 
   it("requires exactly one book source", async () => {

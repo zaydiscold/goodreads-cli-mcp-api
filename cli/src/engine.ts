@@ -867,16 +867,31 @@ export async function commentsList(options: {
   if (!options.fixture && !options.userSlug) {
     throw new Error("user-slug is required unless a fixture is supplied");
   }
-  const parsed = options.fixture ? parseCommentsPage(await readText(options.fixture)) : null;
+  const route = options.userSlug ? `/comment/list/${options.userSlug}` : null;
+  let parsed = options.fixture ? parseCommentsPage(await readText(options.fixture)) : null;
+  let signedOut = false;
+  const source = options.fixture ? "fixture" : "authenticated-html";
+
+  if (!parsed && route) {
+    const result = await fetchAuthenticatedText(goodreadsUrl(route));
+    signedOut = result.signedOut;
+    parsed = parseCommentsPage(result.html);
+  }
+
+  const warnings = signedOut
+    ? ["Goodreads comments page resolved signed-out; refresh GOODREADS_COOKIE."]
+    : [];
   return envelope(
     {
       routeTemplate: "/comment/list/{user_slug}",
-      route: options.userSlug ? `/comment/list/${options.userSlug}` : null,
+      route,
+      source,
+      signedOut,
       parsed,
       writeBoundary:
         "Comment writes are not part of notes/highlights visibility and remain disabled until separately captured and approved.",
     },
-    { confidence: parsed ? "high" : "medium" },
+    { warnings, confidence: parsed && !signedOut ? "high" : "low" },
   );
 }
 

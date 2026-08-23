@@ -318,7 +318,7 @@ registerTool(
   {
     title: "Goodreads Comments List",
     description:
-      "Plan or parse a user comments/recent-post page into redacted link/form shape (never raw comment text).",
+      "Read a live authenticated comments/recent-post page or parse a fixture into redacted link/form shape (never raw comment text).",
     annotations: toolAnnotations(true, "read", false),
     inputSchema: {
       userSlug: z.string().optional(),

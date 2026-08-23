@@ -247,7 +247,7 @@ Rules:
 
 - `annotations list` emits redacted annotation ids by default; `--include-private-ids` is private-local only.
 - `annotations thoughts-plan` is plan-only until a separately approved capture proves payload and reload verification.
-- `comments list` can plan `/comment/list/{user_slug}` or parse a fixture, but comment writes remain disabled.
+- `comments list --user-slug <slug>` reads the authenticated recent-post page live and emits only counts/link/form shape; fixtures remain supported and comment writes remain disabled.
 
 ## `messages folders`
 

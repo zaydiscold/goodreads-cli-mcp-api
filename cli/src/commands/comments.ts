@@ -9,8 +9,8 @@ export function commentsCommand(): Command {
 
   command
     .command("list")
-    .description("Plan or parse a user comments/recent-post page.")
-    .option("--user-slug <slug>", "Goodreads user slug. Required for live URL planning.")
+    .description("Read a live authenticated user comments/recent-post page or parse a fixture.")
+    .option("--user-slug <slug>", "Goodreads user slug. Required for live reads.")
     .option("--fixture <path>", "Comments HTML fixture to parse.")
     .option("--json", "Emit JSON.", true)
     .action(async (options: { userSlug?: string; fixture?: string }) => {

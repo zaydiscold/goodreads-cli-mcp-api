@@ -104,6 +104,8 @@ The `full` profile exposes all legacy tools; `core` and `notes` reduce discovery
 
 `search_books`, `similar_books`, and `recommendations_list` are also in `core`. Search returns ranked Goodreads candidates rather than choosing an edition; ask the user to select when candidates are ambiguous. Discovery readers emit identity/rating metadata only—never descriptions, reviews, recommendation explanations, image URLs, or author biography prose. Goodreads can return a 202/robot wall; treat the returned low-confidence warning as a failed lookup, not an empty result.
 
+`comments_list` performs a live authenticated read when passed `userSlug`; output is metadata-only (count, redacted link/form shape), never comment bodies. Comment writes remain disabled.
+
 ## 3. Add to Want to Read (shelf add/remove)
 
 Want-to-read shelf slug = **`to-read`**.

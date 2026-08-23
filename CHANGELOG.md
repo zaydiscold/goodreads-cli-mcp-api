@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 2026-08-23 (daily watch)
+
+- `comments list --user-slug` and `goodreads_comments_list` now read the authenticated recent-post page live instead of returning a plan-only null parse.
+- Live output remains redaction-first: comment counts and link/form shape only, never comment bodies.
+- Added focused engine coverage and updated the evidence ledger for the unified daily reading/annotations/comments watchdog.
+
 ## Unreleased — 2026-08-23
 
 ### Daily reading sync hardening
