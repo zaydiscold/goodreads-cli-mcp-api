@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — 2026-08-23
+
+### Daily reading sync hardening
+
+- Fixed authenticated shelf parsing when Goodreads renders a cover-image link before the textual `a.bookTitle`; live HTML now returns all seven current titles instead of `null`.
+- Moved the WSL cron helper from the repository root to `scripts/goodreads-daily-sync.sh`, removed machine-specific defaults, made writes atomic, and kept explicit success/failure receipts.
+- Simplified the README's stale v1 token table into current MCP profile guidance and added compact navigation.
+
 ## Unreleased — 2026-08-22
 
 ### Similar books read surface
