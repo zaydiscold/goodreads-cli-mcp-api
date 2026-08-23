@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import type { AnyNode } from "domhandler";
 import { cleanText, parseInteger, shortText } from "../lib.js";
 import type { PageLink, ShelfBookRow, ShelfHtmlParse, ShelfInventoryItem } from "../types/index.js";
 
@@ -22,6 +23,16 @@ function parseReviewId(rowId: string | undefined, checkboxName: string | undefin
   if (rowMatch?.[1]) return rowMatch[1];
   const checkboxMatch = checkboxName?.match(/reviews\[(\d+)\]/);
   return checkboxMatch?.[1] ?? null;
+}
+
+function selectTextBookLink($: cheerio.CheerioAPI, row: cheerio.Cheerio<AnyNode>) {
+  const textLink = row
+    .find(
+      "a.bookTitle[href*='/book/show/'], .field.title a[href*='/book/show/'], td.title a[href*='/book/show/']",
+    )
+    .filter((_, candidate) => Boolean(cleanText($(candidate).text())))
+    .first();
+  return textLink.length ? textLink : row.find("a[href*='/book/show/']").first();
 }
 
 export function parseShelfHtml(html: string): ShelfHtmlParse {
@@ -62,7 +73,7 @@ export function parseShelfHtml(html: string): ShelfHtmlParse {
     const rowId = row.attr("id");
     const checkboxName = row.find("input[type='checkbox'][name^='reviews[']").first().attr("name");
     const reviewId = parseReviewId(rowId, checkboxName);
-    const bookLink = row.find("a[href*='/book/show/']").first();
+    const bookLink = selectTextBookLink($, row);
     const bookHref = bookLink.attr("href") ?? null;
     const bookId = parseBookId(bookHref);
     const key = reviewId ?? bookId ?? bookHref ?? cleanText(row.text()).slice(0, 80);

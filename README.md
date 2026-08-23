@@ -10,6 +10,8 @@ Snap a photo of a stack at a bookstore, hand it to your agent, and it can land t
 
 **Current expansion:** live authenticated My Books HTML plus public Year in Books and Readers-also-enjoyed metadata; all run through the shared CLI/MCP engine with signed-out/challenge detection and redaction-first output.
 
+[Install](#install) · [Capabilities](#what-it-does) · [Commands](#command-tour--what-answers-what) · [Safety](#safety-model) · [MCP](#use-it-from-an-agent-mcp) · [Architecture](#architecture--extending)
+
 ---
 
 ## ⚠️ Disclaimer
@@ -38,18 +40,9 @@ Requires **Node ≥ 20** and the repository-pinned pnpm, available through
 `scripts/goodreads-mcp.sh` wrapper; it loads local auth at runtime and builds stale
 or missing generated artifacts before opening stdio.
 
-## v1.0.0 — 70.98% fewer MCP discovery tokens
+## MCP profiles
 
-The stable release keeps the complete compatibility profile while making
-the `core` profile the practical default for agents (now includes shelf add/remove):
-
-| Measurement                        |   Full |  Core |  Reduction |
-| ---------------------------------- | -----: | ----: | ---------: |
-| `tools/list` tokens (`o200k_base`) |  4,011 | 1,164 | **70.98%** |
-| Compact JSON bytes                 | 17,034 | 4,830 | **71.64%** |
-| Visible tools                      |     30 |    10 |          — |
-
-Token table above is the historical v1.0.0 baseline (28→8), not the current manifest. Current runtime truth is **40 full / 15 core / 14 notes**; profiles hide registrations only—all capabilities use the same CLI/MCP engine and full remains available for compatibility. `tools/list` and `mcp/src/profile.ts` are authoritative if these counts change.
+Use `core` for normal agent work, `notes` for highlight automation, and `full` for compatibility. Current tested registration counts are **40 full / 15 core / 14 notes**; `tools/list` and `mcp/src/profile.ts` are always authoritative. Profiles only hide registrations—every capability still uses the same shared engine.
 
 ## What it does
 
@@ -77,7 +70,7 @@ That invariant is enforced by code, not vigilance: a `CAPABILITIES` registry in 
 
 Live tool truth is always `tools/list`; the tested `full` profile currently exposes 40 unique tools.
 
-For cron-based automation on WSL, see [`wsl-sync.sh`](./wsl-sync.sh) — a daily sync script that pulls reading data to your Windows Desktop.
+For cron-based automation on WSL, use [`scripts/goodreads-daily-sync.sh`](./scripts/goodreads-daily-sync.sh). It atomically snapshots the live currently-reading RSS result to a dated JSON file and records an explicit success/failure receipt; notes/highlight publicization remains separately gated and must be verified after every write.
 
 ## Command tour — what answers what
 

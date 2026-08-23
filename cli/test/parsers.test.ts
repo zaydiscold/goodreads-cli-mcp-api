@@ -38,7 +38,10 @@ describe("Goodreads parsers", () => {
         <table id="booksBody">
           <tr id="review_111">
             <td><input type="checkbox" name="reviews[111]" value="111"></td>
-            <td><a href="/book/show/123-example-book">Example Book</a></td>
+            <td class="field title">
+              <a href="/book/show/123-example-book"><img src="cover.jpg" alt=""></a>
+              <a class="bookTitle" href="/book/show/123-example-book"><span>Example Book</span></a>
+            </td>
             <td class="author"><a>Example Author</a></td>
           </tr>
         </table>
@@ -56,6 +59,7 @@ describe("Goodreads parsers", () => {
     expect(parsed.rows).toHaveLength(1);
     expect(parsed.rows[0]?.reviewId).toBe("111");
     expect(parsed.rows[0]?.bookId).toBe("123");
+    expect(parsed.rows[0]?.title).toBe("Example Book");
     expect(parsed.pageLinks[0]?.page).toBe(2);
   });
 

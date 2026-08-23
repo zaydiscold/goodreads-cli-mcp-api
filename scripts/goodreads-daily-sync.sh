@@ -1,12 +1,11 @@
-#!/bin/bash
-# Goodreads daily sync — pulls latest reading data via goodreads-cli
-# Runs from WSL, writes to the Windows Desktop.
+#!/usr/bin/env bash
+# Goodreads daily shelf snapshot for WSL/cron. Notes writes remain separately gated.
 
-set -u
+set -euo pipefail
 
-# Config: point these at your own setup
-CLI_DIR="${GOODREADS_CLI_DIR:-/mnt/c/Users/ZaydK/Desktop/clis and apis/goodreads-cli}"
-OUT_DIR="${GOODREADS_SYNC_OUT:-/mnt/c/Users/ZaydK/Desktop/career/goodreads-sync}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+CLI_DIR="${GOODREADS_CLI_DIR:-$(cd -- "$SCRIPT_DIR/.." && pwd)}"
+OUT_DIR="${GOODREADS_SYNC_OUT:-$CLI_DIR/proofs/daily-sync}"
 GOODREADS_USER="${GOODREADS_USER:-}"
 mkdir -p "$OUT_DIR"
 
@@ -20,7 +19,7 @@ if [[ -z "$GOODREADS_USER" ]]; then
 fi
 
 if [[ ! -f cli/dist/index.js ]]; then
-  pnpm build >> "$OUT_DIR/sync.log" 2>&1 || {
+  corepack pnpm build >> "$OUT_DIR/sync.log" 2>&1 || {
     echo "build: FAIL" >> "$OUT_DIR/sync.log"
     exit 1
   }
