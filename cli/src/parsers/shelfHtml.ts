@@ -20,6 +20,10 @@ function relativeGoodreadsUrl(href: string | undefined | null): string | null {
   return parsed ? `${parsed.pathname}${parsed.search}` : null;
 }
 
+function goodreadsPath(href: string | undefined | null): string | null {
+  return goodreadsUrl(href)?.pathname ?? null;
+}
+
 function parseShelfFromHref(href: string): string | null {
   return goodreadsUrl(href)?.searchParams.get("shelf") ?? null;
 }
@@ -87,7 +91,7 @@ export function parseShelfHtml(html: string): ShelfHtmlParse {
     const checkboxName = row.find("input[type='checkbox'][name^='reviews[']").first().attr("name");
     const reviewId = parseReviewId(rowId, checkboxName);
     const bookLink = selectTextBookLink($, row);
-    const bookHref = relativeGoodreadsUrl(bookLink.attr("href"));
+    const bookHref = goodreadsPath(bookLink.attr("href"));
     const bookId = parseBookId(bookHref);
     const key = reviewId ?? bookId ?? bookHref ?? cleanText(row.text()).slice(0, 80);
     if (!key || seenRows.has(key)) return;
