@@ -23,7 +23,7 @@ type RunningClient = {
 };
 
 async function connect(
-  profile: McpProfile | undefined = "full",
+  profile?: McpProfile,
   output: "compact" | "pretty" = "compact",
 ): Promise<RunningClient> {
   let stderr = "";
