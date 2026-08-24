@@ -3,7 +3,7 @@
   "version": "1.1.0",
   "private": true,
   "type": "module",
-  "description": "Repository-local MCP server for the unofficial Goodreads API map and shared CLI engine.",
+  "description": "Optional repository-local MCP adapter for the Goodreads CLI shared engine.",
   "bin": {
     "goodreads-cli-mcp": "dist/server.js"
   },

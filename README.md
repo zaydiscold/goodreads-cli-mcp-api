@@ -1,255 +1,163 @@
-# Goodreads CLI (MCP + API)
+# Goodreads CLI
 
-> "i made all this so I can have a cron job on the homelab setup that auto publishes my kindle highlights and notes :)"
+> Your reading life, scriptable.
 
-An unofficial **API map + CLI + MCP server** for the logged-in Goodreads web surface — shelves, books, ratings, reviews, quotes, and Kindle notes & highlights — driven from the terminal or from your agents, without ever opening the website. Amazon closed the public Goodreads API to new keys in December 2020, so this drives the web surface from a hand-mapped OpenAPI spec: a TypeScript CLI **and** an MCP server sharing one engine. **The map is the headline; the CLI and MCP are the proof it's real.**
+[![CI](https://github.com/zaydiscold/goodreads-cli-mcp-api/actions/workflows/ci.yml/badge.svg)](https://github.com/zaydiscold/goodreads-cli-mcp-api/actions/workflows/ci.yml)
+[![Node 20+](https://img.shields.io/badge/node-%3E%3D20-43853d)](./cli/package.json)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-Snap a photo of a stack at a bookstore, hand it to your agent, and it can land those titles on your **Want to Read** shelf — same session cookie as notes publicize, with CSRF auto-refreshed so every write feature stops dying on stale tokens.
+An unofficial TypeScript CLI for searching books, managing shelves, exporting reading data, and automating Goodreads workflows. An optional MCP adapter exposes the same engine to agents.
 
-> **Bookstore photos → lists (live).** Agent photo → title resolve → `shelves add --name to-read --execute` is a **working path**. Pair it with the sibling [amazon-kindle-cli-mcp-api](https://github.com/zaydiscold/amazon-kindle-cli-mcp-api) (`wishlist add` / `parity` / `sync goodreads-plan`) for Goodreads ↔ Amazon wishlist / Kindle parity on the same haul — one photo stack, both lists.
+I built this because I wanted to point an agent at a bookstore photo, review the matches, and send the books I liked to **Want to Read**. I also wanted my homelab to handle repetitive Kindle-note workflows without turning every automation into a browser project.
 
-**Current expansion:** live authenticated My Books HTML plus public Year in Books and Readers-also-enjoyed metadata; all run through the shared CLI/MCP engine with signed-out/challenge detection and redaction-first output.
+```bash
+goodreads-cli search books --query "The Dispossessed Ursula K. Le Guin"
+goodreads-cli shelves add --book-id <id> --name to-read
+goodreads-cli shelves add --book-id <id> --name to-read --execute
+```
 
-[Install](#install) · [Capabilities](#what-it-does) · [Commands](#command-tour--what-answers-what) · [Safety](#safety-model) · [MCP](#use-it-from-an-agent-mcp) · [Architecture](#architecture--extending)
+The first shelf write is a dry run. The second is live.
 
----
+[Quick start](#quick-start) · [Workflows](#what-you-can-do) · [Safety](#writes-are-deliberately-boring) · [MCP](#optional-mcp-for-agents) · [Docs](#documentation)
 
-## ⚠️ Disclaimer
+## What you can do
 
-**This is an independent, unofficial project. It is NOT affiliated with, endorsed by, or approved by Goodreads or Amazon.**
+| Workflow | What the CLI handles |
+| --- | --- |
+| **Bookstore photo to Want to Read** | Pair an image-capable agent with `search books`, review the candidates, then use `shelves add`. The CLI does not pretend image or title matching is certainty and never silently chooses an edition. |
+| **Reading data from the shell** | Inspect books, shelves, ratings, yearly stats, recommendations, and public book metadata with structured JSON output. |
+| **Kindle notes automation** | Join recent reading with the notes index, inspect visibility counts, build a publicize plan, then execute only behind explicit approvals. Raw highlight text is not emitted. |
+| **Scheduled jobs** | Use stable JSON envelopes and the tracked daily-sync script from cron, a homelab, or another automation runner. |
+| **Agent access** | Start the optional MCP adapter. CLI and MCP call one shared engine, so their behavior and safety gates stay aligned. |
 
-- **Unofficial surface.** Amazon closed the public Goodreads API to new keys in December 2020. This tool drives the _logged-in web surface_ (HTML pages, RSS, CSV exports, Rails-UJS form POSTs, and the newer AppSync GraphQL ops) mapped by hand. Goodreads can rename or rotate any of it without notice — trust live reads over memory.
-- **Your own account, at your own risk.** It acts on the account you're already logged into, using your own browser cookie + CSRF token. Automated/non-browser access may be against Goodreads' Terms of Service. Use it on your own account and understand the risk.
-- **Writes can change your account.** Publicizing/hiding notes, moving shelves, and quote edits mutate your real account. Every write defaults to a dry-run; the notes workflow is gated three ways (below).
-- **No warranty.** Provided "as is". See [LICENSE](LICENSE).
+This is not a generic CLI generator. It is a concrete reading tool with a tested Goodreads surface behind it.
 
----
-
-## Install
+## Quick start
 
 ```bash
 git clone https://github.com/zaydiscold/goodreads-cli-mcp-api.git
 cd goodreads-cli-mcp-api
-corepack pnpm install
+
+corepack pnpm install --frozen-lockfile
 corepack pnpm build
-node cli/dist/index.js --help     # or link the bin: goodreads-cli --help
-```
 
-Requires **Node ≥ 20** and the repository-pinned pnpm, available through
-**Corepack**. Start the MCP through the tracked
-`scripts/goodreads-mcp.sh` wrapper; it loads local auth at runtime and builds stale
-or missing generated artifacts before opening stdio.
-
-## MCP profiles
-
-Use `core` for normal agent work, `notes` for highlight automation, and `full` for compatibility. Current tested registration counts are **40 full / 15 core / 14 notes**; `tools/list` and `mcp/src/profile.ts` are always authoritative. Profiles only hide registrations—every capability still uses the same shared engine.
-
-## What it does
-
-Full read **and** write across Goodreads:
-
-- **Want to Read / shelves** — add or remove books on `to-read`, `currently-reading`, `read`, or custom shelves (live `POST /shelf/add_to_shelf`); discover inventory + counts; list and export (HTML pagination or RSS).
-- **Bookstore → shelf** — agent takes a photo (or title/author), resolves the numeric book id, and shelves it. Built so you can snap stacks in a shop and clear the backlog without opening the site.
-- **One authenticated session, surface-specific cookie routing** — account reads and writes share `GOODREADS_COOKIE`, but public discovery reads deliberately strip account/SSO cookies. Rails mutations mint CSRF from the signed-in `/review/list` page and use the request shape each endpoint actually expects.
-- **Books** — parse any public book page (JSON-LD + Next.js metadata) and list public Readers-also-enjoyed candidates from Goodreads' server-rendered React props.
-- **Year in Books** — public yearly books/pages totals, average length/rating, and shortest/longest/most/least-shelved/highest-rated book metadata without emitting review text.
-- **Kindle Notes & Highlights** — list annotated books and available counts from public JSON, inspect notes metadata, plan + execute publicize/hide (gated), and join your current/read shelves to your notes index.
-- **Annotations** — per-highlight annotation metadata (visibility, spoiler, persist endpoints) without raw highlight text.
-- **Quotes** — add, remove, and reorder your quotes (up/down/top/bottom); create/remove and down/up restoration were live-verified against the canonical user quote list.
-- **Ratings & Reviews** — live Rails rating (`POST /review/rate/{book_id}`) and review-form (`POST /review/update/{book_id}`) workflows with authenticated `/review/edit/{book_id}` readback. Modern AppSync `RateBook`/`UnrateBook` metadata remains catalog-only until freshly recaptured.
-- **Comments & Messages** — inspect comment/message route + form shape without emitting bodies.
-- **Raw route driving** — plan or execute mapped Goodreads-web routes directly; AppSync entries are intentionally discovery-only.
-
-Everything is **redaction-first**: output carries counts, status, timing, link shapes, and route metadata — never raw highlight text, comment bodies, cookies, CSRF tokens, or private URLs.
-
-## CLI ↔ MCP parity — one engine, no drift
-
-The thing that makes this more than a script: **the CLI and the MCP server share a single engine** ([`cli/src/engine.ts`](./cli/src/engine.ts)). Every command is a thin wrapper that calls an engine function; every MCP tool is the same. They emit the **identical** enveloped JSON, so an agent and a human get the same answer the same way — and the two surfaces **cannot drift**.
-
-That invariant is enforced by code, not vigilance: a `CAPABILITIES` registry in the engine is checked **in both directions** by [`cli/test/parity.test.ts`](./cli/test/parity.test.ts) — every capability must have a CLI command **and** an MCP tool, with no orphans on either side. Add a command without its MCP twin and CI goes red.
-
-Live tool truth is always `tools/list`; the tested `full` profile currently exposes 40 unique tools.
-
-For cron-based automation on WSL, use [`scripts/goodreads-daily-sync.sh`](./scripts/goodreads-daily-sync.sh). It atomically snapshots the live currently-reading RSS result to a dated JSON file and records an explicit success/failure receipt; notes/highlight publicization remains separately gated and must be verified after every write.
-
-## Command tour — what answers what
-
-Live-capable reads send real requests when their required inputs/auth are present. Some commands are intentionally fixture-only or plan-only; the exact boundary is recorded in the [`capability evidence ledger`](./docs/evidence-confidence-ledger.md). Public live reads use a cookie-stripped/anonymous lane; authenticated live reads and writes use the normalized browser session. All writes default to a dry-run, and the notes workflow needs the three explicit gates below. CSRF is refreshed from the signed-in `/review/list` page before live Rails mutations (see [`docs/auth.md`](./docs/auth.md)).
-
-| Command                                                | The question it answers                                                                                                  |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `api-map routes` / `api-map search "<q>"`              | "What can this drive?" — mapped Goodreads web operations plus a searchable AppSync catalog                                |
-| `api-map browser-routes`                               | "What did the authenticated CDP capture see?" — sanitized route templates                                                |
-| `shelves discover`                                     | "What shelves do I have, and how many books in each?"                                                                    |
-| `shelves add` / `shelves remove`                       | "Add/remove a book on want-to-read (`to-read`), currently-reading, read, or a custom shelf" (dry-run unless `--execute`) |
-| `books list --shelf <s>`                               | "List one shelf" — from authenticated HTML fixtures or public RSS                                                        |
-| `books export --fixture-dir <d>`                       | "Export my shelves" — deduped by book, with per-shelf membership + completeness flags                                    |
-| `book show <slug-or-id>`                               | "Parse this book page" — JSON-LD + Next.js metadata                                                                      |
-| `book similar <work-slug>`                             | "What did readers also enjoy?" — public metadata only; descriptions and images are omitted                               |
-| `search books --query "<title> <author>"`              | "Which Goodreads editions match?" — bounded candidate metadata; never silently selects one                               |
-| `recommendations list`                                 | "What does my current Goodreads session recommend?" — authenticated card metadata only                                   |
-| `author show --author-slug <id.slug>`                  | "What is on this public author page?" — identity, bio length, and bounded bibliography metadata                          |
-| `stats year-in-books --user-id <id> --year <yyyy>`     | "What did this reader finish that year?" — books/pages, averages and extrema without review text                         |
-| `recent-reading list / notes`                          | "Join my current/read shelves to my Kindle notes index"                                                                  |
-| `recent-reading publicize-plan / publicize`            | "Plan, then publicize, my recent books' highlights" (gated)                                                              |
-| `notes books --user-id <id>`                           | "Which books have Kindle annotations?" — ASIN/title/author and available counts, never annotation text                   |
-| `notes inspect`                                        | "What's in this notes page?" — counts + visibility, no highlight text                                                    |
-| `notes publicize-plan`                                 | "Build the verified plan for one book's notes"                                                                           |
-| `notes publicize` / `notes hide`                       | "Make all highlights public / hidden for a book" (gated)                                                                 |
-| `annotations list / thoughts-plan`                     | "Per-highlight annotation metadata; plan a per-note thought"                                                             |
-| `quotes add / remove / reorder`                        | "Manage my quotes" (dry-run unless `--execute`)                                                                          |
-| `comments list` / `messages folders` / `messages list` | "Inspect live authenticated comment metadata or message-page shape without bodies"                                       |
-| `write-plan books move` / `write-plan notes publicize` | "Static dry-run mutation plans"                                                                                          |
-| `request plan` / `request execute`                     | "Drive any mapped route raw" (reads run live; mutations require three explicit gates)                                    |
-
-## Safety model
-
-```bash
-# Reads: live and free
-goodreads-cli shelves discover --fixture ./fixtures/shelf-read.html
-goodreads-cli api-map search "publicize notes"
-
-# Want-to-read: dry-run by default; --execute fires live POST /shelf/add_to_shelf
-# (same GOODREADS_COOKIE as notes; CSRF auto-refreshed)
-goodreads-cli shelves add --book-id <id> --name to-read
-goodreads-cli shelves add --book-id <id> --name to-read --execute
-
-# Quote writes: dry-run by default; --execute fires the live Rails-UJS POST
-goodreads-cli quotes reorder --quote-id <id> --direction top            # dry-run plan
-goodreads-cli quotes reorder --quote-id <id> --direction top --execute  # live
-
-# Notes publicize/hide: gated THREE ways — --execute + exact --approved-book-id + env flag
-GOODREADS_ALLOW_NOTES_PUBLICIZE=1 \
-GOODREADS_COOKIE="session-id=..." \
-goodreads-cli notes publicize --book-id <id> --approved-book-id <id> --execute --json
-
-# Generic mapped mutation: dry-run unless all three exact gates are present
-GOODREADS_ALLOW_GENERIC_WRITES=1 goodreads-cli request execute \
-  --route "PUT /notes/{book_id}/share" \
-  --approved-route "PUT /notes/{book_id}/share" \
-  --param book_id=<id> --form visible=true --execute
-```
-
-Every live mutation prints a `[WRITES TO LIVE GOODREADS]` warning to stderr, and the rule is **verify after every write** — never trust an HTTP 200; reload the notes page and confirm the visible count.
-
-### Live reversible write matrix (2026-08-08)
-
-The current HTTP contracts were exercised against the authenticated account and restored:
-
-| Surface          | Live cycle                              | Independent verification                           |
-| ---------------- | --------------------------------------- | -------------------------------------------------- |
-| Shelf status     | `to-read → currently-reading → to-read` | authenticated `/review/edit/{book_id}`             |
-| Rating           | `0 → 1 → 0`                             | authenticated `/review/edit/{book_id}`             |
-| Review text      | absent → temporary marker → absent      | authenticated `/review/edit/{book_id}`             |
-| Quote            | create → canonical slug → remove        | `/quotes/list/{user_slug}`                         |
-| Quote order      | down one position → up one position     | exact quote-id ordering on the canonical user list |
-| Notes visibility | 29 visible → 29 hidden → 29 visible     | parsed per-note visibility on the detail page      |
-
-`requestAccepted` means only that Goodreads accepted the HTTP request. The account-state readback above is what proved each mutation and rollback.
-
-## Use it from an agent (MCP)
-
-```bash
-corepack pnpm build
-scripts/goodreads-mcp.sh                  # full profile by default
-GOODREADS_MCP_PROFILE=core scripts/goodreads-mcp.sh
+node cli/dist/index.js --help
 node scripts/goodreads-doctor.mjs
 ```
 
-Register the same absolute `scripts/goodreads-mcp.sh` wrapper with Codex, Claude,
-and Hermes. It sources `~/.goodreads/auth.sh` at runtime; do not duplicate cookie
-or CSRF values into client configuration. `full` preserves all legacy tool
-names, while `core` and `notes` cut routine discovery cost by about 71% and 51%
-respectively. See [`docs/token-efficiency.md`](./docs/token-efficiency.md).
+Requires Node.js 20 or newer. Source installation is the supported path today. Replace `goodreads-cli` in the examples with `node cli/dist/index.js` unless you link the local binary.
 
-Every MCP tool inherits the **same** engine, auth, route map, and write gates as
-the CLI. The generic executor is marked destructive and requires `execute`, an
-exact approved route, and `GOODREADS_ALLOW_GENERIC_WRITES=1` for mutations.
+The CLI package is intentionally marked private until the detailed route research is separated from the public runtime artifact. See [Route-catalog separation](./docs/api-map-separation.md).
 
-## Example: agent-driven notes publicizing
+### Authentication
 
-What it looks like to ask an agent to make a book's Kindle highlights public — discover the route, check counts, plan, then execute behind the gates:
+Public book and discovery reads do not need your Goodreads session. Account reads and writes do.
+
+Store local auth in `~/.goodreads/auth.sh`, keep that file out of the repository, and start integrations through `scripts/goodreads-mcp.sh`. The wrapper loads auth at runtime so cookies and CSRF values do not have to be copied into agent configuration.
+
+See [Authentication](./docs/auth.md) for the current setup and run `node scripts/goodreads-doctor.mjs` before attempting a live write.
+
+## A few useful commands
 
 ```bash
-$ goodreads-cli api-map search notes                       # 1. find the route
-$ goodreads-cli notes publicize-plan --book-id 218134959 \  # 2. preflight counts
-    --detail-fixture ./fixtures/notes-218134959.html --approved-book-id 218134959 --json
-# => { "detail": { "noteCount": 47, "visibleNoteCount": 0, "hiddenNoteCount": 47 },
-#      "action": "publicize-notes", "blockers": [] }
-$ goodreads-cli notes publicize --book-id 218134959 --dry-run --json   # 3. dry-run shows the gates
-$ GOODREADS_ALLOW_NOTES_PUBLICIZE=1 goodreads-cli notes publicize \    # 4. execute
-    --book-id 218134959 --approved-book-id 218134959 --execute --json
-# 5. reload /notes/{book_slug}/{user_slug} and verify visibleNoteCount === noteCount
+# Search and inspect
+goodreads-cli search books --query "Parable of the Sower Octavia Butler" --json
+goodreads-cli book show 52397-parable-of-the-sower --json
+goodreads-cli book similar <work-slug> --json
+
+# Shelves
+goodreads-cli shelves discover --json
+goodreads-cli shelves add --book-id <id> --name to-read          # dry run
+goodreads-cli shelves add --book-id <id> --name to-read --execute
+
+# Reading history
+goodreads-cli stats year-in-books --user-id <id> --year 2025 --json
+goodreads-cli recent-reading list --json
+goodreads-cli recent-reading notes --json
+
+# Notes and highlights
+goodreads-cli notes inspect --fixture <notes-page.html> --json
+goodreads-cli notes publicize-plan --book-id <id> --approved-book-id <id> --json
 ```
 
-The agent never emits raw highlight text, never leaks cookies or tokens, and every write is gated even when driven autonomously.
+The command surface also covers ratings, reviews, reading status, quotes, recommendations, authors, comments, and redacted message metadata. See the [CLI guide](./cli/README.md) and [command contracts](./docs/cli-command-contracts.md).
 
-## The map is the point
+## Writes are deliberately boring
 
-The real artifact lives in [`api-map/`](./api-map/):
+A tool that can change a reading account should not be clever about consent.
 
-- An **OpenAPI 3.1** spec of the undocumented Goodreads web surface.
-- A privacy-safe **AppSync GraphQL operation catalog** with current and historical evidence labels.
-- **Per-endpoint Markdown** under [`api-map/markdown/`](./api-map/markdown/).
-- A **curl** reference so any of it is reproducible without this CLI.
+- Mutating commands default to a dry run.
+- Live writes require `--execute`.
+- Sensitive workflows require an exact approval value and a narrow environment gate.
+- Every live mutation warns on stderr.
+- A successful HTTP response is not treated as proof. Read the account state back and verify it.
 
-It covers the read surface (HTML pages, RSS, CSV exports), write endpoints (Rails-UJS forms and current client-source routes), and a non-executable **AppSync GraphQL** catalog for modern book/rating/feed widgets. A 2026-06-08 hardening pass live-tested every read route and fire-tested reversible writes; the 2026-07-14 authenticated CDP pass corrected note methods and expanded account, import/export, recommendation, and settings coverage. See [`docs/write-operations.md`](./docs/write-operations.md).
+Example:
 
-The consolidated July 2026 improvement audit is in
-[`docs/improvement-audit-2026-07-14.md`](./docs/improvement-audit-2026-07-14.md),
-with redacted security reproduction evidence in
-[`docs/security-audit-2026-07-14.md`](./docs/security-audit-2026-07-14.md).
-
-## Architecture & extending
-
-```
-api-map/ ─ the mapped web surface + GraphQL operation catalog (the product)
-   │
-cli/src/engine.ts ─ THE SHARED ENGINE (every operation, enveloped output)
-   ├── cli/src/commands/*  ─ thin commander wrappers
-   └── mcp/src/server.ts   ─ thin MCP tool adapters
+```bash
+GOODREADS_ALLOW_NOTES_PUBLICIZE=1 \
+goodreads-cli notes publicize \
+  --book-id <id> \
+  --approved-book-id <id> \
+  --execute \
+  --json
 ```
 
-Found an endpoint I missed? Add it to the OpenAPI spec (or GraphQL catalog) and regenerate the endpoint Markdown. Map-only capabilities automatically reach CLI/MCP search through the shared engine. For a dedicated command, wire **one engine function + a `CAPABILITIES` entry** and add matching CLI/MCP adapters; the parity test catches orphans. Full developer runbook: [`AGENTS.md`](./AGENTS.md). Operating guide for agents: [`SKILL.md`](./SKILL.md).
+Outputs are redaction-first. The CLI does not print cookies, CSRF tokens, private URLs, raw highlight text, comment bodies, or message bodies.
 
----
+Read [Write operations](./docs/write-operations.md), [Authentication](./docs/auth.md), and the [Evidence ledger](./docs/evidence-confidence-ledger.md) before automating account mutations.
 
-<p align="center">
-  <a href="https://github.com/zaydiscold"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-zaydiscold-181717?style=for-the-badge&logo=github"></a>
-  <a href="https://twitter.com/ColdCooks"><img alt="X / Twitter" src="https://img.shields.io/badge/X-@ColdCooks-000000?style=for-the-badge&logo=x"></a>
-  <a href="https://zayd.wtf"><img alt="Website" src="https://img.shields.io/badge/Web-zayd.wtf-FF4D8D?style=for-the-badge"></a>
-</p>
+## Optional MCP for agents
 
----
+MCP is a feature, not the product name. The server defaults to the read-only profile when `GOODREADS_MCP_PROFILE` is unset.
 
-Built on the trio pattern (CLI + skill + MCP) pioneered by [Matt Van Horn's Printing Press](https://github.com/mvanhorn/cli-printing-press).
+```bash
+corepack pnpm build
 
-<p align="center"><strong>Mapped &amp; built by Zayd Khan // cold</strong> (<a href="https://twitter.com/ColdCooks">@ColdCooks</a> / <a href="https://github.com/zaydiscold">zaydiscold</a> / <a href="https://zayd.wtf">zayd.wtf</a>). MIT © Zayd Khan.</p>
+scripts/goodreads-mcp.sh
+GOODREADS_MCP_PROFILE=core scripts/goodreads-mcp.sh
+GOODREADS_MCP_PROFILE=notes scripts/goodreads-mcp.sh
+GOODREADS_MCP_PROFILE=full scripts/goodreads-mcp.sh
+```
 
----
+Use `read` for the safest default, `core` for common reading workflows, `notes` for Kindle-note automation, and `full` for compatibility and development. Profiles control tool discovery only. They do not bypass write approvals.
 
-> **`*** SYSTEM NOTIFICATION ***`**
->
-> Congratulations, Reader. You reached the last page of the README — most dog-ear it and quit.
->
-> _Achievement unlocked — “Marginalia.”_ You now hold a typed, gated control plane for your own
-> reading life: every shelf, every quote, every Kindle highlight you annotated at 2am. The System
-> notes your `GOODREADS_ALLOW_NOTES_PUBLICIZE` flag is **unset.** Good — highlights stay yours
-> until you say otherwise.
->
-> _A library is only as private as the reader guarding it. You’re the reader. Publicize on purpose._
->
-> **Loot dropped:** one (1) hand-mapped API, 40 MCP tools, and the receipts in `api-map/`.
-> _Read deliberately. Ship the complete thing. Return your books on time._ 📚
+The CLI and MCP adapter share [`cli/src/engine.ts`](./cli/src/engine.ts), and parity tests fail when one surface drifts from the other.
 
-<!-- Zayd Khan // cold // www.zayd.wtf -->
+See [MCP agent surface](./docs/mcp-agent-surface.md) and [Token efficiency](./docs/token-efficiency.md).
 
-### Haul tips (agent + human)
+## Architecture and the route-research boundary
 
-- Prefer **one edition per work** on `to-read` (skip study guides / alternate storybooks unless asked).
-- If CSRF refresh hits an anti-bot challenge, set `GOODREADS_SKIP_CSRF_REFRESH=1` and use a fresh `GOODREADS_CSRF_TOKEN` from a browser session, then retry the write.
-- Product direction: a tiny web UI that logs into Goodreads + Amazon, accepts bookstore photos / camera roll, and runs bidirectional list sync on top of these CLIs.
+The public product is **Goodreads CLI**. MCP is an adapter. Detailed route research is an implementation input.
 
-## Related tools
+The current build still reads and packages the repository's `api-map/` tree. Simply deleting that directory would break runtime route loading, and deleting it from the current branch would not erase it from Git history. The migration is therefore:
 
-- **[free-book-download](https://github.com/zaydiscold/agent-skills/tree/main/skills/research/free-book-download)** — Agent skill for finding public-domain and otherwise legally available books; includes the LibGen/OceanofPDF source notes used by the sibling [book-review-tracker](https://github.com/zaydiscold/book-review-tracker).
+1. keep detailed captures, evidence, curl references, and discovery notes in a private research repository;
+2. export a small, deterministic, privacy-reviewed runtime route manifest;
+3. create a clean-history public `goodreads-cli` repository that ships only the CLI, optional MCP adapter, tests, and sanitized manifest.
+
+The exact contract and cutover order are in [Route-catalog separation](./docs/api-map-separation.md).
+
+## Documentation
+
+- [CLI guide](./cli/README.md)
+- [Authentication](./docs/auth.md)
+- [Write operations](./docs/write-operations.md)
+- [Exports](./docs/exports.md)
+- [Rate limits](./docs/rate-limits.md)
+- [MCP agent surface](./docs/mcp-agent-surface.md)
+- [Route-catalog separation](./docs/api-map-separation.md)
+- [Contributing](./CONTRIBUTING.md)
+- [Security policy](./SECURITY.md)
+
+## Related project
+
+Pair it with [`amazon-kindle-cli-mcp-api`](https://github.com/zaydiscold/amazon-kindle-cli-mcp-api) for Kindle and Amazon-list workflows. Keep each public repository centered on its own CLI rather than turning either README into a product bundle.
+
+## Status and disclaimer
+
+This project is independent and unofficial. It is not affiliated with, endorsed by, or approved by Goodreads or Amazon.
+
+Goodreads can change its web surface without notice. Automated or non-browser access may conflict with Goodreads' terms. Use the tool only with an account you control, keep request volume conservative, and understand the risk before enabling writes.
+
+Provided as-is under the [MIT License](./LICENSE).
