@@ -17,6 +17,10 @@ export function libraryCommand(): Command {
     .command("show")
     .description("Read current status/rating/review for one book.")
     .requiredOption("--book-id <id>")
+    .option(
+      "--user-id <id>",
+      "Goodreads user id for public RSS fallback; otherwise GOODREADS_USER_ID or GOODREADS_COOKIE is required.",
+    )
     .option("--include-review-id")
     .action(async (o) => out(await ls(o)));
   cmd
