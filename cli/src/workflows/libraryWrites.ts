@@ -143,7 +143,14 @@ export function parseLibraryEditState(html: string): LibraryEditState {
 
 // eslint-disable-next-line complexity -- multi-shelf RSS + optional HTML enrichment
 export async function ls(o: LSO): Promise<CommandEnvelope<unknown>> {
-  const uid = o.userId || process.env.GOODREADS_USER_ID || "179929687";
+  const uid = o.userId?.trim() || process.env.GOODREADS_USER_ID?.trim() || null;
+  const hasAuthenticatedSession = Boolean(process.env.GOODREADS_COOKIE?.trim());
+  if (!uid && !hasAuthenticatedSession) {
+    throw new Error(
+      "library show requires userId/GOODREADS_USER_ID for public RSS or GOODREADS_COOKIE for an authenticated read",
+    );
+  }
+
   const sources: string[] = [];
   let status = "unknown";
   let rating: number | null = null;
@@ -151,40 +158,42 @@ export async function ls(o: LSO): Promise<CommandEnvelope<unknown>> {
   let textLength = 0;
   let textSha256 = "";
 
-  for (const shelf of ["currently-reading", "read", "to-read"] as const) {
-    const url = `https://www.goodreads.com/review/list_rss/${encodeURIComponent(uid)}?shelf=${shelf}`;
-    sources.push(url);
-    try {
-      const xml = await fetchPublicText(url);
-      const parts = xml.split("<item>");
-      for (const part of parts) {
-        if (!(
-          part.includes(`<book_id>${o.bookId}</book_id>`) || part.includes(`book/show/${o.bookId}`)
-        )) {
-          continue;
+  if (uid) {
+    for (const shelf of ["currently-reading", "read", "to-read"] as const) {
+      const url = `https://www.goodreads.com/review/list_rss/${encodeURIComponent(uid)}?shelf=${shelf}`;
+      sources.push(url);
+      try {
+        const xml = await fetchPublicText(url);
+        const parts = xml.split("<item>");
+        for (const part of parts) {
+          if (!(
+            part.includes(`<book_id>${o.bookId}</book_id>`) || part.includes(`book/show/${o.bookId}`)
+          )) {
+            continue;
+          }
+          status = shelf;
+          const rm = part.match(/<user_rating>(\d+)<\/user_rating>/i);
+          if (rm?.[1]) rating = parseInt(rm[1], 10);
+          const rev =
+            part.match(/<user_review><!\[CDATA\[([\s\S]*?)\]\]><\/user_review>/i) ||
+            part.match(/<user_review>([\s\S]*?)<\/user_review>/i);
+          const revBody = rev?.[1];
+          if (revBody && cleanText(revBody)) {
+            const text = cleanText(revBody);
+            reviewExists = true;
+            textLength = text.length;
+            textSha256 = createHash("sha256").update(text, "utf8").digest("hex");
+          }
+          break;
         }
-        status = shelf;
-        const rm = part.match(/<user_rating>(\d+)<\/user_rating>/i);
-        if (rm?.[1]) rating = parseInt(rm[1], 10);
-        const rev =
-          part.match(/<user_review><!\[CDATA\[([\s\S]*?)\]\]><\/user_review>/i) ||
-          part.match(/<user_review>([\s\S]*?)<\/user_review>/i);
-        const revBody = rev?.[1];
-        if (revBody && cleanText(revBody)) {
-          const text = cleanText(revBody);
-          reviewExists = true;
-          textLength = text.length;
-          textSha256 = createHash("sha256").update(text, "utf8").digest("hex");
-        }
-        break;
+        if (status !== "unknown") break;
+      } catch {
+        // continue other shelves
       }
-      if (status !== "unknown") break;
-    } catch {
-      // continue other shelves
     }
   }
 
-  if (process.env.GOODREADS_COOKIE) {
+  if (hasAuthenticatedSession) {
     const url = `https://www.goodreads.com/review/edit/${encodeURIComponent(o.bookId)}`;
     sources.push(url);
     try {
