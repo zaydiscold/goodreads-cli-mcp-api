@@ -28,19 +28,21 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          path = Path('cli/test/live.test.ts')
+
+          path = Path("cli/test/live.test.ts")
           text = path.read_text()
           marker = 'it("keeps explicit CSRF values request-local across interleaved calls", async () => {'
           start = text.index(marker)
-          end = text.index('\n  it(', start + len(marker))
+          end = text.index("\n  it(", start + len(marker))
           section = text[start:end]
-          old = '''const fetchMock = vi.fn().mockResolvedValue(
+
+          old = '''    const fetchMock = vi.fn().mockResolvedValue(
               new Response('{"ok":true}', {
                 status: 200,
                 headers: { "content-type": "application/json" },
               }),
             );'''
-          new = '''const fetchMock = vi.fn().mockImplementation(() =>
+          new = '''    const fetchMock = vi.fn().mockImplementation(() =>
               Promise.resolve(
                 new Response('{"ok":true}', {
                   status: 200,
@@ -48,10 +50,12 @@ jobs:
                 }),
               ),
             );'''
-          if old not in section:
-              raise SystemExit('target concurrency-test block not found')
-          section = section.replace(old, new, 1)
-          path.write_text(text[:start] + section + text[end:])
+
+          if old in section:
+              section = section.replace(old, new, 1)
+              path.write_text(text[:start] + section + text[end:])
+          elif "mockImplementation" not in section:
+              raise SystemExit("target concurrency-test block not found")
           PY
       - run: pnpm format
       - name: Commit release fixes
