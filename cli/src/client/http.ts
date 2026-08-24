@@ -5,29 +5,81 @@ import {
   publicGoodreadsCookie,
 } from "./cookie.js";
 
-export async function fetchText(url: string): Promise<string> {
-  let response: Response;
+export const TRUSTED_GOODREADS_ORIGIN = "https://www.goodreads.com";
+
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const MAX_GOODREADS_REDIRECTS = 5;
+
+export function isTrustedGoodreadsUrl(url: URL): boolean {
+  return url.protocol === "https:" && url.origin === TRUSTED_GOODREADS_ORIGIN;
+}
+
+export function assertTrustedGoodreadsUrl(value: string): URL {
+  let url: URL;
   try {
-    response = await fetch(url, {
-      headers: {
-        "user-agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
-        accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      signal: AbortSignal.timeout(30_000),
-    });
-  } catch (err) {
-    throw explainFetchFailure(err, url);
+    url = new URL(value);
+  } catch {
+    throw new Error(`invalid Goodreads URL: ${value}`);
   }
+  if (!isTrustedGoodreadsUrl(url)) {
+    throw new Error(
+      `Goodreads network requests are restricted to ${TRUSTED_GOODREADS_ORIGIN} (got ${url.origin})`,
+    );
+  }
+  if (url.username || url.password) {
+    throw new Error("Goodreads URLs must not include embedded credentials");
+  }
+  return url;
+}
+
+async function fetchGoodreadsResponse(url: string, init: RequestInit): Promise<Response> {
+  let currentUrl = assertTrustedGoodreadsUrl(url).toString();
+
+  for (let redirectCount = 0; ; redirectCount += 1) {
+    let response: Response;
+    try {
+      response = await fetch(currentUrl, { ...init, redirect: "manual" });
+    } catch (err) {
+      throw explainFetchFailure(err, currentUrl);
+    }
+
+    if (!REDIRECT_STATUSES.has(response.status)) return response;
+
+    const location = response.headers.get("location");
+    if (!location) return response;
+    if (redirectCount >= MAX_GOODREADS_REDIRECTS) {
+      throw new Error(`GET ${url} failed: too many Goodreads redirects`);
+    }
+
+    const redirectUrl = new URL(location, currentUrl);
+    if (!isTrustedGoodreadsUrl(redirectUrl)) {
+      throw new Error(
+        `GET ${currentUrl} failed: Goodreads returned a cross-origin redirect to ${redirectUrl.origin}; refusing it`,
+      );
+    }
+    currentUrl = redirectUrl.toString();
+  }
+}
+
+export async function fetchText(url: string): Promise<string> {
+  const trustedUrl = assertTrustedGoodreadsUrl(url).toString();
+  const response = await fetchGoodreadsResponse(trustedUrl, {
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    },
+    signal: AbortSignal.timeout(30_000),
+  });
 
   if (!response.ok) {
-    throw new Error(`GET ${url} failed: ${response.status} ${response.statusText}`);
+    throw new Error(`GET ${trustedUrl} failed: ${response.status} ${response.statusText}`);
   }
 
   const html = await response.text();
   if (isGoodreadsChallengeHtml(html)) {
     throw new Error(
-      `GET ${url} failed: Goodreads anti-bot/WAF challenge page (not real HTML). Retry with a browser-minted aws-waf-token in GOODREADS_COOKIE.`,
+      `GET ${trustedUrl} failed: Goodreads anti-bot/WAF challenge page (not real HTML). Retry with a browser-minted aws-waf-token in GOODREADS_COOKIE.`,
     );
   }
   return html;
@@ -44,6 +96,7 @@ export async function fetchText(url: string): Promise<string> {
 export async function fetchAuthenticatedText(
   url: string,
 ): Promise<{ html: string; signedOut: boolean }> {
+  const trustedUrl = assertTrustedGoodreadsUrl(url).toString();
   const cookie = normalizeGoodreadsCookie(process.env.GOODREADS_COOKIE);
   const headers: Record<string, string> = {
     "user-agent":
@@ -52,29 +105,23 @@ export async function fetchAuthenticatedText(
   };
   if (cookie) {
     headers.cookie = cookie;
-    headers.referer = "https://www.goodreads.com/";
-    headers.origin = "https://www.goodreads.com";
+    headers.referer = `${TRUSTED_GOODREADS_ORIGIN}/`;
+    headers.origin = TRUSTED_GOODREADS_ORIGIN;
   }
 
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      headers,
-      redirect: "follow",
-      signal: AbortSignal.timeout(30_000),
-    });
-  } catch (err) {
-    throw explainFetchFailure(err, url);
-  }
+  const response = await fetchGoodreadsResponse(trustedUrl, {
+    headers,
+    signal: AbortSignal.timeout(30_000),
+  });
 
   if (!response.ok) {
-    throw new Error(`GET ${url} failed: ${response.status} ${response.statusText}`);
+    throw new Error(`GET ${trustedUrl} failed: ${response.status} ${response.statusText}`);
   }
 
   const html = await response.text();
   if (isGoodreadsChallengeHtml(html)) {
     throw new Error(
-      `GET ${url} failed: Goodreads anti-bot/WAF challenge page. Refresh GOODREADS_COOKIE (include aws-waf-token) from a logged-in browser.`,
+      `GET ${trustedUrl} failed: Goodreads anti-bot/WAF challenge page. Refresh GOODREADS_COOKIE (include aws-waf-token) from a logged-in browser.`,
     );
   }
 
@@ -93,42 +140,42 @@ export async function fetchAuthenticatedText(
  * so WAF tokens can still be sent without SSO redirect loops.
  */
 export async function fetchPublicText(url: string): Promise<string> {
+  const trustedUrl = assertTrustedGoodreadsUrl(url).toString();
   const cookie = publicGoodreadsCookie(process.env.GOODREADS_COOKIE);
-  if (!cookie) return fetchText(url);
+  if (!cookie) return fetchText(trustedUrl);
 
   let response: Response;
   try {
-    response = await fetch(url, {
+    response = await fetchGoodreadsResponse(trustedUrl, {
       headers: {
         "user-agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
         accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         cookie,
-        referer: "https://www.goodreads.com/",
+        referer: `${TRUSTED_GOODREADS_ORIGIN}/`,
       },
-      redirect: "follow",
       signal: AbortSignal.timeout(30_000),
     });
   } catch (err) {
     // Fall back to fully anonymous if the public jar still loops.
     try {
-      return await fetchText(url);
+      return await fetchText(trustedUrl);
     } catch {
-      throw explainFetchFailure(err, url);
+      throw explainFetchFailure(err, trustedUrl);
     }
   }
 
   if (!response.ok) {
-    throw new Error(`GET ${url} failed: ${response.status} ${response.statusText}`);
+    throw new Error(`GET ${trustedUrl} failed: ${response.status} ${response.statusText}`);
   }
   const html = await response.text();
   if (isGoodreadsChallengeHtml(html)) {
     // last resort anonymous
-    return fetchText(url);
+    return fetchText(trustedUrl);
   }
   return html;
 }
 
-export function goodreadsUrl(path: string, baseUrl = "https://www.goodreads.com"): string {
+export function goodreadsUrl(path: string, baseUrl = TRUSTED_GOODREADS_ORIGIN): string {
   return new URL(path, baseUrl).toString();
 }
