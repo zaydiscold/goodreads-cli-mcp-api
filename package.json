@@ -17,7 +17,7 @@
     "cli": "corepack pnpm --filter @zaydiscold/goodreads-cli cli",
     "mcp": "scripts/goodreads-mcp.sh",
     "doctor": "node scripts/goodreads-doctor.mjs",
-    "regression:recent": "corepack pnpm integrity && corepack pnpm --filter @zaydiscold/goodreads-cli exec vitest run test/cookie.test.ts && corepack pnpm format:check",
+    "regression:recent": "corepack pnpm integrity && corepack pnpm --filter @zaydiscold/goodreads-cli exec vitest run test/cookie.test.ts test/http.test.ts && corepack pnpm format:check",
     "integrity": "node scripts/source-integrity.mjs",
     "clean": "node scripts/clean-dist.mjs",
     "prebuild": "node scripts/source-integrity.mjs && node scripts/clean-dist.mjs"
