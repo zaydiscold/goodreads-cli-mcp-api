@@ -22,7 +22,12 @@ export function apiMapCommand(): Command {
       "<query>",
       "Search query, for example 'publicize notes' or 'friend requests'.",
     )
-    .option("--limit <n>", "Max routes to return.", (value) => Number.parseInt(value, 10), 20)
+    .option(
+      "--limit <n>",
+      "Max routes to return.",
+      (value) => Number.parseInt(value, 10),
+      20,
+    )
     .option("--json", "Emit JSON.", true)
     .action(async (query: string, options: { limit: number }) => {
       printJson(await apiMapSearch({ query, limit: options.limit }));
