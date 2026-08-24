@@ -19,9 +19,9 @@ MCP stdout. Windows uses `scripts\goodreads-mcp.cmd`.
 
 `GOODREADS_MCP_PROFILE` controls discovery cost without changing tool behavior:
 
-- `full` (default): all 28 legacy tools.
-- `core`: eight common route/books/notes tools, about 71% fewer discovery tokens.
-- `notes`: thirteen notes/annotations/recent-reading tools, about 51% fewer.
+- `full` (default): all 40 registered tools.
+- `core`: 15 common route/books/notes tools, about 71% fewer discovery tokens.
+- `notes`: 14 notes/annotations/recent-reading tools, about 51% fewer.
 
 MCP results are compact JSON by default. Set `GOODREADS_MCP_OUTPUT=pretty` only
 for debugging. The human-facing CLI remains pretty-printed.
