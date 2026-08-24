@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 2026-08-23 (HTTP origin hardening)
+
+- Restricted every shared Goodreads HTTP helper to the exact HTTPS origin `https://www.goodreads.com` before any network request is sent.
+- Replaced automatic redirect following with bounded, same-origin redirect handling so authenticated and public-safe cookie jars cannot cross an origin boundary.
+- Added focused regression coverage for direct custom-origin requests, deceptive hostnames, cleartext URLs, embedded credentials, and cross-origin redirects.
+
 ## Unreleased — 2026-08-23 (daily watch)
 
 - `comments list --user-slug` and `goodreads_comments_list` now read the authenticated recent-post page live instead of returning a plan-only null parse.
@@ -56,7 +62,7 @@ stale-token 404s.
   account writes (Goodreads returns opaque 404s without them — same lesson as
   `publicize.py`).
 - **Auto CSRF refresh:** before live Rails mutations, GET
-  `https://www.goodreads.com/` with `GOODREADS_COOKIE` and mint a fresh
+  `https://www.goodreads.com/review/list` with `GOODREADS_COOKIE` and mint a fresh
   `csrf-token`. Stale `GOODREADS_CSRF_TOKEN` in auth.sh no longer breaks shelves
   or notes. Skip only with `GOODREADS_SKIP_CSRF_REFRESH=1` (tests).
 - Error bodies are surfaced on failed writes (e.g. `Sorry, we couldn't find that book.`).
