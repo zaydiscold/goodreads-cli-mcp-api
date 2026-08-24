@@ -36,20 +36,24 @@ jobs:
           end = text.index("\n  it(", start + len(marker))
           section = text[start:end]
 
-          old = '''    const fetchMock = vi.fn().mockResolvedValue(
-              new Response('{"ok":true}', {
-                status: 200,
-                headers: { "content-type": "application/json" },
-              }),
-            );'''
-          new = '''    const fetchMock = vi.fn().mockImplementation(() =>
-              Promise.resolve(
-                new Response('{"ok":true}', {
-                  status: 200,
-                  headers: { "content-type": "application/json" },
-                }),
-              ),
-            );'''
+          old = "\n".join([
+              "    const fetchMock = vi.fn().mockResolvedValue(",
+              "      new Response('{\"ok\":true}', {",
+              "        status: 200,",
+              "        headers: { \"content-type\": \"application/json\" },",
+              "      }),",
+              "    );",
+          ])
+          new = "\n".join([
+              "    const fetchMock = vi.fn().mockImplementation(() =>",
+              "      Promise.resolve(",
+              "        new Response('{\"ok\":true}', {",
+              "          status: 200,",
+              "          headers: { \"content-type\": \"application/json\" },",
+              "        }),",
+              "      ),",
+              "    );",
+          ])
 
           if old in section:
               section = section.replace(old, new, 1)
