@@ -5,9 +5,22 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Node ${{ matrix.node-version }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -15,13 +28,17 @@ jobs:
           version: 10.12.1
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # pnpm 10 still uses npm's retired audit endpoint. Keep pnpm 10 for
       # Node 20 compatibility, but use pnpm 11's bulk-advisory audit client.
       - run: pnpm audit:security
+        if: matrix.node-version == 22
       - run: pnpm lint
+        if: matrix.node-version == 22
+      - run: pnpm format:check
+        if: matrix.node-version == 22
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
