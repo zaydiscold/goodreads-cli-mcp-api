@@ -18,16 +18,8 @@ export function apiMapCommand(): Command {
   command
     .command("search")
     .description("Search the runtime route catalog by capability.")
-    .argument(
-      "<query>",
-      "Search query, for example 'publicize notes' or 'friend requests'.",
-    )
-    .option(
-      "--limit <n>",
-      "Max routes to return.",
-      (value) => Number.parseInt(value, 10),
-      20,
-    )
+    .argument("<query>", "Search query, for example 'publicize notes' or 'friend requests'.")
+    .option("--limit <n>", "Max routes to return.", (value) => Number.parseInt(value, 10), 20)
     .option("--json", "Emit JSON.", true)
     .action(async (query: string, options: { limit: number }) => {
       printJson(await apiMapSearch({ query, limit: options.limit }));
