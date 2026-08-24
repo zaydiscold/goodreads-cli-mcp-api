@@ -57,6 +57,11 @@ async function fetchGoodreadsResponse(url: string, init: RequestInit): Promise<R
         `GET ${currentUrl} failed: Goodreads returned a cross-origin redirect to ${redirectUrl.origin}; refusing it`,
       );
     }
+    if (redirectUrl.username || redirectUrl.password) {
+      throw new Error(
+        `GET ${currentUrl} failed: Goodreads returned a redirect with embedded credentials; refusing it`,
+      );
+    }
     currentUrl = redirectUrl.toString();
   }
 }
