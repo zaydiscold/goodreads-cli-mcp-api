@@ -3,18 +3,30 @@ import type { AnyNode } from "domhandler";
 import { cleanText, parseInteger, shortText } from "../lib.js";
 import type { PageLink, ShelfBookRow, ShelfHtmlParse, ShelfInventoryItem } from "../types/index.js";
 
-function parseShelfFromHref(href: string): string | null {
+const GOODREADS_ORIGIN = "https://www.goodreads.com";
+
+function goodreadsUrl(href: string | undefined | null): URL | null {
+  if (!href) return null;
   try {
-    const parsed = new URL(href, "https://www.goodreads.com");
-    return parsed.searchParams.get("shelf");
+    const parsed = new URL(href, GOODREADS_ORIGIN);
+    return parsed.origin === GOODREADS_ORIGIN ? parsed : null;
   } catch {
     return null;
   }
 }
 
+function relativeGoodreadsUrl(href: string | undefined | null): string | null {
+  const parsed = goodreadsUrl(href);
+  return parsed ? `${parsed.pathname}${parsed.search}` : null;
+}
+
+function parseShelfFromHref(href: string): string | null {
+  return goodreadsUrl(href)?.searchParams.get("shelf") ?? null;
+}
+
 function parseBookId(href: string | null): string | null {
-  if (!href) return null;
-  const match = href.match(/\/book\/show\/(\d+)/);
+  const pathname = goodreadsUrl(href)?.pathname;
+  const match = pathname?.match(/^\/book\/show\/(\d+)/);
   return match?.[1] ?? null;
 }
 
@@ -38,12 +50,13 @@ function selectTextBookLink($: cheerio.CheerioAPI, row: cheerio.Cheerio<AnyNode>
 export function parseShelfHtml(html: string): ShelfHtmlParse {
   const $ = cheerio.load(html);
   const title = cleanText($("title").first().text()) || null;
-  const declaredBookCount = parseInteger(title?.match(/\((\d+)\s+books?\)/)?.[1]);
+  const declaredBookCount = parseInteger(title?.match(/\(([\d,]+)\s+books?\)/)?.[1]);
 
   const shelfInventory: ShelfInventoryItem[] = [];
   const seenShelves = new Set<string>();
   $("a[href*='/review/list/'][href*='shelf=']").each((_, element) => {
-    const href = $(element).attr("href");
+    const rawHref = $(element).attr("href");
+    const href = relativeGoodreadsUrl(rawHref);
     const rawLabel = cleanText($(element).text());
     if (!href || !rawLabel) return;
 
@@ -51,8 +64,8 @@ export function parseShelfHtml(html: string): ShelfHtmlParse {
     if (!slug || slug.includes(",") || seenShelves.has(slug)) return;
     if (["-", "#", "Print", "My Books"].includes(rawLabel)) return;
 
-    const count = parseInteger(rawLabel.match(/\((\d+)\)/)?.[1]);
-    const displayName = cleanText(rawLabel.replace(/\s*[‎\u200e]?\(\d+\)\s*$/, ""));
+    const count = parseInteger(rawLabel.match(/\(([\d,]+)\)/)?.[1]);
+    const displayName = cleanText(rawLabel.replace(/\s*[\u200e]?\([\d,]+\)\s*$/, ""));
     if (!displayName) return;
 
     seenShelves.add(slug);
@@ -74,7 +87,7 @@ export function parseShelfHtml(html: string): ShelfHtmlParse {
     const checkboxName = row.find("input[type='checkbox'][name^='reviews[']").first().attr("name");
     const reviewId = parseReviewId(rowId, checkboxName);
     const bookLink = selectTextBookLink($, row);
-    const bookHref = bookLink.attr("href") ?? null;
+    const bookHref = relativeGoodreadsUrl(bookLink.attr("href"));
     const bookId = parseBookId(bookHref);
     const key = reviewId ?? bookId ?? bookHref ?? cleanText(row.text()).slice(0, 80);
     if (!key || seenRows.has(key)) return;
@@ -98,10 +111,12 @@ export function parseShelfHtml(html: string): ShelfHtmlParse {
 
   const currentPage = parseInteger($("#reviewPagination em.current").first().text());
   const pageLinks: PageLink[] = [];
+  const seenPageLinks = new Set<string>();
   $("#reviewPagination a[href*='page=']").each((_, element) => {
-    const href = $(element).attr("href");
-    if (!href) return;
-    const page = parseInteger(new URL(href, "https://www.goodreads.com").searchParams.get("page"));
+    const href = relativeGoodreadsUrl($(element).attr("href"));
+    if (!href || seenPageLinks.has(href)) return;
+    seenPageLinks.add(href);
+    const page = parseInteger(goodreadsUrl(href)?.searchParams.get("page"));
     pageLinks.push({
       page,
       label: cleanText($(element).text()),
