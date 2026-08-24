@@ -1,17 +1,7 @@
 {
   "name": "@zaydiscold/goodreads-cli",
   "version": "1.1.0",
-  "private": true,
-  "description": "Unofficial Goodreads CLI for books, shelves, reading data, and safely gated account automation. Optional MCP support.",
-  "keywords": [
-    "goodreads",
-    "cli",
-    "books",
-    "reading",
-    "kindle",
-    "automation",
-    "mcp"
-  ],
+  "description": "Unofficial Goodreads API map and agent-ready CLI for shelves, books, notes, highlights, exports, and exact-approved account writes.",
   "type": "module",
   "bin": {
     "goodreads-cli": "dist/index.js"
