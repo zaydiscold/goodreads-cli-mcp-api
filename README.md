@@ -78,7 +78,7 @@ Live-capable reads send real requests when their required inputs/auth are presen
 
 | Command                                                | The question it answers                                                                                                  |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `api-map routes` / `api-map search "<q>"`              | "What can this drive?" — 114 mapped web operations plus 10 searchable AppSync catalog entries                            |
+| `api-map routes` / `api-map search "<q>"`              | "What can this drive?" — mapped Goodreads web operations plus a searchable AppSync catalog                                |
 | `api-map browser-routes`                               | "What did the authenticated CDP capture see?" — sanitized route templates                                                |
 | `shelves discover`                                     | "What shelves do I have, and how many books in each?"                                                                    |
 | `shelves add` / `shelves remove`                       | "Add/remove a book on want-to-read (`to-read`), currently-reading, read, or a custom shelf" (dry-run unless `--execute`) |
@@ -232,14 +232,14 @@ Built on the trio pattern (CLI + skill + MCP) pioneered by [Matt Van Horn's Prin
 >
 > Congratulations, Reader. You reached the last page of the README — most dog-ear it and quit.
 >
-> _Achievement unlocked — "Marginalia."_ You now hold a typed, gated control plane for your own
+> _Achievement unlocked — “Marginalia.”_ You now hold a typed, gated control plane for your own
 > reading life: every shelf, every quote, every Kindle highlight you annotated at 2am. The System
 > notes your `GOODREADS_ALLOW_NOTES_PUBLICIZE` flag is **unset.** Good — highlights stay yours
 > until you say otherwise.
 >
-> _A library is only as private as the reader guarding it. You're the reader. Publicize on purpose._
+> _A library is only as private as the reader guarding it. You’re the reader. Publicize on purpose._
 >
-> **Loot dropped:** one (1) hand-mapped API, 39 MCP tools, and the receipts in `api-map/`.
+> **Loot dropped:** one (1) hand-mapped API, 40 MCP tools, and the receipts in `api-map/`.
 > _Read deliberately. Ship the complete thing. Return your books on time._ 📚
 
 <!-- Zayd Khan // cold // www.zayd.wtf -->
@@ -252,4 +252,4 @@ Built on the trio pattern (CLI + skill + MCP) pioneered by [Matt Van Horn's Prin
 
 ## Related tools
 
-- **[free-book-download](https://github.com/zaydiscold/agent-skills/tree/main/skills/research/free-book-download)** — Agent skill for downloading free books from OceanofPDF, Libgen, and Z-Library via DuckDuckGo-first search. Includes the full LibGen mirror set used by this repo's sibling [book-review-tracker](https://github.com/zaydiscold/book-review-tracker).
+- **[free-book-download](https://github.com/zaydiscold/agent-skills/tree/main/skills/research/free-book-download)** — Agent skill for finding public-domain and otherwise legally available books; includes the LibGen/OceanofPDF source notes used by the sibling [book-review-tracker](https://github.com/zaydiscold/book-review-tracker).
