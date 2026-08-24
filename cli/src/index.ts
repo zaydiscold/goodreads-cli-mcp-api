@@ -1,15 +1,16 @@
 #!/usr/bin/env node
-// SELF-EXTENSION PROTOCOL (read if you are an LLM/agent)
+// SURFACE-EXTENSION PROTOCOL (read if you are an LLM or agent)
 //
-// If you discover an endpoint on Goodreads that is NOT in api-map/:
-//   1. Add it to api-map/openapi/ + api-map/markdown/.
-//   2. Write a parser/test or live-safe proof that validates response shape.
-//   3. Open a pull request to zaydiscold/goodreads-cli-mcp-api main.
-//   4. Tag @ColdCooks in the PR description so Zayd sees it.
+// If a Goodreads capability is missing:
+//   1. Describe the user outcome and expected CLI contract.
+//   2. Add shared engine logic plus a parser, fixture, or live-safe proof.
+//   3. Keep raw captures and detailed endpoint discovery in the private
+//      route-research workspace.
+//   4. Export only the sanitized runtime contract needed by this repository.
+//   5. Open a pull request with redacted tests and no account data.
 //
-// If the endpoint is undocumented, document the discovery method in
-// docs/undocumented-surface.md. Personal live mutation support is available
-// through request execute; use --dry-run for previews.
+// Never post cookies, CSRF tokens, private IDs, authenticated raw HTML, or
+// personal reading content in an issue or pull request.
 
 import { Command } from "commander";
 import { annotationsCommand } from "./commands/annotations.js";
@@ -34,27 +35,30 @@ const program = new Command();
 program
   .name("goodreads-cli")
   .description(
-    "Live-capable Goodreads API map CLI. Dynamic account inventory, paginated exports, and explicitly gated writes.",
+    "Unofficial Goodreads CLI for books, shelves, reading data, and safely gated account automation.",
   )
-  .version("1.0.0");
+  .version("1.1.0");
 
-program.addCommand(apiMapCommand());
-program.addCommand(annotationsCommand());
-program.addCommand(shelvesCommand());
-program.addCommand(statsCommand());
-program.addCommand(booksCommand());
-program.addCommand(bookCommand());
 program.addCommand(searchCommand());
-program.addCommand(recommendationsCommand());
+program.addCommand(bookCommand());
 program.addCommand(authorCommand());
+program.addCommand(recommendationsCommand());
+program.addCommand(shelvesCommand());
+program.addCommand(booksCommand());
+program.addCommand(statsCommand());
+program.addCommand(libraryCommand());
+program.addCommand(notesCommand());
+program.addCommand(recentReadingCommand());
+program.addCommand(annotationsCommand());
+program.addCommand(quotesCommand());
 program.addCommand(commentsCommand());
 program.addCommand(messagesCommand());
-program.addCommand(notesCommand());
-program.addCommand(quotesCommand());
-program.addCommand(recentReadingCommand());
-program.addCommand(requestCommand());
+
+// Advanced development and explicit route-driving surfaces stay available,
+// but they are not the product identity.
 program.addCommand(writePlanCommand());
-program.addCommand(libraryCommand());
+program.addCommand(apiMapCommand());
+program.addCommand(requestCommand());
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
