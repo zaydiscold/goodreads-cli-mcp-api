@@ -20,8 +20,21 @@ type SimilarDiscoveryBook = {
   numPages: number | null;
 };
 
+const GOODREADS_ORIGIN = "https://www.goodreads.com";
+
+function goodreadsPath(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value, GOODREADS_ORIGIN);
+    return url.origin === GOODREADS_ORIGIN ? url.pathname : null;
+  } catch {
+    return null;
+  }
+}
+
 function bookIdFromHref(href: string | undefined): string | null {
-  const match = href?.match(/^\/book\/show\/(\d+)(?:[.-][^?]*)?(?:\?.*)?$/);
+  const path = goodreadsPath(href);
+  const match = path?.match(/^\/book\/show\/(\d+)(?:[.-].*)?\/?$/);
   return match?.[1] ?? null;
 }
 
@@ -103,8 +116,24 @@ function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function identifierValue(value: unknown): string | null {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0) return String(value);
+  return stringValue(value);
+}
+
 function numberValue(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  const candidate =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim()
+        ? Number(value.replace(/,/g, ""))
+        : Number.NaN;
+  return Number.isFinite(candidate) ? candidate : null;
+}
+
+function safeBookPath(value: unknown): string | null {
+  const path = goodreadsPath(stringValue(value) ?? undefined);
+  return path && /^\/book\/show\/\d+/.test(path) ? path : null;
 }
 
 function similarBook(value: unknown): SimilarDiscoveryBook | null {
@@ -113,13 +142,13 @@ function similarBook(value: unknown): SimilarDiscoveryBook | null {
   const raw = wrapper.book;
   if (!raw || typeof raw !== "object") return null;
   const book = raw as Record<string, unknown>;
-  const bookId = stringValue(book.bookId);
+  const bookId = identifierValue(book.bookId);
   if (!bookId) return null;
   const author = book.author;
   return {
     bookId,
-    workId: stringValue(book.workId),
-    bookUrl: stringValue(book.bookUrl),
+    workId: identifierValue(book.workId),
+    bookUrl: safeBookPath(book.bookUrl),
     title: stringValue(book.title) ?? stringValue(book.bookTitleBare),
     author:
       author && typeof author === "object"
@@ -129,6 +158,12 @@ function similarBook(value: unknown): SimilarDiscoveryBook | null {
     ratingsCount: numberValue(book.ratingsCount),
     numPages: numberValue(book.numPages),
   };
+}
+
+function matchesSource(book: SimilarDiscoveryBook, source: SimilarDiscoveryBook | null): boolean {
+  if (!source) return false;
+  if (book.bookId === source.bookId) return true;
+  return source.workId !== null && book.workId !== null && book.workId === source.workId;
 }
 
 /** Parses public Readers-also-enjoyed React props without descriptions or image URLs. */
@@ -156,7 +191,7 @@ export function parseSimilarBooksPage(html: string): {
   const seen = new Set<string>();
   const books = sections
     .flat()
-    .filter((book) => book.bookId !== source?.bookId && book.workId !== source?.workId)
+    .filter((book) => !matchesSource(book, source))
     .filter((book) => {
       if (seen.has(book.bookId)) return false;
       seen.add(book.bookId);
