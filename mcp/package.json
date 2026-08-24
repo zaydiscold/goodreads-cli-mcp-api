@@ -1,9 +1,9 @@
 {
   "name": "@zaydiscold/goodreads-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
-  "description": "MCP server for the live-capable Goodreads API map and request executor.",
+  "description": "Repository-local MCP server for the unofficial Goodreads API map and shared CLI engine.",
   "bin": {
     "goodreads-cli-mcp": "dist/server.js"
   },
@@ -25,6 +25,10 @@
   "devDependencies": {},
   "engines": {
     "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zaydiscold/goodreads-cli-mcp-api.git"
   },
   "author": "Zayd Khan (@ColdCooks / zaydiscold)",
   "license": "MIT"
