@@ -1,20 +1,31 @@
 {
   "files": {
     "cli/src/engine.ts": {
-      "minLines": 900,
-      "minBytes": 30000
+      "requiredSubstrings": [
+        "export const CAPABILITIES",
+        "export async function requestExecute",
+        "export function dynamicInventoryGuidance"
+      ]
     },
     "cli/src/index.ts": {
-      "minLines": 45,
-      "minBytes": 1500
+      "requiredSubstrings": [
+        "program.addCommand",
+        "program.parseAsync(process.argv)"
+      ]
     },
     "mcp/src/server.ts": {
-      "minLines": 600,
-      "minBytes": 24000
+      "requiredSubstrings": [
+        "new McpServer",
+        "registerTool(",
+        "await server.connect(transport)"
+      ]
     },
     "mcp/src/profile.ts": {
-      "minLines": 60,
-      "minBytes": 1800
+      "requiredSubstrings": [
+        "FULL_TOOL_NAMES",
+        "parseMcpProfile",
+        "toolsForProfile"
+      ]
     }
   }
 }
