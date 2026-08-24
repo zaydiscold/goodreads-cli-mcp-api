@@ -135,7 +135,8 @@ export async function fetchText(url: string): Promise<string> {
     headers: browserHeaders(),
     signal: AbortSignal.timeout(30_000),
   });
-  if (!response.ok) throw new Error(`GET ${trustedUrl} failed: ${response.status} ${response.statusText}`);
+  if (!response.ok)
+    throw new Error(`GET ${trustedUrl} failed: ${response.status} ${response.statusText}`);
   const html = await readBoundedResponseText(response);
   if (isGoodreadsChallengeHtml(html)) {
     throw new Error(
@@ -160,7 +161,8 @@ export async function fetchAuthenticatedText(
     headers,
     signal: AbortSignal.timeout(30_000),
   });
-  if (!response.ok) throw new Error(`GET ${trustedUrl} failed: ${response.status} ${response.statusText}`);
+  if (!response.ok)
+    throw new Error(`GET ${trustedUrl} failed: ${response.status} ${response.statusText}`);
   const html = await readBoundedResponseText(response);
   if (isGoodreadsChallengeHtml(html)) {
     throw new Error(
@@ -197,7 +199,8 @@ export async function fetchPublicText(url: string): Promise<string> {
     return fetchText(trustedUrl);
   }
 
-  if (!response.ok) throw new Error(`GET ${trustedUrl} failed: ${response.status} ${response.statusText}`);
+  if (!response.ok)
+    throw new Error(`GET ${trustedUrl} failed: ${response.status} ${response.statusText}`);
   const html = await readBoundedResponseText(response);
   if (isGoodreadsChallengeHtml(html)) return fetchText(trustedUrl);
   return html;

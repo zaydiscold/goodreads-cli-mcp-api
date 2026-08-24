@@ -111,9 +111,11 @@ describe("live request safety", () => {
   it("omits credentials for unauthenticated custom-origin reads", async () => {
     process.env.GOODREADS_COOKIE = "secret-cookie";
     process.env.GOODREADS_CSRF_TOKEN = "secret-csrf";
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response("{}", { status: 200, headers: { "content-type": "application/json" } }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response("{}", { status: 200, headers: { "content-type": "application/json" } }),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     await executeLiveRequest(readRoute, {
@@ -128,9 +130,11 @@ describe("live request safety", () => {
   it("does not inject CSRF into an unauthenticated custom-origin form", async () => {
     process.env.GOODREADS_COOKIE = "secret-cookie";
     process.env.GOODREADS_CSRF_TOKEN = "secret-csrf";
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response("{}", { status: 200, headers: { "content-type": "application/json" } }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response("{}", { status: 200, headers: { "content-type": "application/json" } }),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     await executeLiveRequest(unauthenticatedPostRoute, {
@@ -174,11 +178,13 @@ describe("live request safety", () => {
   it("keeps explicit CSRF values request-local across interleaved calls", async () => {
     process.env.GOODREADS_COOKIE = "secret-cookie";
     delete process.env.GOODREADS_CSRF_TOKEN;
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response('{"ok":true}', {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response('{"ok":true}', {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -276,12 +282,14 @@ describe("live request safety", () => {
     process.env.GOODREADS_CSRF_TOKEN = "secret-csrf";
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          '<html><a href="/user/sign_out">Sign Out</a><a href="/user/sign_in">Sign In</a></html>',
-          { status: 200, headers: { "content-type": "text/html" } },
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            '<html><a href="/user/sign_out">Sign Out</a><a href="/user/sign_in">Sign In</a></html>',
+            { status: 200, headers: { "content-type": "text/html" } },
+          ),
         ),
-      ),
     );
     const result = await executeLiveRequest(mutationRoute, {
       pathParams: { book_id: "123" },

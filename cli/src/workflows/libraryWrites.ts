@@ -19,9 +19,7 @@ interface Check {
 }
 
 function executionRequested(execute?: boolean): Check {
-  return execute
-    ? { ok: true, blocker: null }
-    : { ok: false, blocker: "execute=true required" };
+  return execute ? { ok: true, blocker: null } : { ok: false, blocker: "execute=true required" };
 }
 
 function approvedBook(value: string, approved?: string[]): Check {
@@ -230,8 +228,7 @@ async function observeRss(userId: string, bookId: string, state: LibraryObservat
         .split("<item>")
         .find(
           (part) =>
-            part.includes(`<book_id>${bookId}</book_id>`) ||
-            part.includes(`book/show/${bookId}`),
+            part.includes(`<book_id>${bookId}</book_id>`) || part.includes(`book/show/${bookId}`),
         );
       if (item) {
         parseRssItem(item, shelf, state);
@@ -334,18 +331,31 @@ export async function ls(options: LSO): Promise<CommandEnvelope<unknown>> {
 export async function ss(options: SSO): Promise<CommandEnvelope<unknown>> {
   const bookId = validateBookId(options.bookId);
   if (!EXCLUSIVE.has(options.status)) {
-    return envelope({ submitted: false, outcome: "blocked", blockers: [`unsupported status: ${options.status}`] });
+    return envelope({
+      submitted: false,
+      outcome: "blocked",
+      blockers: [`unsupported status: ${options.status}`],
+    });
   }
   const execute = Boolean(options.execute);
   if (execute && !options.approvedStatus) {
-    return envelope({ submitted: false, outcome: "blocked", blockers: ["approvedStatus required for execute"] });
+    return envelope({
+      submitted: false,
+      outcome: "blocked",
+      blockers: ["approvedStatus required for execute"],
+    });
   }
   if (execute && options.approvedStatus !== options.status) {
-    return envelope({ submitted: false, outcome: "blocked", blockers: ["approvedStatus mismatch"] });
+    return envelope({
+      submitted: false,
+      outcome: "blocked",
+      blockers: ["approvedStatus mismatch"],
+    });
   }
   if (execute) {
     const result = checks(executionRequested(true), approvedBook(bookId, options.approvedBookId));
-    if (!result.ok) return envelope({ submitted: false, outcome: "blocked", blockers: result.blockers });
+    if (!result.ok)
+      return envelope({ submitted: false, outcome: "blocked", blockers: result.blockers });
   }
 
   const route = await routeBySelector("POST /shelf/add_to_shelf");
@@ -381,15 +391,24 @@ export async function ru(options: RUO): Promise<CommandEnvelope<unknown>> {
   const execute = Boolean(options.execute);
   if (options.action === "set") {
     if (!options.rating || options.rating < 1 || options.rating > 5) {
-      return envelope({ submitted: false, outcome: "blocked", blockers: ["rating 1-5 required for action=set"] });
+      return envelope({
+        submitted: false,
+        outcome: "blocked",
+        blockers: ["rating 1-5 required for action=set"],
+      });
     }
     if (execute && options.rating !== options.approvedRating) {
-      return envelope({ submitted: false, outcome: "blocked", blockers: ["approvedRating mismatch"] });
+      return envelope({
+        submitted: false,
+        outcome: "blocked",
+        blockers: ["approvedRating mismatch"],
+      });
     }
   }
   if (execute) {
     const result = checks(executionRequested(true), approvedBook(bookId, options.approvedBookId));
-    if (!result.ok) return envelope({ submitted: false, outcome: "blocked", blockers: result.blockers });
+    if (!result.ok)
+      return envelope({ submitted: false, outcome: "blocked", blockers: result.blockers });
   }
 
   const stars = options.action === "clear" ? 0 : (options.rating as number);
@@ -457,9 +476,11 @@ async function verifyReviewWrite(
 ) {
   await new Promise((resolve) => setTimeout(resolve, 800));
   const again = await ls({ bookId, userId });
-  const review = (again.data as {
-    review?: { exists?: boolean; textSha256?: string };
-  }).review;
+  const review = (
+    again.data as {
+      review?: { exists?: boolean; textSha256?: string };
+    }
+  ).review;
   const exists = Boolean(review?.exists);
   const verifiedHash = review?.textSha256 ?? "";
   return {
@@ -499,16 +520,13 @@ export async function rv(options: RVO): Promise<CommandEnvelope<unknown>> {
     `Confirm the canonical review hash for book ${bookId} through authenticated readback.`,
   );
   const submitted = Boolean((write.data as { submitted?: boolean } | undefined)?.submitted);
-  const verification = execute && submitted
-    ? await verifyReviewWrite(bookId, options.userId, canonicalText, hash)
-    : { mutationVerified: false, verifiedHash: "", exists: false };
+  const verification =
+    execute && submitted
+      ? await verifyReviewWrite(bookId, options.userId, canonicalText, hash)
+      : { mutationVerified: false, verifiedHash: "", exists: false };
   return envelope({
     ok: execute ? verification.mutationVerified : true,
-    outcome: execute
-      ? verification.mutationVerified
-        ? "verified"
-        : "indeterminate"
-      : "planned",
+    outcome: execute ? (verification.mutationVerified ? "verified" : "indeterminate") : "planned",
     bookId,
     textLength: canonicalText.length,
     textSha256: hash,

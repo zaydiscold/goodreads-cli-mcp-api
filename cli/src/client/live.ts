@@ -119,16 +119,13 @@ export function buildLiveRequestPlan(
     url: url.toString(),
     mutatesAccount: route.mutatesAccount,
     requiresCookie: route.mutatesAccount || Boolean(options.authenticated),
-    requiresCsrf:
-      route.mutatesAccount && ["POST", "PUT", "PATCH", "DELETE"].includes(route.method),
+    requiresCsrf: route.mutatesAccount && ["POST", "PUT", "PATCH", "DELETE"].includes(route.method),
     trustedOrigin,
     auth: {
       cookieEnv: "GOODREADS_COOKIE",
       csrfEnv: "GOODREADS_CSRF_TOKEN",
       cookiePresent: Boolean(process.env.GOODREADS_COOKIE),
-      csrfPresent: Boolean(
-        process.env.GOODREADS_CSRF_TOKEN || options.form?.authenticity_token,
-      ),
+      csrfPresent: Boolean(process.env.GOODREADS_CSRF_TOKEN || options.form?.authenticity_token),
     },
     bodyMode: requestBodyMode(options),
   };

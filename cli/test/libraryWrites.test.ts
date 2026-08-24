@@ -67,12 +67,14 @@ describe("library show account selection and evidence", () => {
   it("uses the caller-supplied user id for the public RSS fallback", async () => {
     delete process.env.GOODREADS_COOKIE;
     delete process.env.GOODREADS_USER_ID;
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        "<rss><channel><item><book_id>123</book_id><user_rating>4</user_rating><user_review><![CDATA[A review]]></user_review></item></channel></rss>",
-        { status: 200, headers: { "content-type": "application/xml" } },
-      ),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          "<rss><channel><item><book_id>123</book_id><user_rating>4</user_rating><user_review><![CDATA[A review]]></user_review></item></channel></rss>",
+          { status: 200, headers: { "content-type": "application/xml" } },
+        ),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await ls({ bookId: "123", userId: "42" });

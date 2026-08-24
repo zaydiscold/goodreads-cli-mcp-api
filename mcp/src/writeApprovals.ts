@@ -28,10 +28,7 @@ export function requireExactApproval(
   if (approved.trim() !== actual) throw new Error(`${label} mismatch`);
 }
 
-export function requireApprovedBook(
-  bookId: string,
-  approvedBookId: string[] | undefined,
-): void {
+export function requireApprovedBook(bookId: string, approvedBookId: string[] | undefined): void {
   if (!approvedBookId?.includes(bookId)) {
     throw new Error("approvedBookId must include the exact bookId for execute");
   }

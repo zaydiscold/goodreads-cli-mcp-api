@@ -49,20 +49,9 @@ import {
   rv,
 } from "@zaydiscold/goodreads-cli/engine";
 import type { RiskLevel } from "@zaydiscold/goodreads-cli/risk";
-import {
-  parseMcpProfile,
-  toolsForProfile,
-  type GoodreadsToolName,
-} from "./profile.js";
-import {
-  resolveMcpFixture,
-  resolveOptionalMcpFixture,
-} from "./fixturePolicy.js";
-import {
-  quotePayloadSha256,
-  requireApprovedBook,
-  requireExactApproval,
-} from "./writeApprovals.js";
+import { parseMcpProfile, toolsForProfile, type GoodreadsToolName } from "./profile.js";
+import { resolveMcpFixture, resolveOptionalMcpFixture } from "./fixturePolicy.js";
+import { quotePayloadSha256, requireApprovedBook, requireExactApproval } from "./writeApprovals.js";
 
 const server = new McpServer({
   name: "goodreads-cli-mcp",
@@ -138,7 +127,8 @@ registerTool(
   "goodreads_api_map_routes",
   {
     title: "Goodreads API Map Routes",
-    description: "List bounded routes from the local Goodreads API map. No network request is sent.",
+    description:
+      "List bounded routes from the local Goodreads API map. No network request is sent.",
     annotations: toolAnnotations(true, "read", false),
     inputSchema: {
       query: z.string().optional(),
@@ -180,7 +170,8 @@ registerTool(
   "goodreads_shelves_discover",
   {
     title: "Goodreads Shelves Discover",
-    description: "Discover shelf slugs and counts from an owned fixture or a live authenticated shelf page.",
+    description:
+      "Discover shelf slugs and counts from an owned fixture or a live authenticated shelf page.",
     annotations: toolAnnotations(true, "read"),
     inputSchema: {
       fixture: z.string().optional(),
@@ -228,7 +219,8 @@ registerTool(
   "goodreads_books_export",
   {
     title: "Goodreads Books Export",
-    description: "Export shelves from an owned fixture directory with per-shelf completeness metadata.",
+    description:
+      "Export shelves from an owned fixture directory with per-shelf completeness metadata.",
     annotations: toolAnnotations(true, "read", false),
     inputSchema: {
       fixtureDir: z.string(),
@@ -265,7 +257,8 @@ registerTool(
   "goodreads_similar_books",
   {
     title: "Goodreads Similar Books",
-    description: "List public Readers-also-enjoyed metadata without descriptions, reviews, or images.",
+    description:
+      "List public Readers-also-enjoyed metadata without descriptions, reviews, or images.",
     annotations: toolAnnotations(true, "read"),
     inputSchema: {
       workSlug: z.string().optional(),
@@ -304,7 +297,8 @@ registerTool(
   "goodreads_recommendations_list",
   {
     title: "Goodreads Recommendations",
-    description: "List authenticated recommendation-card book metadata without private recommendation prose.",
+    description:
+      "List authenticated recommendation-card book metadata without private recommendation prose.",
     annotations: toolAnnotations(true, "read"),
     inputSchema: {
       limit: z.number().int().min(1).max(100).default(20),
@@ -318,7 +312,8 @@ registerTool(
   "goodreads_author_show",
   {
     title: "Goodreads Author Show",
-    description: "Read public author identity and bounded bibliography metadata without biography prose.",
+    description:
+      "Read public author identity and bounded bibliography metadata without biography prose.",
     annotations: toolAnnotations(true, "read"),
     inputSchema: {
       authorSlug: z.string(),
@@ -395,7 +390,8 @@ registerTool(
   "goodreads_annotations_list",
   {
     title: "Goodreads Annotations List",
-    description: "Parse annotation metadata without highlight text. Private IDs require an explicit server gate.",
+    description:
+      "Parse annotation metadata without highlight text. Private IDs require an explicit server gate.",
     annotations: toolAnnotations(true, "read", false),
     inputSchema: {
       fixture: z.string(),
@@ -434,7 +430,8 @@ registerTool(
   "goodreads_notes_inspect",
   {
     title: "Goodreads Notes Inspect",
-    description: "Parse an owned notes fixture into redacted counts, visibility, and link metadata.",
+    description:
+      "Parse an owned notes fixture into redacted counts, visibility, and link metadata.",
     annotations: toolAnnotations(true, "read", false),
     inputSchema: {
       fixture: z.string(),
@@ -454,7 +451,8 @@ registerTool(
   "goodreads_notes_books",
   {
     title: "Goodreads Annotated Books",
-    description: "List public annotated-book metadata and available counts without annotation text.",
+    description:
+      "List public annotated-book metadata and available counts without annotation text.",
     annotations: toolAnnotations(true, "read"),
     inputSchema: {
       userId: z.string(),
@@ -495,7 +493,8 @@ registerTool(
   "goodreads_notes_publicize",
   {
     title: "Goodreads Notes Publicize",
-    description: "Dry-run by default. Live execution requires exact book approval and the notes write environment gate.",
+    description:
+      "Dry-run by default. Live execution requires exact book approval and the notes write environment gate.",
     annotations: toolAnnotations(false, "write-mutate"),
     inputSchema: {
       bookId: z.string(),
@@ -512,7 +511,8 @@ registerTool(
   "goodreads_notes_hide",
   {
     title: "Goodreads Notes Hide",
-    description: "Dry-run by default. Live execution requires exact book approval and the notes write environment gate.",
+    description:
+      "Dry-run by default. Live execution requires exact book approval and the notes write environment gate.",
     annotations: toolAnnotations(false, "write-mutate"),
     inputSchema: {
       bookId: z.string(),
@@ -529,22 +529,29 @@ registerTool(
   "goodreads_quotes_add",
   {
     title: "Goodreads Quotes Add",
-    description: "Preview or create a quote. Live execution requires approvedPayloadSha256 for the exact normalized payload.",
+    description:
+      "Preview or create a quote. Live execution requires approvedPayloadSha256 for the exact normalized payload.",
     annotations: toolAnnotations(false, "write-mutate"),
     inputSchema: {
       body: z.string(),
       author: z.string(),
       title: z.string().optional(),
       tags: z.string().optional(),
-      approvedPayloadSha256: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
+      approvedPayloadSha256: z
+        .string()
+        .regex(/^[a-f0-9]{64}$/i)
+        .optional(),
       execute: z.boolean().default(false),
     },
   },
   async ({ body, author, title, tags, approvedPayloadSha256, execute }) => {
     const payloadSha256 = quotePayloadSha256({ body, author, title, tags });
-    if (execute) requireExactApproval("approvedPayloadSha256", payloadSha256, approvedPayloadSha256);
+    if (execute)
+      requireExactApproval("approvedPayloadSha256", payloadSha256, approvedPayloadSha256);
     const result = await quotesAdd({ body, author, title, tags, execute });
-    return emit(extendData(result, { requiredApprovals: { approvedPayloadSha256: payloadSha256 } }));
+    return emit(
+      extendData(result, { requiredApprovals: { approvedPayloadSha256: payloadSha256 } }),
+    );
   },
 );
 
@@ -552,7 +559,8 @@ registerTool(
   "goodreads_quotes_remove",
   {
     title: "Goodreads Quotes Remove",
-    description: "Preview or remove one quote. Live execution requires approvedQuoteSlug to match exactly.",
+    description:
+      "Preview or remove one quote. Live execution requires approvedQuoteSlug to match exactly.",
     annotations: toolAnnotations(false, "write-destructive"),
     inputSchema: {
       quoteSlug: z.string(),
@@ -571,7 +579,8 @@ registerTool(
   "goodreads_quotes_reorder",
   {
     title: "Goodreads Quotes Reorder",
-    description: "Preview or reorder one quote. Live execution requires exact quote ID and direction approvals.",
+    description:
+      "Preview or reorder one quote. Live execution requires exact quote ID and direction approvals.",
     annotations: toolAnnotations(false, "write-mutate"),
     inputSchema: {
       quoteId: z.string(),
@@ -599,7 +608,8 @@ registerTool(
   "goodreads_shelf_add",
   {
     title: "Goodreads Shelf Add",
-    description: "Preview or add one exact book to one exact shelf. Live execution requires both approvals.",
+    description:
+      "Preview or add one exact book to one exact shelf. Live execution requires both approvals.",
     annotations: toolAnnotations(false, "write-mutate"),
     inputSchema: {
       bookId: z.string(),
@@ -625,7 +635,8 @@ registerTool(
   "goodreads_shelf_remove",
   {
     title: "Goodreads Shelf Remove",
-    description: "Preview or remove one exact book from one exact shelf. Live execution requires both approvals.",
+    description:
+      "Preview or remove one exact book from one exact shelf. Live execution requires both approvals.",
     annotations: toolAnnotations(false, "write-mutate"),
     inputSchema: {
       bookId: z.string(),
@@ -651,7 +662,8 @@ registerTool(
   "goodreads_recent_reading_list",
   {
     title: "Goodreads Recent Reading List",
-    description: "List current/recent books from an owned fixture directory. No network request is sent.",
+    description:
+      "List current/recent books from an owned fixture directory. No network request is sent.",
     annotations: toolAnnotations(true, "read", false),
     inputSchema: {
       fixtureDir: z.string(),
@@ -717,7 +729,8 @@ registerTool(
   "goodreads_recent_reading_publicize",
   {
     title: "Goodreads Recent Reading Publicize",
-    description: "Dry-run by default. Live execution uses the same exact book and environment gates as notes publicize.",
+    description:
+      "Dry-run by default. Live execution uses the same exact book and environment gates as notes publicize.",
     annotations: toolAnnotations(false, "write-mutate"),
     inputSchema: {
       bookId: z.string(),
@@ -797,7 +810,8 @@ registerTool(
   "goodreads_request_execute",
   {
     title: "Goodreads Request Execute",
-    description: "Reads run live. Mutations remain previews unless execute, exact route approval, and the generic write gate are all present. An explicit dryRun never needs live authorization.",
+    description:
+      "Reads run live. Mutations remain previews unless execute, exact route approval, and the generic write gate are all present. An explicit dryRun never needs live authorization.",
     annotations: toolAnnotations(false, "write-destructive"),
     inputSchema: {
       route: z.string(),
@@ -831,7 +845,8 @@ registerTool(
   "goodreads_dynamic_inventory_guidance",
   {
     title: "Goodreads Dynamic Inventory Guidance",
-    description: "Explain which account-specific collections must be discovered before an agent acts.",
+    description:
+      "Explain which account-specific collections must be discovered before an agent acts.",
     annotations: toolAnnotations(true, "read", false),
     inputSchema: {},
   },
@@ -858,7 +873,8 @@ registerTool(
   "goodreads_library_set_status",
   {
     title: "Goodreads Library Set Status",
-    description: "Dry-run by default. Live execution requires exact book and status approvals and verifies account state.",
+    description:
+      "Dry-run by default. Live execution requires exact book and status approvals and verifies account state.",
     inputSchema: {
       bookId: z.string(),
       userId: z.string().optional(),
@@ -877,7 +893,8 @@ registerTool(
   "goodreads_rating_update",
   {
     title: "Goodreads Rating Update",
-    description: "Dry-run by default. Live execution requires exact book and rating approvals and verifies account state.",
+    description:
+      "Dry-run by default. Live execution requires exact book and rating approvals and verifies account state.",
     inputSchema: {
       bookId: z.string(),
       action: z.enum(["set", "clear"]),
@@ -905,13 +922,17 @@ registerTool(
   "goodreads_review_upsert",
   {
     title: "Goodreads Review Upsert",
-    description: "Dry-run by default. Live execution requires exact book and canonical review SHA-256 approvals and verifies exact content hash.",
+    description:
+      "Dry-run by default. Live execution requires exact book and canonical review SHA-256 approvals and verifies exact content hash.",
     inputSchema: {
       bookId: z.string(),
       userId: z.string().optional(),
       reviewText: z.string(),
       approvedBookId: z.array(z.string()).default([]),
-      approvedTextSha256: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
+      approvedTextSha256: z
+        .string()
+        .regex(/^[a-f0-9]{64}$/i)
+        .optional(),
       execute: z.boolean().default(false),
     },
     annotations: toolAnnotations(false, "write-mutate"),
