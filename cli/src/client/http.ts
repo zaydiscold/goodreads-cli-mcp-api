@@ -14,7 +14,13 @@ const MAX_GOODREADS_RESPONSE_BYTES = 8 * 1024 * 1024;
 export function encodeGoodreadsPathSegment(value: string, label = "path parameter"): string {
   const normalized = value.trim();
   if (!normalized) throw new Error(`${label} is required`);
-  if (normalized === "." || normalized === "..") {
+  let decoded = normalized;
+  try {
+    decoded = decodeURIComponent(normalized);
+  } catch {
+    throw new Error(`${label} contains invalid percent-encoding`);
+  }
+  if (decoded === "." || decoded === "..") {
     throw new Error(`${label} must not be a dot segment`);
   }
   return encodeURIComponent(normalized);
