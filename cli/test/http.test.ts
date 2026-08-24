@@ -95,4 +95,22 @@ describe("Goodreads HTTP origin boundary", () => {
     expect((init.headers as Record<string, string>).cookie).toBe("session-token=secret");
     expect(init.redirect).toBe("manual");
   });
+
+  it("refuses a same-origin redirect with embedded credentials", async () => {
+    process.env.GOODREADS_COOKIE = "session-token=secret";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(null, {
+        status: 302,
+        headers: {
+          location: "https://user:password@www.goodreads.com/review/list?page=2",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      fetchAuthenticatedText("https://www.goodreads.com/review/list"),
+    ).rejects.toThrow("redirect with embedded credentials");
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
 });
