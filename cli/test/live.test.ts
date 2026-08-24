@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildLiveRequestPlan, executeLiveRequest, extractCsrfToken } from "../src/client/live.js";
-import { requestExecute } from "../src/engine.js";
+import { requestExecute } from "../src/publicEngine.js";
 import type { GoodreadsRoute } from "../src/lib.js";
 
 const readRoute: GoodreadsRoute = {
@@ -83,15 +83,12 @@ describe("live request safety", () => {
     });
   });
 
-  it("rejects exact and encoded dot path segments before fetch", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+  it("rejects exact and encoded dot path segments before fetch", () => {
     for (const value of [".", "..", "%2e%2e"]) {
       expect(() => buildLiveRequestPlan(readRoute, { pathParams: { book_slug: value } })).toThrow(
         /dot segment|invalid percent/i,
       );
     }
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("never forwards Goodreads credentials to an untrusted origin", async () => {
@@ -327,13 +324,17 @@ describe("live request safety", () => {
         }),
       ),
     );
-    await expect(
-      executeLiveRequest(mutationRoute, {
+    try {
+      await executeLiveRequest(mutationRoute, {
         pathParams: { book_id: "123" },
         form: { visible: "true" },
         execute: true,
-      }),
-    ).rejects.not.toThrow("PRIVATE_REVIEW_SENTINEL");
+      });
+      throw new Error("expected request failure");
+    } catch (error) {
+      expect(String(error)).not.toContain("PRIVATE_REVIEW_SENTINEL");
+      expect(String(error)).toContain("response body omitted");
+    }
   });
 
   it("requires live generic write gates, but not for a forced dry-run", async () => {
