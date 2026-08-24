@@ -142,7 +142,6 @@ function reviewHash(value: string): string {
   return createHash("sha256").update(canonicalReviewText(value), "utf8").digest("hex");
 }
 
-/** Parse immediate account state from authenticated `/review/edit/{book_id}` HTML. */
 export function parseLibraryEditState(html: string): LibraryEditState {
   const chosen = html.match(/chosen:\s*\[([^\]]*)\]/i)?.[1] ?? "";
   const chosenShelves = [...chosen.matchAll(/["']([^"']+)["']/g)].map((match) => match[1]!);
@@ -175,6 +174,142 @@ function validateBookId(bookId: string): string {
   return value;
 }
 
+type SourceResult = {
+  source: "rss" | "authenticated-edit";
+  target: string;
+  ok: boolean;
+  signedOut?: boolean;
+};
+
+type LibraryObservation = {
+  status: string;
+  rating: number | null;
+  reviewId: string | null;
+  reviewText: string;
+  sources: string[];
+  sourceResults: SourceResult[];
+  warnings: string[];
+  authenticatedSuccess: boolean;
+  rssSuccessCount: number;
+};
+
+function emptyObservation(): LibraryObservation {
+  return {
+    status: "unknown",
+    rating: null,
+    reviewId: null,
+    reviewText: "",
+    sources: [],
+    sourceResults: [],
+    warnings: [],
+    authenticatedSuccess: false,
+    rssSuccessCount: 0,
+  };
+}
+
+function parseRssItem(item: string, shelf: string, state: LibraryObservation): void {
+  state.status = shelf;
+  const ratingMatch = item.match(/<user_rating>(\d+(?:\.\d+)?)<\/user_rating>/i);
+  if (ratingMatch?.[1]) state.rating = Number(ratingMatch[1]);
+  const reviewMatch =
+    item.match(/<user_review><!\[CDATA\[([\s\S]*?)\]\]><\/user_review>/i) ||
+    item.match(/<user_review>([\s\S]*?)<\/user_review>/i);
+  state.reviewText = canonicalReviewText(reviewMatch?.[1] ?? "");
+}
+
+async function observeRss(userId: string, bookId: string, state: LibraryObservation) {
+  const encodedUser = encodeGoodreadsPathSegment(userId, "userId");
+  for (const shelf of ["currently-reading", "read", "to-read"] as const) {
+    const url = `https://www.goodreads.com/review/list_rss/${encodedUser}?shelf=${shelf}`;
+    state.sources.push(url);
+    try {
+      const xml = await fetchPublicText(url);
+      state.rssSuccessCount += 1;
+      state.sourceResults.push({ source: "rss", target: shelf, ok: true });
+      const item = xml
+        .split("<item>")
+        .find(
+          (part) =>
+            part.includes(`<book_id>${bookId}</book_id>`) ||
+            part.includes(`book/show/${bookId}`),
+        );
+      if (item) {
+        parseRssItem(item, shelf, state);
+        return;
+      }
+    } catch {
+      state.sourceResults.push({ source: "rss", target: shelf, ok: false });
+      state.warnings.push(`RSS lookup for shelf '${shelf}' failed.`);
+    }
+  }
+}
+
+async function observeAuthenticated(bookId: string, state: LibraryObservation) {
+  const url = `https://www.goodreads.com/review/edit/${encodeGoodreadsPathSegment(bookId, "bookId")}`;
+  state.sources.push(url);
+  try {
+    const result = await fetchAuthenticatedText(url);
+    state.sourceResults.push({
+      source: "authenticated-edit",
+      target: "/review/edit/{book_id}",
+      ok: !result.signedOut,
+      signedOut: result.signedOut,
+    });
+    if (result.signedOut) {
+      state.warnings.push("Authenticated library read resolved to the Goodreads sign-in page.");
+      return;
+    }
+    state.authenticatedSuccess = true;
+    const parsed = parseLibraryEditState(result.html);
+    state.reviewId = parsed.reviewId;
+    if (parsed.status) state.status = parsed.status;
+    if (parsed.rating !== null) state.rating = parsed.rating;
+    state.reviewText = parsed.reviewText;
+  } catch {
+    state.sourceResults.push({
+      source: "authenticated-edit",
+      target: "/review/edit/{book_id}",
+      ok: false,
+    });
+    state.warnings.push("Authenticated library edit-page lookup failed.");
+  }
+}
+
+function observationConfidence(state: LibraryObservation): Confidence {
+  if (state.authenticatedSuccess) return "high";
+  if (state.rssSuccessCount === 0) return "low";
+  return state.status === "unknown" ? "medium" : "high";
+}
+
+function observationData(
+  bookId: string,
+  userId: string | null,
+  includeReviewId: boolean,
+  state: LibraryObservation,
+) {
+  const textSha256 = state.reviewText ? reviewHash(state.reviewText) : "";
+  return {
+    bookId,
+    userId,
+    status: state.status,
+    rating: state.rating,
+    ...(includeReviewId ? { reviewId: state.reviewId } : {}),
+    review: {
+      exists: Boolean(state.reviewText),
+      textLength: state.reviewText.length,
+      textSha256,
+      canonicalization: "HTML entities decoded; whitespace collapsed and trimmed",
+    },
+    sources: state.sources,
+    sourceResults: state.sourceResults,
+    evidence: {
+      authenticatedSuccess: state.authenticatedSuccess,
+      rssSuccessCount: state.rssSuccessCount,
+      stateObserved: state.authenticatedSuccess || state.rssSuccessCount > 0,
+    },
+  };
+}
+
 export async function ls(options: LSO): Promise<CommandEnvelope<unknown>> {
   const bookId = validateBookId(options.bookId);
   const userId = options.userId?.trim() || process.env.GOODREADS_USER_ID?.trim() || null;
@@ -184,119 +319,16 @@ export async function ls(options: LSO): Promise<CommandEnvelope<unknown>> {
       "library show requires userId/GOODREADS_USER_ID for public RSS or GOODREADS_COOKIE for an authenticated read",
     );
   }
-
-  const sources: string[] = [];
-  const sourceResults: Array<{
-    source: "rss" | "authenticated-edit";
-    target: string;
-    ok: boolean;
-    signedOut?: boolean;
-  }> = [];
-  const warnings: string[] = [];
-  let status = "unknown";
-  let rating: number | null = null;
-  let reviewId: string | null = null;
-  let reviewText = "";
-  let authenticatedSuccess = false;
-  let rssSuccessCount = 0;
-
-  if (userId) {
-    const encodedUser = encodeGoodreadsPathSegment(userId, "userId");
-    for (const shelf of ["currently-reading", "read", "to-read"] as const) {
-      const url = `https://www.goodreads.com/review/list_rss/${encodedUser}?shelf=${shelf}`;
-      sources.push(url);
-      try {
-        const xml = await fetchPublicText(url);
-        rssSuccessCount += 1;
-        sourceResults.push({ source: "rss", target: shelf, ok: true });
-        const item = xml
-          .split("<item>")
-          .find(
-            (part) =>
-              part.includes(`<book_id>${bookId}</book_id>`) ||
-              part.includes(`book/show/${bookId}`),
-          );
-        if (!item) continue;
-        status = shelf;
-        const ratingMatch = item.match(/<user_rating>(\d+(?:\.\d+)?)<\/user_rating>/i);
-        if (ratingMatch?.[1]) rating = Number(ratingMatch[1]);
-        const reviewMatch =
-          item.match(/<user_review><!\[CDATA\[([\s\S]*?)\]\]><\/user_review>/i) ||
-          item.match(/<user_review>([\s\S]*?)<\/user_review>/i);
-        reviewText = canonicalReviewText(reviewMatch?.[1] ?? "");
-        break;
-      } catch {
-        sourceResults.push({ source: "rss", target: shelf, ok: false });
-        warnings.push(`RSS lookup for shelf '${shelf}' failed.`);
-      }
-    }
+  const state = emptyObservation();
+  if (userId) await observeRss(userId, bookId, state);
+  if (authenticated) await observeAuthenticated(bookId, state);
+  if (!state.authenticatedSuccess && state.rssSuccessCount === 0) {
+    state.warnings.push("No library-state source succeeded; returned state is indeterminate.");
   }
-
-  if (authenticated) {
-    const url = `https://www.goodreads.com/review/edit/${encodeGoodreadsPathSegment(bookId, "bookId")}`;
-    sources.push(url);
-    try {
-      const result = await fetchAuthenticatedText(url);
-      sourceResults.push({
-        source: "authenticated-edit",
-        target: "/review/edit/{book_id}",
-        ok: !result.signedOut,
-        signedOut: result.signedOut,
-      });
-      if (result.signedOut) {
-        warnings.push("Authenticated library read resolved to the Goodreads sign-in page.");
-      } else {
-        authenticatedSuccess = true;
-        const immediate = parseLibraryEditState(result.html);
-        reviewId = immediate.reviewId;
-        if (immediate.status) status = immediate.status;
-        if (immediate.rating !== null) rating = immediate.rating;
-        reviewText = immediate.reviewText;
-      }
-    } catch {
-      sourceResults.push({
-        source: "authenticated-edit",
-        target: "/review/edit/{book_id}",
-        ok: false,
-      });
-      warnings.push("Authenticated library edit-page lookup failed.");
-    }
-  }
-
-  const anySuccess = authenticatedSuccess || rssSuccessCount > 0;
-  const confidence: Confidence = authenticatedSuccess
-    ? "high"
-    : rssSuccessCount > 0
-      ? status === "unknown"
-        ? "medium"
-        : "high"
-      : "low";
-  if (!anySuccess) warnings.push("No library-state source succeeded; returned state is indeterminate.");
-
-  const canonicalHash = reviewText ? reviewHash(reviewText) : "";
-  return envelope(
-    {
-      bookId,
-      userId,
-      status,
-      rating,
-      ...(options.includeReviewId ? { reviewId } : {}),
-      review: {
-        exists: Boolean(reviewText),
-        textLength: reviewText.length,
-        textSha256: canonicalHash,
-        canonicalization: "HTML entities decoded; whitespace collapsed and trimmed",
-      },
-      sources,
-      sourceResults,
-      evidence: {
-        authenticatedSuccess,
-        rssSuccessCount,
-        stateObserved: anySuccess,
-      },
-    },
-    { warnings, confidence },
-  );
+  return envelope(observationData(bookId, userId, Boolean(options.includeReviewId), state), {
+    warnings: state.warnings,
+    confidence: observationConfidence(state),
+  });
 }
 
 export async function ss(options: SSO): Promise<CommandEnvelope<unknown>> {
@@ -397,46 +429,56 @@ export async function ru(options: RUO): Promise<CommandEnvelope<unknown>> {
   });
 }
 
+function reviewApprovalBlockers(options: RVO, bookId: string, hash: string): string[] {
+  const result = checks(executionRequested(true), approvedBook(bookId, options.approvedBookId));
+  if (!result.ok) return result.blockers;
+  if (!options.approvedTextSha256) return ["approvedTextSha256 required for execute"];
+  if (options.approvedTextSha256 !== hash) return ["approvedTextSha256 mismatch"];
+  return [];
+}
+
+function blockedReview(bookId: string, textLength: number, hash: string, blockers: string[]) {
+  return envelope({
+    bookId,
+    textLength,
+    textSha256: hash,
+    submitted: false,
+    outcome: "blocked",
+    mutationVerified: false,
+    blockers,
+  });
+}
+
+async function verifyReviewWrite(
+  bookId: string,
+  userId: string | undefined,
+  canonicalText: string,
+  hash: string,
+) {
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  const again = await ls({ bookId, userId });
+  const review = (again.data as {
+    review?: { exists?: boolean; textSha256?: string };
+  }).review;
+  const exists = Boolean(review?.exists);
+  const verifiedHash = review?.textSha256 ?? "";
+  return {
+    mutationVerified: canonicalText
+      ? exists && verifiedHash === hash
+      : !exists && verifiedHash === "",
+    verifiedHash,
+    exists,
+  };
+}
+
 export async function rv(options: RVO): Promise<CommandEnvelope<unknown>> {
   const bookId = validateBookId(options.bookId);
   const canonicalText = canonicalReviewText(options.reviewText);
   const hash = reviewHash(canonicalText);
   const execute = Boolean(options.execute);
   if (execute) {
-    const result = checks(executionRequested(true), approvedBook(bookId, options.approvedBookId));
-    if (!result.ok) {
-      return envelope({
-        bookId,
-        textLength: canonicalText.length,
-        textSha256: hash,
-        submitted: false,
-        outcome: "blocked",
-        mutationVerified: false,
-        blockers: result.blockers,
-      });
-    }
-    if (!options.approvedTextSha256) {
-      return envelope({
-        bookId,
-        textLength: canonicalText.length,
-        textSha256: hash,
-        submitted: false,
-        outcome: "blocked",
-        mutationVerified: false,
-        blockers: ["approvedTextSha256 required for execute"],
-      });
-    }
-    if (options.approvedTextSha256 !== hash) {
-      return envelope({
-        bookId,
-        textLength: canonicalText.length,
-        textSha256: hash,
-        submitted: false,
-        outcome: "blocked",
-        mutationVerified: false,
-        blockers: ["approvedTextSha256 mismatch"],
-      });
-    }
+    const blockers = reviewApprovalBlockers(options, bookId, hash);
+    if (blockers.length) return blockedReview(bookId, canonicalText.length, hash, blockers);
   }
 
   const route = await routeBySelector("POST /review/update/{book_id}");
@@ -456,24 +498,17 @@ export async function rv(options: RVO): Promise<CommandEnvelope<unknown>> {
     execute,
     `Confirm the canonical review hash for book ${bookId} through authenticated readback.`,
   );
-  let mutationVerified = false;
-  let verifiedHash = "";
-  let verifiedExists = false;
-  if (execute && (write.data as { submitted?: boolean } | undefined)?.submitted) {
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    const again = await ls({ bookId, userId: options.userId });
-    const review = (again.data as {
-      review?: { exists?: boolean; textSha256?: string };
-    }).review;
-    verifiedExists = Boolean(review?.exists);
-    verifiedHash = review?.textSha256 ?? "";
-    mutationVerified = canonicalText
-      ? verifiedExists && verifiedHash === hash
-      : !verifiedExists && verifiedHash === "";
-  }
+  const submitted = Boolean((write.data as { submitted?: boolean } | undefined)?.submitted);
+  const verification = execute && submitted
+    ? await verifyReviewWrite(bookId, options.userId, canonicalText, hash)
+    : { mutationVerified: false, verifiedHash: "", exists: false };
   return envelope({
-    ok: execute ? mutationVerified : true,
-    outcome: execute ? (mutationVerified ? "verified" : "indeterminate") : "planned",
+    ok: execute ? verification.mutationVerified : true,
+    outcome: execute
+      ? verification.mutationVerified
+        ? "verified"
+        : "indeterminate"
+      : "planned",
     bookId,
     textLength: canonicalText.length,
     textSha256: hash,
@@ -481,8 +516,8 @@ export async function rv(options: RVO): Promise<CommandEnvelope<unknown>> {
     transport: "POST /review/update/{book_id}",
     implementationStatus: "live",
     write,
-    mutationVerified,
-    verifiedTextSha256: verifiedHash,
-    verifiedExists,
+    mutationVerified: verification.mutationVerified,
+    verifiedTextSha256: verification.verifiedHash,
+    verifiedExists: verification.exists,
   });
 }
