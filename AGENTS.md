@@ -1,143 +1,134 @@
-# AGENTS.md — Goodreads CLI (MCP + API) developer/maintainer runbook
+# AGENTS.md - Goodreads CLI development guide
 
-This is the in-repo runbook for anyone (human or agent) working **on** this
-codebase. For operating the tool, read [`SKILL.md`](./SKILL.md); for the
-project pitch, read [`README.md`](./README.md). When in doubt, this file is the
-source of truth for layout, build/test, and the invariants you must not break.
+This file is for humans and coding agents working on the repository. Read `README.md` for the user-facing overview, `CONTRIBUTING.md` for contribution rules, and `SECURITY.md` for the data boundary.
 
-## What this repo is
+## Product direction
 
-An unofficial **API map + CLI + MCP server** for the logged-in Goodreads web
-surface. Amazon shut the public Goodreads API to new keys in December 2020, so
-there is no official API to call. The headline artifact is the hand-mapped
-surface in [`api-map/`](./api-map/); the CLI and MCP server are two thin front
-ends that prove the map is real and complete enough to drive.
+The product is **Goodreads CLI**.
 
-## Repository layout
+- The CLI is the primary interface.
+- MCP is an optional integration over shared application services.
+- The full endpoint map, browser captures, curl experiments, and research chronology are private development material.
+- The future public repository must have clean history and contain only the product code, sanitized fixtures, tests, and the minimum route definitions required at runtime.
+- Do not use `CLI + MCP + API` as the product name.
+- Do not describe the route map as the product.
 
-```
-api-map/        OpenAPI 3.1 spec, per-endpoint Markdown, curl, CDP captures — the product
-cli/            @zaydiscold/goodreads-cli — the TypeScript CLI + the shared engine
-  src/
-    engine.ts       THE SHARED ENGINE — every operation, returns CommandEnvelopes
-    index.ts        commander entrypoint; wires the command groups
-    commands/*.ts   thin commander wrappers — each just parses args and calls engine.ts
-    client/         live.ts (request plan/execute) + http.ts (GET helper)
-    parsers/        one parser per page type (shelf, book, notes, messages, comments, rss)
-    shelf.ts        shared shelf-page read/summarize helpers (books + recent-reading)
-    workflows/      recent-reading join + notes-publicize workflow plans
-    risk.ts         route -> risk level + the live-mutation stderr warning
-    lib.ts          envelope(), route-map loaders, search, static write plans
-  test/         vitest — parsers, engine smoke, and the CLI<->MCP parity guard
-mcp/            @zaydiscold/goodreads-mcp — the MCP server (thin adapters over engine.ts)
-docs/           auth, gotchas, write-operations, exports, rate-limits, etc.
-fixtures/       local authenticated HTML captures (gitignored; never committed)
-proofs/         sanitized run proofs (counts/status/timing only — no highlight text)
+The current repository still contains the legacy research tree and compatibility surfaces. Preserve working behavior while preparing the split, but do not add new public dependencies on the full `api-map/` corpus.
+
+## Current layout
+
+```text
+api-map/        Legacy route research. Move to the private source repository.
+cli/            TypeScript CLI, parsers, clients, workflows, and shared engine.
+mcp/            Repository-local MCP adapter.
+docs/           User docs mixed with historical research and audits.
+scripts/        Build, doctor, secret-scan, and wrapper scripts.
 ```
 
-## The two invariants (do not break these)
+The public extraction should be smaller and task-oriented:
 
-1. **One engine, full parity.** All operation logic lives in
-   [`cli/src/engine.ts`](./cli/src/engine.ts) and returns a `CommandEnvelope`.
-   The CLI commands and the MCP tools are **thin adapters** — they parse inputs
-   and call an engine function, nothing more. A capability must never live on
-   one surface only. The `CAPABILITIES` registry in `engine.ts` is the contract,
-   and [`cli/test/parity.test.ts`](./cli/test/parity.test.ts) fails CI if any
-   capability is missing a CLI command **or** an MCP tool (in either direction).
+```text
+src/            CLI commands, application services, parsers, auth, and MCP integration.
+test/           Unit, contract, fixture, and package smoke tests.
+docs/           Installation, auth, commands, automation, safety, and troubleshooting.
+.github/        CI and concise issue/PR templates.
+```
 
-   **To add a capability:** add an `engine.ts` function + a `CAPABILITIES` entry,
-   then wire a `commands/*.ts` subcommand **and** a `mcp/src/server.ts`
-   `registerTool` for it. The parity test tells you if you forgot one.
+Do not copy historical audits, branch handoffs, raw captures, per-endpoint research pages, personal machine notes, or account-specific receipts into the public repository.
 
-2. **Safety: live-capable reads are free, writes gate.** Some reads are live while fixture/catalog/plan commands remain local; consult `docs/evidence-confidence-ledger.md`. Every write builds a
-   dry-run plan by default. Notes publicize/hide require all three gates —
-   `--execute`, an exact `--approved-book-id`, and `GOODREADS_ALLOW_NOTES_PUBLICIZE=1`
-   (enforced in `checkPublicizeApproval`). Quote and shelf writes default to dry-run
-   and need `--execute`. Live Rails mutations auto-refresh CSRF from
-   `GOODREADS_COOKIE` and send `Referer`/`Origin`/`X-Requested-With` (see
-   `docs/auth.md`). Output must **never** contain raw highlight text, comment
-   bodies, cookies, CSRF tokens, or private URLs.
+## Current architecture
 
-## Build / test / typecheck
+Most behavior currently flows through `cli/src/engine.ts`. Commander commands and MCP tools call the same engine functions, and the current parity tests require every registered capability to appear on both surfaces.
+
+That is a compatibility constraint of the present source tree, not the long-term product model. During the public extraction:
+
+1. Move business logic into feature-focused application services.
+2. Keep CLI commands thin.
+3. Let MCP call the same services.
+4. Expose a curated MCP subset instead of forcing every CLI command to become a tool.
+5. Remove generic route-map and raw request execution from the public product.
+6. Export only deliberate, stable package entry points.
+
+Until that refactor lands, update the capability registry and parity tests whenever current shared behavior changes.
+
+## Safety invariants
+
+These rules are non-negotiable:
+
+1. Account writes are dry-run by default.
+2. A live write requires explicit execution and exact approval values where applicable.
+3. HTTP acceptance is not account-state verification.
+4. Every supported live mutation needs an independent readback or a clearly documented verification limit.
+5. Credentialed traffic is restricted to the exact trusted Goodreads origin.
+6. Redirects carrying credentials must remain on that origin.
+7. Responses and fixture inputs remain bounded.
+8. Output must not contain cookies, CSRF tokens, private RSS keys, raw highlights, review bodies, comment bodies, message bodies, private URLs, or account-specific action links.
+9. No personal account ID, username, local filesystem path, host name, or machine-specific command belongs in tracked public documentation.
+
+Use synthetic identifiers in tests and examples.
+
+## Route-research boundary
+
+The complete map is not a public artifact.
+
+Private source material may include sanitized discovery notes and experiments, but secrets and raw personal reading content still remain local-only and outside Git.
+
+The public CLI may include only the endpoint constants and request shapes required by its task-specific commands. An open-source client cannot hide the paths it calls, so do not claim complete route secrecy. The goal is to keep the research corpus private, not to pretend the runtime is opaque.
+
+Do not add new user-facing commands such as route inventory, browser capture inventory, or arbitrary request execution to the public extraction.
+
+## Build and verification
+
+From the repository root:
 
 ```bash
-pnpm install
-pnpm build         # builds the CLI (tsc + copies api-map into dist) then the MCP server
-pnpm typecheck     # cli typecheck -> cli build -> mcp typecheck (mcp needs cli's dist .d.ts)
-pnpm test          # vitest: parsers + engine + parity
-pnpm lint          # eslint over cli/src + mcp/src
-pnpm format        # prettier --write
+corepack pnpm install --frozen-lockfile
+corepack pnpm check
 ```
 
-Requires **Node >= 20** and **pnpm**. The MCP package imports the CLI's built
-output via the package `exports` map (`@zaydiscold/goodreads-cli/engine`, `/lib`,
-`/live`, `/risk`, `/workflows`), so **you must build the CLI before the MCP
-typechecks** — `pnpm typecheck` already orders this for you.
+`pnpm check` runs:
 
-> **Rebuild after editing the route map or the engine.** The runtime reads
-> `cli/dist/` (the build copies `api-map/` into `cli/dist/api-map/`). Editing
-> source without `pnpm build` is a silent no-op.
+- dependency audit;
+- repository-specific secret scan;
+- ESLint;
+- Prettier check;
+- TypeScript checks;
+- CLI and MCP tests;
+- production builds.
 
-## Adding a route to the map
+The current MCP package depends on generated CLI output, so the root scripts intentionally build the CLI before checking or testing MCP.
 
-1. Add the path to `api-map/openapi/undocumented/goodreads-web.yaml` (and a
-   Markdown page under `api-map/markdown/`).
-2. Mark mutations: any `POST/PUT/PATCH/DELETE` is treated as account-mutating
-   (`lib.ts:isMutation`); add a summary note for the rare GET that mutates.
-3. Wire a capability (see invariant #1) if agents/users should drive it.
-4. `pnpm build && pnpm test`, then live-verify with a reversible action only.
+## Adding or changing behavior
 
-## MCP registration
+For a user-facing capability:
 
-```bash
-# Register the tracked wrapper, not ignored mcp/dist/server.js:
-/abs/path/to/repo/scripts/goodreads-mcp.sh
-```
+1. Start with the reader outcome, not an endpoint name.
+2. Decide whether it is a read, plan, safe write, or destructive write.
+3. Implement the behavior in a shared application/service layer.
+4. Add a thin CLI command.
+5. Add MCP exposure only when it is useful for agents.
+6. Add privacy-safe tests and fixtures.
+7. Define post-write verification before enabling execution.
+8. Update user documentation without exposing research evidence or personal data.
 
-Live tool truth is `tools/list`; the `full`, `core`, and `notes` profiles expose
-different subsets of the same engine. The wrapper loads auth from
-`~/.goodreads/auth.sh`. Generic mutations additionally require exact route
-approval and `GOODREADS_ALLOW_GENERIC_WRITES=1`; notes use
-`GOODREADS_ALLOW_NOTES_PUBLICIZE=1`. See
-[`SKILL.md`](./SKILL.md) §1–§2 for the CDP auth-extraction flow.
+For current-tree changes that touch the legacy capability registry, keep the existing CLI and MCP adapters consistent until the public extraction removes the forced parity model.
 
-## Naming convention & lineage
+## Documentation rules
 
-**Convention (shared across the personal CLI repos).** The GitHub slug is `<venue>-cli-mcp-api` and the
-README H1 reads **"<Venue> CLI (MCP + API)"** — e.g. Goodreads CLI (MCP + API), Robinhood CLI (MCP + API),
-plus the AllTrails / GoDaddy / Squarespace siblings. The npm package and bin names stay
-`@zaydiscold/<venue>-cli` / `<venue>-cli`; only the GitHub slug and the README title carry the
-`(MCP + API)` branding, and GitHub auto-redirects the old slugs.
+Public-facing documentation should be literal and useful:
 
-**Lineage — Printing Press is a starting point, not a cage.** The CLI + skill + MCP trio pattern is
-borrowed from [Matt Van Horn's Printing Press](https://github.com/mvanhorn/cli-printing-press), and these
-repos use it as a _seed_ — not a spec we only follow. The API map here is hand-extended well past anything
-a generator produced, and we may spin up separate repos to keep building on top of what's here rather than
-conforming back to the generator. The map is the product; Printing Press just gave us a good place to start.
+- name the task the tool performs;
+- show installation early;
+- use real command examples;
+- keep MCP below the primary CLI workflow;
+- keep implementation research out of the product pitch;
+- avoid brittle route, tool, token, or endpoint counts;
+- do not invent a personal hook for marketing copy.
 
-## Recent regression guard: mixed SSO cookies
+Historical evidence, dated audits, and launch-operation notes belong in the private source repository or issue tracker, not in the public documentation tree.
 
-Public Goodreads reads once received a raw browser cookie jar containing Amazon/SSO cookies. `/search` could then redirect through SSO until undici exhausted its redirect limit. Removing every cookie is also wrong because authenticated shelf writes need Goodreads session state.
+## Release rule
 
-- Public Goodreads requests must pass through `publicGoodreadsCookie(...)`; never send a raw multi-origin cookie jar.
-- `cli/test/cookie.test.ts` must prove mixed Amazon/Goodreads input is reduced while required Goodreads auth survives.
-- Do not raise redirect limits to hide routing defects.
-- HTTP 200 or nonempty HTML is not semantic proof. Public-read acceptance requires parsed domain data with no auth/SSO cookie leakage. Authenticated-write acceptance requires a reversible mutation, route-specific account-state readback, and rollback verification; a dry-run alone is not a live ship gate.
-- Keep `docs/evidence-confidence-ledger.md` current for every public CLI command and MCP tool. Use its explicit tiers; never generalize one live route or mutation receipt to an entire family.
-- The repaired cookie/client files must remain inside the Prettier baseline.
+Do not publish the npm package or rename this repository to `goodreads-cli` while it still contains the full route-research history.
 
-Focused, non-duplicative gate after cookie, redirect, public search, shelf-auth, or affected client changes:
-
-```bash
-pnpm regression:recent
-```
-
-This composes the existing source-integrity check, focused cookie test, and formatting check. Before release, also run the full repository gates and external live ship gate.
-
-## House rules
-
-- Keep fixtures and any raw captures in the gitignored `fixtures/` — promote only
-  sanitized, tested behavior to `cli/`, `mcp/`, `docs/`, and `proofs/`.
-- Match the existing style: thin commands, enveloped output, one parser per page
-  type, plan-by-default writes.
-- Document undocumented-surface discoveries in `docs/undocumented-surface.md`.
+The release sequence is defined in `docs/public-repo-migration.md`.
