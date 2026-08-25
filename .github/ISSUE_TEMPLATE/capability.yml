@@ -1,0 +1,60 @@
+name: Capability proposal
+description: Propose a Goodreads read, parser, plan, or carefully gated write
+title: "capability: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Reader outcome
+      description: Describe the user result, not only the route or framework.
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk
+      options:
+        - Read only
+        - Plan only
+        - Account mutation
+        - Destructive account mutation
+    validations:
+      required: true
+  - type: input
+    id: cli
+    attributes:
+      label: Proposed CLI shape
+      placeholder: goodreads-cli shelves ...
+    validations:
+      required: true
+  - type: input
+    id: mcp
+    attributes:
+      label: Proposed MCP shape
+      description: Use `not applicable` only for an intentional CLI-only surface.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Privacy-safe evidence
+      description: Explain how a sanitized fixture, unit test, live read, or reversible readback can prove the behavior. Do not attach raw captures.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Independent verification or rollback
+      description: Required for writes. HTTP success alone is not verification.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety contract
+      options:
+        - label: The proposal preserves dry-run defaults and exact approval values for writes.
+          required: true
+        - label: The proposal does not require committing credentials, private text, raw authenticated HTML, or private URLs.
+          required: true
