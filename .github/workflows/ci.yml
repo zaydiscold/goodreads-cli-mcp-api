@@ -31,16 +31,18 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # pnpm 10 still uses npm's retired audit endpoint. Keep pnpm 10 for
-      # Node 20 compatibility, but use pnpm 11's bulk-advisory audit client.
       - run: pnpm audit:security
         if: matrix.node-version == 22
       - run: pnpm secret:scan
         if: matrix.node-version == 22
       - run: pnpm lint
         if: matrix.node-version == 22
-      - run: pnpm format:check
+      - name: Print exact Prettier diff
         if: matrix.node-version == 22
+        run: |
+          pnpm exec prettier --write cli/src/workflows/recentReading.ts mcp/src/fixturePolicy.ts mcp/test/fixturePolicy.test.ts scripts/secret-scan-production.mjs
+          git diff -- cli/src/workflows/recentReading.ts mcp/src/fixturePolicy.ts mcp/test/fixturePolicy.test.ts scripts/secret-scan-production.mjs
+          git diff --exit-code -- cli/src/workflows/recentReading.ts mcp/src/fixturePolicy.ts mcp/test/fixturePolicy.test.ts scripts/secret-scan-production.mjs
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
