@@ -1,51 +1,45 @@
 name: Bug report
-description: Report incorrect CLI, parser, or MCP behavior without private account data
+description: Report incorrect Goodreads CLI behavior with a sanitized reproduction
 title: "bug: "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Do not paste cookies, CSRF tokens, private RSS keys, authenticated HTML, Kindle highlight text, comments, reviews, messages, private URLs, or account-specific screenshots.
+        Do not paste cookies, CSRF tokens, private RSS keys, authenticated HTML, raw highlights, private reviews, comments, messages, account IDs, private URLs, or machine-specific paths.
   - type: textarea
-    id: outcome
+    id: expected
     attributes:
-      label: Expected outcome
-      description: What concrete result did you expect?
+      label: Expected behavior
+      description: What did you expect the CLI to do?
     validations:
       required: true
   - type: textarea
     id: actual
     attributes:
       label: Actual behavior
-      description: Include a sanitized error, command shape, and confidence/warning fields.
+      description: Include the sanitized error and any confidence or warning fields.
     validations:
       required: true
   - type: input
     id: command
     attributes:
-      label: Command or MCP tool
-      placeholder: goodreads-cli books list or goodreads_books_list
+      label: Command
+      placeholder: goodreads-cli books list --shelf read --json
     validations:
       required: true
-  - type: dropdown
-    id: source
+  - type: input
+    id: version
     attributes:
-      label: Source mode
-      options:
-        - Public live read
-        - Authenticated live read
-        - Sanitized fixture
-        - Local route catalog
-        - Dry-run plan
-        - Live mutation with approved readback
+      label: Version and runtime
+      placeholder: goodreads-cli 0.x, Node 22, macOS 15
     validations:
       required: true
   - type: textarea
     id: reproduction
     attributes:
       label: Sanitized reproduction
-      description: Use synthetic IDs and reduced, privacy-safe fixtures only.
+      description: Use synthetic IDs and the smallest reproducible input. Attach only privacy-safe fixtures.
     validations:
       required: true
   - type: checkboxes
@@ -53,5 +47,5 @@ body:
     attributes:
       label: Privacy check
       options:
-        - label: I removed all credentials, private text, private URLs, account identifiers, and raw authenticated captures.
+        - label: I removed credentials, personal reading content, private URLs, account identifiers, and local machine details.
           required: true
