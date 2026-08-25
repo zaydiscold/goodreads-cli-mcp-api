@@ -1,24 +1,13 @@
-name: Capability proposal
-description: Propose a Goodreads read, parser, plan, or carefully gated write
-title: "capability: "
+name: Feature proposal
+description: Propose a task-focused Goodreads CLI feature
+title: "feature: "
 labels: ["enhancement"]
 body:
   - type: textarea
     id: outcome
     attributes:
-      label: Reader outcome
-      description: Describe the user result, not only the route or framework.
-    validations:
-      required: true
-  - type: dropdown
-    id: risk
-    attributes:
-      label: Risk
-      options:
-        - Read only
-        - Plan only
-        - Account mutation
-        - Destructive account mutation
+      label: User outcome
+      description: What should a reader be able to accomplish?
     validations:
       required: true
   - type: input
@@ -28,33 +17,52 @@ body:
       placeholder: goodreads-cli shelves ...
     validations:
       required: true
-  - type: input
-    id: mcp
+  - type: dropdown
+    id: risk
     attributes:
-      label: Proposed MCP shape
-      description: Use `not applicable` only for an intentional CLI-only surface.
+      label: Account effect
+      options:
+        - Public read only
+        - Authenticated read only
+        - Dry-run plan
+        - Account mutation
+        - Destructive account mutation
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Expected output
+      description: Describe useful human output and, when relevant, the stable JSON shape.
     validations:
       required: true
   - type: textarea
     id: evidence
     attributes:
-      label: Privacy-safe evidence
-      description: Explain how a sanitized fixture, unit test, live read, or reversible readback can prove the behavior. Do not attach raw captures.
+      label: Privacy-safe test or evidence
+      description: Explain how synthetic data, a sanitized fixture, or a bounded read can prove the behavior. Do not attach raw captures.
     validations:
       required: true
   - type: textarea
     id: verification
     attributes:
-      label: Independent verification or rollback
-      description: Required for writes. HTTP success alone is not verification.
+      label: Write verification or rollback
+      description: Required for mutations. HTTP success alone is not verification. Enter "not applicable" for reads.
+    validations:
+      required: true
+  - type: textarea
+    id: mcp
+    attributes:
+      label: Optional MCP use case
+      description: Explain why an agent tool would be useful, or enter "not needed". MCP parity is not required.
     validations:
       required: true
   - type: checkboxes
     id: safety
     attributes:
-      label: Safety contract
+      label: Safety check
       options:
-        - label: The proposal preserves dry-run defaults and exact approval values for writes.
+        - label: This proposal does not require publishing the full route research corpus or committing private account data.
           required: true
-        - label: The proposal does not require committing credentials, private text, raw authenticated HTML, or private URLs.
+        - label: Any live write will remain dry-run by default and require explicit approval.
           required: true
