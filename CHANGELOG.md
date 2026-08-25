@@ -1,18 +1,30 @@
 # Changelog
 
-## Unreleased — 2026-08-23 (HTTP origin hardening)
+## Unreleased - public repository split
+
+- Defined **Goodreads CLI** as the product name. MCP remains an optional integration.
+- Stopped presenting the complete endpoint map as a public product artifact.
+- Marked the current repository as the private development and research source for a new clean-history public `goodreads-cli` repository.
+- Removed slogan-first and bookstore-photo-first launch copy from the product documentation. Photo workflows remain an optional agent-assisted use case, not built-in computer vision or the CLI's identity.
+- Removed personal account IDs, user slugs, machine paths, and host-specific instructions from tracked operator documentation.
+- Documented the removal of route inventory, browser-route inventory, arbitrary request execution, full-map packaging, and forced CLI-to-MCP parity from the future public product.
+- Kept package publication disabled until the clean public package passes tarball inspection and clean-machine installation tests.
+
+The clean public repository should start with a concise product changelog. The historical entries below remain useful inside this private source repository but should not be copied wholesale into the public tree.
+
+## Unreleased - 2026-08-23 (HTTP origin hardening)
 
 - Restricted every shared Goodreads HTTP helper to the exact HTTPS origin `https://www.goodreads.com` before any network request is sent.
 - Replaced automatic redirect following with bounded, same-origin redirect handling so authenticated and public-safe cookie jars cannot cross an origin boundary.
 - Added focused regression coverage for direct custom-origin requests, deceptive hostnames, cleartext URLs, embedded credentials, and cross-origin redirects.
 
-## Unreleased — 2026-08-23 (daily watch)
+## Unreleased - 2026-08-23 (daily watch)
 
 - `comments list --user-slug` and `goodreads_comments_list` now read the authenticated recent-post page live instead of returning a plan-only null parse.
 - Live output remains redaction-first: comment counts and link/form shape only, never comment bodies.
 - Added focused engine coverage and updated the evidence ledger for the unified daily reading/annotations/comments watchdog.
 
-## Unreleased — 2026-08-23
+## Unreleased - 2026-08-23
 
 ### Daily reading sync hardening
 
@@ -20,7 +32,7 @@
 - Moved the WSL cron helper from the repository root to `scripts/goodreads-daily-sync.sh`, removed machine-specific defaults, made writes atomic, and kept explicit success/failure receipts.
 - Simplified the README's stale v1 token table into current MCP profile guidance and added compact navigation.
 
-## Unreleased — 2026-08-22
+## Unreleased - 2026-08-22
 
 ### Similar books read surface
 
@@ -29,79 +41,53 @@
 - Excludes the source work, duplicates, descriptions, reviews, and image URLs; ships in `full` and `core` MCP profiles.
 - Live-read verified against `GET /book/similar/{work_slug}` without account cookies or browser runtime dependencies.
 
-## Unreleased — 2026-08-01
+## Unreleased - 2026-08-01
 
-### Bookstore haul + Kindle parity (live)
+### Bookstore haul and Kindle parity
 
-- Photo → resolve → `shelves add --name to-read --execute` proven on multi-title
-  bookstore hauls (session cookie + auto CSRF). Titles land on Want to Read.
-- Cross-repo: pair with [amazon-kindle-cli-mcp-api](https://github.com/zaydiscold/amazon-kindle-cli-mcp-api)
-  (`wishlist add` / `parity` / `sync goodreads-plan`) for Goodreads ↔ Amazon
-  wishlist / Kindle list parity on the same stack.
-- Library writes no longer stubs: `set-status` reuses shelf add; rating/review
-  via `POST /review/update/{book_id}` (PR #9).
+- Demonstrated an agent-assisted photo workflow: identify candidate titles, resolve Goodreads IDs, and add approved books to Want to Read.
+- Paired the workflow with the sibling Kindle/Amazon project for list-parity experiments.
+- Added library writes for status, rating, and review workflows.
 
-## Unreleased — 2026-07-27
+## Unreleased - 2026-07-27
 
-Snap a bookstore stack photo → agent resolves ids → Want to Read. Same cookie
-session as notes; CSRF auto-refresh so the next write feature doesn't eat
-stale-token 404s.
+### Shelf add and remove
 
-### Shelf add / remove (live)
+- Added first-class `shelves add` and `shelves remove` CLI commands plus corresponding MCP tools in the current private source registry.
+- Uses the shelf form route with `book_id`, shelf name, and the remove action where applicable.
+- Verified the request and readback workflow against the maintainer's account using reversible test data. Personal IDs and titles are intentionally omitted here.
 
-- First-class `shelves add` / `shelves remove` CLI commands + MCP tools
-  `goodreads_shelf_add` / `goodreads_shelf_remove` (also in `core` profile).
-- Drives proven route `POST /shelf/add_to_shelf` with `book_id` + `name`
-  (`to-read` / `currently-reading` / `read` / custom) and `a=remove` for remove.
-- Live-verified 2026-07-27: Catching the Big Fish (`58169`), Fantastic Mr. Fox
-  (`6693`), Edison's Alley (`20875669`) added to to-read and confirmed via RSS.
+### Auth hardening
 
-### Auth hardening (same cookie for every write)
+- Account mutations send the expected browser-origin headers.
+- Live Rails mutations can refresh CSRF state from the authenticated session before submission.
+- Failed writes return sanitized errors without exposing credentials or private response content.
+- Added authentication, write-operation, and troubleshooting documentation.
 
-- Mutation client always sends `Referer` + `Origin` + `X-Requested-With` on
-  account writes (Goodreads returns opaque 404s without them — same lesson as
-  `publicize.py`).
-- **Auto CSRF refresh:** before live Rails mutations, GET
-  `https://www.goodreads.com/review/list` with `GOODREADS_COOKIE` and mint a fresh
-  `csrf-token`. Stale `GOODREADS_CSRF_TOKEN` in auth.sh no longer breaks shelves
-  or notes. Skip only with `GOODREADS_SKIP_CSRF_REFRESH=1` (tests).
-- Error bodies are surfaced on failed writes (e.g. `Sorry, we couldn't find that book.`).
-- Docs: `docs/auth.md`, `docs/write-operations.md`, `docs/gotchas.md`, `SKILL.md`.
+## 1.0.0 - 2026-07-14
 
-## 1.0.0 — 2026-07-14
-
-First stable release of the paired Goodreads API map, CLI, and MCP server.
+First internal stable release of the paired route research, CLI, and MCP development source.
 
 ### Agent efficiency
 
 - Added `full`, `core`, and `notes` MCP profiles over one shared engine.
-- Reduced core `tools/list` discovery from 4,011 to 1,164 `o200k_base`
-  tokens: **70.98% fewer tokens**.
-- Reduced core discovery JSON from 17,034 to 4,830 bytes: **71.64% fewer
-  bytes**.
-- Reduced routine visible tools from 28 to 8: **71.43% fewer tools**.
-- Kept compact MCP output, bounded route results, and summarized browser-route
-  output as defaults.
+- Reduced routine MCP discovery size by introducing smaller profiles.
+- Kept compact MCP output, bounded route results, and summarized browser-route output as defaults.
 
-### API, CLI, and MCP
+### API, CLI, and MCP development
 
-- Expanded the authenticated web map to 107 paths and 114 HTTP operations.
-- Added a 12-operation AppSync catalog with non-executable mutation metadata.
-- Corrected individual Kindle annotation visibility, spoiler, deletion, and
-  note-text methods from current Goodreads client source.
-- Kept CLI and MCP behavior paired through the shared engine and parity tests.
+- Expanded the private authenticated route research and AppSync operation catalog.
+- Corrected notes-related request contracts using browser and client-source evidence.
+- Paired CLI and MCP behavior through the current shared engine and parity tests.
 
 ### Safety and runtime
 
-- Restricted credentials to the exact Goodreads origin and rejected
-  credentialed cross-origin redirects.
+- Restricted credentials to the exact Goodreads origin and rejected credentialed cross-origin redirects.
 - Prevented CSRF form-field injection into custom-origin requests.
 - Kept mapped writes dry-run by default with route-specific approval gates.
-- Added build-aware macOS/Linux and Windows launchers so generated
-  `mcp/dist/server.js` is rebuilt when missing or stale.
+- Added build-aware launchers for generated MCP output.
 
 ### Verification
 
-- 35 CLI tests and 9 real MCP stdio tests pass on macOS, Windows, and GitHub CI.
-- Codex, Claude Code, and Hermes use the eight-tool core profile on both paired
-  machines.
+- CLI and MCP tests passed on the maintainer's supported systems and GitHub CI.
+- Live account testing used reversible actions and independent readbacks where supported.
