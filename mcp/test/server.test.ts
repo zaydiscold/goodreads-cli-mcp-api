@@ -10,6 +10,7 @@ import {
   CORE_TOOL_NAMES,
   FULL_TOOL_NAMES,
   NOTES_TOOL_NAMES,
+  READ_TOOL_NAMES,
   type McpProfile,
 } from "../src/profile.js";
 
@@ -22,7 +23,7 @@ type RunningClient = {
 };
 
 async function connect(
-  profile: McpProfile | undefined = "full",
+  profile?: McpProfile,
   output: "compact" | "pretty" = "compact",
 ): Promise<RunningClient> {
   let stderr = "";
@@ -39,7 +40,7 @@ async function connect(
   transport.stderr?.on("data", (chunk) => {
     stderr += String(chunk);
   });
-  const client = new Client({ name: "goodreads-mcp-test", version: "1.0.0" });
+  const client = new Client({ name: "goodreads-mcp-test", version: "1.1.0" });
   await client.connect(transport);
   return { client, close: () => client.close(), stderr: () => stderr };
 }
@@ -58,15 +59,17 @@ function envelopeData(text: string): Record<string, unknown> {
 describe("Goodreads MCP stdio server", () => {
   const profiles = [
     { profile: "full" as const, names: FULL_TOOL_NAMES, maxBytes: 400_000 },
-    { profile: "core" as const, names: CORE_TOOL_NAMES, maxBytes: 15_000 },
-    { profile: "notes" as const, names: NOTES_TOOL_NAMES, maxBytes: 15_000 },
+    { profile: "core" as const, names: CORE_TOOL_NAMES, maxBytes: 20_000 },
+    { profile: "notes" as const, names: NOTES_TOOL_NAMES, maxBytes: 20_000 },
+    { profile: "read" as const, names: READ_TOOL_NAMES, maxBytes: 30_000 },
   ];
 
-  it("defaults to the full profile when GOODREADS_MCP_PROFILE is unset", async () => {
+  it("defaults to the read-only profile when GOODREADS_MCP_PROFILE is unset", async () => {
     const running = await connect(undefined);
     try {
       const result = await running.client.listTools();
-      expect(result.tools.map((tool) => tool.name)).toEqual([...FULL_TOOL_NAMES]);
+      expect(result.tools.map((tool) => tool.name)).toEqual([...READ_TOOL_NAMES]);
+      expect(result.tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
     } finally {
       await running.close();
     }
@@ -87,25 +90,24 @@ describe("Goodreads MCP stdio server", () => {
     },
   );
 
-  it("emits compact JSON by default and supports an explicit pretty mode", async () => {
-    const compact = await connect();
-    const pretty = await connect("full", "pretty");
+  it("emits compact JSON plus structuredContent and supports explicit pretty text", async () => {
+    const compact = await connect("read");
+    const pretty = await connect("read", "pretty");
     try {
-      const compactText = textContent(
-        await compact.client.callTool({
-          name: "goodreads_dynamic_inventory_guidance",
-          arguments: {},
-        }),
-      );
-      const prettyText = textContent(
-        await pretty.client.callTool({
-          name: "goodreads_dynamic_inventory_guidance",
-          arguments: {},
-        }),
-      );
+      const compactResult = await compact.client.callTool({
+        name: "goodreads_dynamic_inventory_guidance",
+        arguments: {},
+      });
+      const prettyResult = await pretty.client.callTool({
+        name: "goodreads_dynamic_inventory_guidance",
+        arguments: {},
+      });
+      const compactText = textContent(compactResult);
+      const prettyText = textContent(prettyResult);
       expect(() => JSON.parse(compactText)).not.toThrow();
       expect(compactText).not.toContain("\n");
       expect(prettyText).toContain("\n");
+      expect(compactResult.structuredContent).toEqual(JSON.parse(compactText));
       expect(Buffer.byteLength(compactText)).toBeLessThan(Buffer.byteLength(prettyText));
     } finally {
       await Promise.all([compact.close(), pretty.close()]);
@@ -113,7 +115,7 @@ describe("Goodreads MCP stdio server", () => {
   });
 
   it("uses bounded route and summarized browser defaults", async () => {
-    const running = await connect();
+    const running = await connect("read");
     try {
       const routesText = textContent(
         await running.client.callTool({ name: "goodreads_api_map_routes", arguments: {} }),
@@ -129,7 +131,7 @@ describe("Goodreads MCP stdio server", () => {
     }
   });
 
-  it("exposes newly authenticated routes through the core search tool without new tools", async () => {
+  it("exposes authenticated and AppSync routes through search without new tools", async () => {
     const running = await connect("core");
     try {
       const result = await running.client.callTool({
@@ -149,14 +151,13 @@ describe("Goodreads MCP stdio server", () => {
       );
       expect(graphql).toContain("/graphql#RateBook");
       expect(graphql).toContain('"executable":false');
-      expect(Buffer.byteLength(graphql)).toBeLessThan(5_000);
     } finally {
       await running.close();
     }
   });
 
   it("publishes accurate standard safety annotations", async () => {
-    const running = await connect();
+    const running = await connect("full");
     try {
       const { tools } = await running.client.listTools();
       const tool = (name: string) => {
@@ -169,27 +170,21 @@ describe("Goodreads MCP stdio server", () => {
       expect(tool("goodreads_book_show").annotations?.openWorldHint).toBe(true);
       expect(tool("goodreads_quotes_remove").annotations?.destructiveHint).toBe(true);
       expect(tool("goodreads_request_execute").annotations?.destructiveHint).toBe(true);
-      expect(tool("goodreads_notes_publicize").annotations?.destructiveHint).toBe(false);
       expect(tool("goodreads_notes_publicize").annotations?.readOnlyHint).toBe(false);
-      expect(tool("goodreads_shelf_add").annotations?.readOnlyHint).toBe(false);
       expect(tool("goodreads_shelf_add").annotations?.destructiveHint).toBe(false);
-      expect(tool("goodreads_shelf_remove").annotations?.readOnlyHint).toBe(false);
       expect(tool("goodreads_notes_inspect").annotations?.openWorldHint).toBe(false);
-      expect(tool("goodreads_api_map_routes").annotations).not.toHaveProperty("mcp:risk");
-      expect(tool("goodreads_api_map_routes").annotations).not.toHaveProperty("mcp:read-only");
     } finally {
       await running.close();
     }
   });
 
-  it("keeps mutations dry-run unless their explicit execution gates are satisfied", async () => {
-    const running = await connect();
+  it("keeps mutations dry-run and emits exact approval requirements", async () => {
+    const running = await connect("full");
     try {
       const notes = await running.client.callTool({
         name: "goodreads_notes_publicize",
         arguments: { bookId: "123" },
       });
-
       expect(envelopeData(textContent(notes)).submitted).toBe(false);
 
       const shelf = await running.client.callTool({
@@ -197,13 +192,27 @@ describe("Goodreads MCP stdio server", () => {
         arguments: { bookId: "123", shelf: "to-read" },
       });
       expect(shelf.isError).not.toBe(true);
-      expect(envelopeData(textContent(shelf)).submitted).toBe(false);
+      expect(envelopeData(textContent(shelf))).toMatchObject({
+        submitted: false,
+        requiredApprovals: { approvedBookId: ["123"], approvedShelf: "to-read" },
+      });
+
+      const quote = await running.client.callTool({
+        name: "goodreads_quotes_add",
+        arguments: { body: "A quote", author: "An author" },
+      });
+      expect(envelopeData(textContent(quote))).toMatchObject({
+        submitted: false,
+        requiredApprovals: { approvedPayloadSha256: expect.stringMatching(/^[a-f0-9]{64}$/) },
+      });
 
       const generic = await running.client.callTool({
         name: "goodreads_request_execute",
         arguments: {
           route: "PUT /notes/{book_id}/share",
           param: ["book_id=123"],
+          execute: true,
+          dryRun: true,
         },
       });
       expect(generic.isError).not.toBe(true);

@@ -4,29 +4,38 @@ import {
   executeLiveRequest,
   type LiveExecuteOptions,
 } from "../client/live.js";
-import { fetchAuthenticatedText, fetchPublicText } from "../client/http.js";
+import {
+  encodeGoodreadsPathSegment,
+  fetchAuthenticatedText,
+  fetchPublicText,
+} from "../client/http.js";
 import { envelope, cleanText, loadApiMapRoutes, type GoodreadsRoute } from "../lib.js";
 import { emitLiveMutationWarning, riskLevelForRoute } from "../risk.js";
-import type { CommandEnvelope } from "../types/index.js";
+import type { CommandEnvelope, Confidence } from "../types/index.js";
 
-interface Ck {
+interface Check {
   ok: boolean;
   blocker: string | null;
 }
 
-function ne(e?: boolean): Ck {
-  if (!e) return { ok: false, blocker: "execute=true required" };
-  return { ok: true, blocker: null };
+function executionRequested(execute?: boolean): Check {
+  return execute ? { ok: true, blocker: null } : { ok: false, blocker: "execute=true required" };
 }
 
-function na(v: string, a?: string[]): Ck {
-  if (!a || a.length === 0) return { ok: false, blocker: "approvedBookId required for execute" };
-  if (!a.includes(v)) return { ok: false, blocker: "value not approved" };
-  return { ok: true, blocker: null };
+function approvedBook(value: string, approved?: string[]): Check {
+  if (!approved?.length) {
+    return { ok: false, blocker: "approvedBookId required for execute" };
+  }
+  return approved.includes(value)
+    ? { ok: true, blocker: null }
+    : { ok: false, blocker: "book id is not approved" };
 }
 
-function gt(...c: Ck[]) {
-  return { ok: c.every((x) => x.ok), blockers: c.filter((x) => !x.ok).map((x) => x.blocker!) };
+function checks(...values: Check[]) {
+  return {
+    ok: values.every((value) => value.ok),
+    blockers: values.filter((value) => !value.ok).map((value) => value.blocker!),
+  };
 }
 
 async function routeBySelector(selector: string): Promise<GoodreadsRoute> {
@@ -49,15 +58,18 @@ async function runWrite(
         ...buildLiveRequestPlan(route, { ...options, execute: false, dryRun: true }),
         riskLevel: riskLevelForRoute(route),
         submitted: false,
+        outcome: "planned",
         verificationRequired,
       },
-      { warnings: ["dry-run: pass --execute to send this live write"], confidence: "high" },
+      { warnings: ["dry-run: pass execute=true with exact approvals to send this write"] },
     );
   }
   emitLiveMutationWarning(route);
   const result = await executeLiveRequest(route, { ...options, execute: true, dryRun: false });
+  const submitted = "requestAccepted" in result ? Boolean(result.requestAccepted) : false;
   return envelope({
-    submitted: "requestAccepted" in result ? Boolean(result.requestAccepted) : false,
+    submitted,
+    outcome: submitted ? "submitted" : "rejected",
     result,
     verificationRequired,
   });
@@ -99,6 +111,7 @@ export interface RVO {
 const EXCLUSIVE = new Set(["to-read", "currently-reading", "read"]);
 
 export interface LibraryEditState {
+  reviewId: string | null;
   status: string | null;
   rating: number | null;
   reviewText: string;
@@ -112,14 +125,21 @@ function decodeHtmlEntities(value: string): string {
     lt: "<",
     quot: '"',
   };
-  return value.replace(/&(#x[0-9a-f]+|#\d+|amp|apos|gt|lt|quot);/gi, (_match, entity: string) => {
+  return value.replace(/&(#x[0-9a-f]+|#\d+|amp|apos|gt|lt|quot);/gi, (match, entity: string) => {
     if (entity.startsWith("#x")) return String.fromCodePoint(Number.parseInt(entity.slice(2), 16));
     if (entity.startsWith("#")) return String.fromCodePoint(Number.parseInt(entity.slice(1), 10));
-    return named[entity.toLowerCase()] ?? _match;
+    return named[entity.toLowerCase()] ?? match;
   });
 }
 
-/** Parse immediate account state from authenticated `/review/edit/{book_id}` HTML. */
+function canonicalReviewText(value: string): string {
+  return cleanText(decodeHtmlEntities(value));
+}
+
+function reviewHash(value: string): string {
+  return createHash("sha256").update(canonicalReviewText(value), "utf8").digest("hex");
+}
+
 export function parseLibraryEditState(html: string): LibraryEditState {
   const chosen = html.match(/chosen:\s*\[([^\]]*)\]/i)?.[1] ?? "";
   const chosenShelves = [...chosen.matchAll(/["']([^"']+)["']/g)].map((match) => match[1]!);
@@ -134,144 +154,230 @@ export function parseLibraryEditState(html: string): LibraryEditState {
       /<textarea[^>]*id=["']review_review_usertext["'][^>]*>([\s\S]*?)<\/textarea>/i,
     )?.[1] ??
     "";
+  const reviewId =
+    html.match(/\/review\/(?:show|edit|update)\/(\d+)/i)?.[1] ??
+    html.match(/review[_-]id["']?\s*[:=]\s*["']?(\d+)/i)?.[1] ??
+    null;
   return {
+    reviewId,
     status: exclusive ?? shelfLink ?? null,
     rating: ratingRaw === undefined ? null : Number(ratingRaw),
-    reviewText: cleanText(decodeHtmlEntities(reviewRaw)),
+    reviewText: canonicalReviewText(reviewRaw),
   };
 }
 
-// eslint-disable-next-line complexity -- multi-shelf RSS + optional HTML enrichment
-export async function ls(o: LSO): Promise<CommandEnvelope<unknown>> {
-  const uid = o.userId?.trim() || process.env.GOODREADS_USER_ID?.trim() || null;
-  const hasAuthenticatedSession = Boolean(process.env.GOODREADS_COOKIE?.trim());
-  if (!uid && !hasAuthenticatedSession) {
+function validateBookId(bookId: string): string {
+  const value = bookId.trim();
+  if (!/^\d+$/.test(value)) throw new Error("bookId must be numeric");
+  return value;
+}
+
+type SourceResult = {
+  source: "rss" | "authenticated-edit";
+  target: string;
+  ok: boolean;
+  signedOut?: boolean;
+};
+
+type LibraryObservation = {
+  status: string;
+  rating: number | null;
+  reviewId: string | null;
+  reviewText: string;
+  sources: string[];
+  sourceResults: SourceResult[];
+  warnings: string[];
+  authenticatedSuccess: boolean;
+  rssSuccessCount: number;
+};
+
+function emptyObservation(): LibraryObservation {
+  return {
+    status: "unknown",
+    rating: null,
+    reviewId: null,
+    reviewText: "",
+    sources: [],
+    sourceResults: [],
+    warnings: [],
+    authenticatedSuccess: false,
+    rssSuccessCount: 0,
+  };
+}
+
+function parseRssItem(item: string, shelf: string, state: LibraryObservation): void {
+  state.status = shelf;
+  const ratingMatch = item.match(/<user_rating>(\d+(?:\.\d+)?)<\/user_rating>/i);
+  if (ratingMatch?.[1]) state.rating = Number(ratingMatch[1]);
+  const reviewMatch =
+    item.match(/<user_review><!\[CDATA\[([\s\S]*?)\]\]><\/user_review>/i) ||
+    item.match(/<user_review>([\s\S]*?)<\/user_review>/i);
+  state.reviewText = canonicalReviewText(reviewMatch?.[1] ?? "");
+}
+
+async function observeRss(userId: string, bookId: string, state: LibraryObservation) {
+  const encodedUser = encodeGoodreadsPathSegment(userId, "userId");
+  for (const shelf of ["currently-reading", "read", "to-read"] as const) {
+    const url = `https://www.goodreads.com/review/list_rss/${encodedUser}?shelf=${shelf}`;
+    state.sources.push(url);
+    try {
+      const xml = await fetchPublicText(url);
+      state.rssSuccessCount += 1;
+      state.sourceResults.push({ source: "rss", target: shelf, ok: true });
+      const item = xml
+        .split("<item>")
+        .find(
+          (part) =>
+            part.includes(`<book_id>${bookId}</book_id>`) || part.includes(`book/show/${bookId}`),
+        );
+      if (item) {
+        parseRssItem(item, shelf, state);
+        return;
+      }
+    } catch {
+      state.sourceResults.push({ source: "rss", target: shelf, ok: false });
+      state.warnings.push(`RSS lookup for shelf '${shelf}' failed.`);
+    }
+  }
+}
+
+async function observeAuthenticated(bookId: string, state: LibraryObservation) {
+  const url = `https://www.goodreads.com/review/edit/${encodeGoodreadsPathSegment(bookId, "bookId")}`;
+  state.sources.push(url);
+  try {
+    const result = await fetchAuthenticatedText(url);
+    state.sourceResults.push({
+      source: "authenticated-edit",
+      target: "/review/edit/{book_id}",
+      ok: !result.signedOut,
+      signedOut: result.signedOut,
+    });
+    if (result.signedOut) {
+      state.warnings.push("Authenticated library read resolved to the Goodreads sign-in page.");
+      return;
+    }
+    state.authenticatedSuccess = true;
+    const parsed = parseLibraryEditState(result.html);
+    state.reviewId = parsed.reviewId;
+    if (parsed.status) state.status = parsed.status;
+    if (parsed.rating !== null) state.rating = parsed.rating;
+    state.reviewText = parsed.reviewText;
+  } catch {
+    state.sourceResults.push({
+      source: "authenticated-edit",
+      target: "/review/edit/{book_id}",
+      ok: false,
+    });
+    state.warnings.push("Authenticated library edit-page lookup failed.");
+  }
+}
+
+function observationConfidence(state: LibraryObservation): Confidence {
+  if (state.authenticatedSuccess) return "high";
+  if (state.rssSuccessCount === 0) return "low";
+  return state.status === "unknown" ? "medium" : "high";
+}
+
+function observationData(
+  bookId: string,
+  userId: string | null,
+  includeReviewId: boolean,
+  state: LibraryObservation,
+) {
+  const textSha256 = state.reviewText ? reviewHash(state.reviewText) : "";
+  return {
+    bookId,
+    userId,
+    status: state.status,
+    rating: state.rating,
+    ...(includeReviewId ? { reviewId: state.reviewId } : {}),
+    review: {
+      exists: Boolean(state.reviewText),
+      textLength: state.reviewText.length,
+      textSha256,
+      canonicalization: "HTML entities decoded; whitespace collapsed and trimmed",
+    },
+    sources: state.sources,
+    sourceResults: state.sourceResults,
+    evidence: {
+      authenticatedSuccess: state.authenticatedSuccess,
+      rssSuccessCount: state.rssSuccessCount,
+      stateObserved: state.authenticatedSuccess || state.rssSuccessCount > 0,
+    },
+  };
+}
+
+export async function ls(options: LSO): Promise<CommandEnvelope<unknown>> {
+  const bookId = validateBookId(options.bookId);
+  const userId = options.userId?.trim() || process.env.GOODREADS_USER_ID?.trim() || null;
+  const authenticated = Boolean(process.env.GOODREADS_COOKIE?.trim());
+  if (!userId && !authenticated) {
     throw new Error(
       "library show requires userId/GOODREADS_USER_ID for public RSS or GOODREADS_COOKIE for an authenticated read",
     );
   }
-
-  const sources: string[] = [];
-  let status = "unknown";
-  let rating: number | null = null;
-  let reviewExists = false;
-  let textLength = 0;
-  let textSha256 = "";
-
-  if (uid) {
-    for (const shelf of ["currently-reading", "read", "to-read"] as const) {
-      const url = `https://www.goodreads.com/review/list_rss/${encodeURIComponent(uid)}?shelf=${shelf}`;
-      sources.push(url);
-      try {
-        const xml = await fetchPublicText(url);
-        const parts = xml.split("<item>");
-        for (const part of parts) {
-          if (!(
-            part.includes(`<book_id>${o.bookId}</book_id>`) || part.includes(`book/show/${o.bookId}`)
-          )) {
-            continue;
-          }
-          status = shelf;
-          const rm = part.match(/<user_rating>(\d+)<\/user_rating>/i);
-          if (rm?.[1]) rating = parseInt(rm[1], 10);
-          const rev =
-            part.match(/<user_review><!\[CDATA\[([\s\S]*?)\]\]><\/user_review>/i) ||
-            part.match(/<user_review>([\s\S]*?)<\/user_review>/i);
-          const revBody = rev?.[1];
-          if (revBody && cleanText(revBody)) {
-            const text = cleanText(revBody);
-            reviewExists = true;
-            textLength = text.length;
-            textSha256 = createHash("sha256").update(text, "utf8").digest("hex");
-          }
-          break;
-        }
-        if (status !== "unknown") break;
-      } catch {
-        // continue other shelves
-      }
-    }
+  const state = emptyObservation();
+  if (userId) await observeRss(userId, bookId, state);
+  if (authenticated) await observeAuthenticated(bookId, state);
+  if (!state.authenticatedSuccess && state.rssSuccessCount === 0) {
+    state.warnings.push("No library-state source succeeded; returned state is indeterminate.");
   }
-
-  if (hasAuthenticatedSession) {
-    const url = `https://www.goodreads.com/review/edit/${encodeURIComponent(o.bookId)}`;
-    sources.push(url);
-    try {
-      const { html, signedOut } = await fetchAuthenticatedText(url);
-      if (!signedOut) {
-        const immediate = parseLibraryEditState(html);
-        if (immediate.status) status = immediate.status;
-        if (immediate.rating !== null) rating = immediate.rating;
-        if (immediate.reviewText) {
-          reviewExists = true;
-          textLength = immediate.reviewText.length;
-          textSha256 = createHash("sha256").update(immediate.reviewText, "utf8").digest("hex");
-        } else {
-          reviewExists = false;
-          textLength = 0;
-          textSha256 = "";
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  return envelope({
-    bookId: o.bookId,
-    userId: uid,
-    status,
-    rating,
-    review: { exists: reviewExists, textLength, textSha256 },
-    sources,
+  return envelope(observationData(bookId, userId, Boolean(options.includeReviewId), state), {
+    warnings: state.warnings,
+    confidence: observationConfidence(state),
   });
 }
 
-/**
- * Set exclusive reading status by reusing the live-proven POST /shelf/add_to_shelf path.
- * Exclusive shelves are mutually exclusive on Goodreads; adding to one moves the book.
- */
-export async function ss(o: SSO): Promise<CommandEnvelope<unknown>> {
-  if (!EXCLUSIVE.has(o.status)) {
-    return envelope({ submitted: false, blockers: [`unsupported status: ${o.status}`] });
+export async function ss(options: SSO): Promise<CommandEnvelope<unknown>> {
+  const bookId = validateBookId(options.bookId);
+  if (!EXCLUSIVE.has(options.status)) {
+    return envelope({
+      submitted: false,
+      outcome: "blocked",
+      blockers: [`unsupported status: ${options.status}`],
+    });
   }
-  if (o.approvedStatus && o.approvedStatus !== o.status) {
-    return envelope({ submitted: false, blockers: ["approvedStatus mismatch"] });
+  const execute = Boolean(options.execute);
+  if (execute && !options.approvedStatus) {
+    return envelope({
+      submitted: false,
+      outcome: "blocked",
+      blockers: ["approvedStatus required for execute"],
+    });
   }
-
-  const execute = Boolean(o.execute);
+  if (execute && options.approvedStatus !== options.status) {
+    return envelope({
+      submitted: false,
+      outcome: "blocked",
+      blockers: ["approvedStatus mismatch"],
+    });
+  }
   if (execute) {
-    const c = gt(ne(true), na(o.bookId, o.approvedBookId));
-    if (!c.ok) return envelope({ submitted: false, blockers: c.blockers });
+    const result = checks(executionRequested(true), approvedBook(bookId, options.approvedBookId));
+    if (!result.ok)
+      return envelope({ submitted: false, outcome: "blocked", blockers: result.blockers });
   }
 
   const route = await routeBySelector("POST /shelf/add_to_shelf");
   const write = await runWrite(
     route,
-    { form: { book_id: o.bookId, name: o.status } },
+    { form: { book_id: bookId, name: options.status } },
     execute,
-    `Confirm book ${o.bookId} is on exclusive shelf "${o.status}" via RSS/list.`,
+    `Confirm book ${bookId} is on exclusive shelf "${options.status}".`,
   );
-
   let mutationVerified = false;
   let verifiedStatus: string | null = null;
-  if (
-    execute &&
-    write.data &&
-    typeof write.data === "object" &&
-    (write.data as { submitted?: boolean }).submitted
-  ) {
-    await new Promise((r) => setTimeout(r, 800));
-    const again = await ls({ bookId: o.bookId, userId: o.userId });
-    const state = again.data as { status?: string };
-    verifiedStatus = state.status ?? null;
-    mutationVerified = verifiedStatus === o.status;
+  if (execute && (write.data as { submitted?: boolean } | undefined)?.submitted) {
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    const again = await ls({ bookId, userId: options.userId });
+    verifiedStatus = (again.data as { status?: string }).status ?? null;
+    mutationVerified = verifiedStatus === options.status;
   }
-
   return envelope({
-    ok: execute ? Boolean((write.data as { submitted?: boolean } | undefined)?.submitted) : true,
-    bookId: o.bookId,
-    status: o.status,
+    ok: execute ? mutationVerified : true,
+    outcome: execute ? (mutationVerified ? "verified" : "indeterminate") : "planned",
+    bookId,
+    status: options.status,
     transport: "POST /shelf/add_to_shelf",
     implementationStatus: "live",
     write,
@@ -280,52 +386,60 @@ export async function ss(o: SSO): Promise<CommandEnvelope<unknown>> {
   });
 }
 
-/** Rating via the live My Books star-widget contract. */
-export async function ru(o: RUO): Promise<CommandEnvelope<unknown>> {
-  const execute = Boolean(o.execute);
-  if (o.action === "set") {
-    if (!o.rating || o.rating < 1 || o.rating > 5) {
-      return envelope({ submitted: false, blockers: ["rating 1-5 required for action=set"] });
+export async function ru(options: RUO): Promise<CommandEnvelope<unknown>> {
+  const bookId = validateBookId(options.bookId);
+  const execute = Boolean(options.execute);
+  if (options.action === "set") {
+    if (!options.rating || options.rating < 1 || options.rating > 5) {
+      return envelope({
+        submitted: false,
+        outcome: "blocked",
+        blockers: ["rating 1-5 required for action=set"],
+      });
     }
-    if (execute && o.rating !== o.approvedRating) {
-      return envelope({ submitted: false, blockers: ["approvedRating mismatch"] });
+    if (execute && options.rating !== options.approvedRating) {
+      return envelope({
+        submitted: false,
+        outcome: "blocked",
+        blockers: ["approvedRating mismatch"],
+      });
     }
   }
   if (execute) {
-    const c = gt(ne(true), na(o.bookId, o.approvedBookId));
-    if (!c.ok) return envelope({ submitted: false, blockers: c.blockers });
+    const result = checks(executionRequested(true), approvedBook(bookId, options.approvedBookId));
+    if (!result.ok)
+      return envelope({ submitted: false, outcome: "blocked", blockers: result.blockers });
   }
 
-  const stars = o.action === "clear" ? 0 : (o.rating as number);
+  const stars = options.action === "clear" ? 0 : (options.rating as number);
   const route = await routeBySelector("POST /review/rate/{book_id}");
-  const form: Record<string, string> = { format: "json", rating: String(stars) };
   const write = await runWrite(
     route,
     {
-      pathParams: { book_id: o.bookId },
+      pathParams: { book_id: bookId },
       query: { redirect_edit: "true", shelf: "all", stars_click: "true" },
-      form,
+      form: { format: "json", rating: String(stars) },
     },
     execute,
-    `Confirm rating for book ${o.bookId} via authenticated /review/edit readback.`,
+    `Confirm rating for book ${bookId} through authenticated readback.`,
   );
-
   let mutationVerified = false;
   let verifiedRating: number | null = null;
   if (execute && (write.data as { submitted?: boolean } | undefined)?.submitted) {
-    await new Promise((r) => setTimeout(r, 800));
-    const again = await ls({ bookId: o.bookId });
-    const state = again.data as { rating?: number | null };
-    verifiedRating = state.rating ?? null;
-    if (o.action === "clear") mutationVerified = !verifiedRating || verifiedRating === 0;
-    else mutationVerified = verifiedRating === o.rating;
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    const again = await ls({ bookId });
+    verifiedRating = (again.data as { rating?: number | null }).rating ?? null;
+    mutationVerified =
+      options.action === "clear"
+        ? verifiedRating === null || verifiedRating === 0
+        : verifiedRating === options.rating;
   }
-
   return envelope({
-    ok: execute ? Boolean((write.data as { submitted?: boolean } | undefined)?.submitted) : true,
-    bookId: o.bookId,
-    action: o.action,
-    rating: o.action === "clear" ? 0 : o.rating,
+    ok: execute ? mutationVerified : true,
+    outcome: execute ? (mutationVerified ? "verified" : "indeterminate") : "planned",
+    bookId,
+    action: options.action,
+    rating: stars,
     transport: "POST /review/rate/{book_id}",
     implementationStatus: "live",
     write,
@@ -334,70 +448,94 @@ export async function ru(o: RUO): Promise<CommandEnvelope<unknown>> {
   });
 }
 
-/**
- * Review text via mapped Rails POST /review/update/{book_id}.
- */
-export async function rv(o: RVO): Promise<CommandEnvelope<unknown>> {
-  const hash = createHash("sha256").update(o.reviewText, "utf8").digest("hex");
-  const execute = Boolean(o.execute);
+function reviewApprovalBlockers(options: RVO, bookId: string, hash: string): string[] {
+  const result = checks(executionRequested(true), approvedBook(bookId, options.approvedBookId));
+  if (!result.ok) return result.blockers;
+  if (!options.approvedTextSha256) return ["approvedTextSha256 required for execute"];
+  if (options.approvedTextSha256 !== hash) return ["approvedTextSha256 mismatch"];
+  return [];
+}
+
+function blockedReview(bookId: string, textLength: number, hash: string, blockers: string[]) {
+  return envelope({
+    bookId,
+    textLength,
+    textSha256: hash,
+    submitted: false,
+    outcome: "blocked",
+    mutationVerified: false,
+    blockers,
+  });
+}
+
+async function verifyReviewWrite(
+  bookId: string,
+  userId: string | undefined,
+  canonicalText: string,
+  hash: string,
+) {
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  const again = await ls({ bookId, userId });
+  const review = (
+    again.data as {
+      review?: { exists?: boolean; textSha256?: string };
+    }
+  ).review;
+  const exists = Boolean(review?.exists);
+  const verifiedHash = review?.textSha256 ?? "";
+  return {
+    mutationVerified: canonicalText
+      ? exists && verifiedHash === hash
+      : !exists && verifiedHash === "",
+    verifiedHash,
+    exists,
+  };
+}
+
+export async function rv(options: RVO): Promise<CommandEnvelope<unknown>> {
+  const bookId = validateBookId(options.bookId);
+  const canonicalText = canonicalReviewText(options.reviewText);
+  const hash = reviewHash(canonicalText);
+  const execute = Boolean(options.execute);
   if (execute) {
-    const c = gt(ne(true), na(o.bookId, o.approvedBookId));
-    if (!c.ok) {
-      return envelope({
-        bookId: o.bookId,
-        textLength: o.reviewText.length,
-        textSha256: hash,
-        submitted: false,
-        mutationVerified: false,
-        verificationRequired: c.blockers.join("; "),
-      });
-    }
-    if (o.approvedTextSha256 && o.approvedTextSha256 !== hash) {
-      return envelope({
-        bookId: o.bookId,
-        textLength: o.reviewText.length,
-        textSha256: hash,
-        submitted: false,
-        mutationVerified: false,
-        verificationRequired: "hash mismatch",
-      });
-    }
+    const blockers = reviewApprovalBlockers(options, bookId, hash);
+    if (blockers.length) return blockedReview(bookId, canonicalText.length, hash, blockers);
   }
 
   const route = await routeBySelector("POST /review/update/{book_id}");
-  const form: Record<string, string> = {
-    utf8: "✓",
-    "review[review]": o.reviewText,
-    "review[spoiler_flag]": "0",
-    "review[sell_flag]": "0",
-    next: "Post",
-    source: "form",
-  };
   const write = await runWrite(
     route,
-    { pathParams: { book_id: o.bookId }, form },
+    {
+      pathParams: { book_id: bookId },
+      form: {
+        utf8: "✓",
+        "review[review]": options.reviewText,
+        "review[spoiler_flag]": "0",
+        "review[sell_flag]": "0",
+        next: "Post",
+        source: "form",
+      },
+    },
     execute,
-    `Confirm review text length/hash for book ${o.bookId} via independent show/RSS readback.`,
+    `Confirm the canonical review hash for book ${bookId} through authenticated readback.`,
   );
-
-  let mutationVerified = false;
-  if (execute && (write.data as { submitted?: boolean } | undefined)?.submitted) {
-    await new Promise((r) => setTimeout(r, 800));
-    const again = await ls({ bookId: o.bookId, userId: o.userId });
-    const data = again.data as { review?: { textSha256?: string; textLength?: number } };
-    mutationVerified = Boolean(
-      data?.review?.textSha256 === hash || data?.review?.textLength === o.reviewText.length,
-    );
-  }
-
+  const submitted = Boolean((write.data as { submitted?: boolean } | undefined)?.submitted);
+  const verification =
+    execute && submitted
+      ? await verifyReviewWrite(bookId, options.userId, canonicalText, hash)
+      : { mutationVerified: false, verifiedHash: "", exists: false };
   return envelope({
-    ok: execute ? Boolean((write.data as { submitted?: boolean } | undefined)?.submitted) : true,
-    bookId: o.bookId,
-    textLength: o.reviewText.length,
+    ok: execute ? verification.mutationVerified : true,
+    outcome: execute ? (verification.mutationVerified ? "verified" : "indeterminate") : "planned",
+    bookId,
+    textLength: canonicalText.length,
     textSha256: hash,
+    canonicalization: "HTML entities decoded; whitespace collapsed and trimmed",
     transport: "POST /review/update/{book_id}",
     implementationStatus: "live",
     write,
-    mutationVerified,
+    mutationVerified: verification.mutationVerified,
+    verifiedTextSha256: verification.verifiedHash,
+    verifiedExists: verification.exists,
   });
 }
