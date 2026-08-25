@@ -1,8 +1,10 @@
 # Goodreads CLI
 
-Search books, manage shelves, inspect reading data, and automate carefully gated Goodreads workflows from the terminal.
+An unofficial command-line client for Goodreads.
 
-The CLI is the primary product surface. The repository also includes an optional MCP adapter that calls the same engine.
+The CLI can search books, inspect and manage shelves, read library data, update reading status, ratings, and reviews, export reading information, and support carefully approved notes workflows.
+
+This package is private while the product is extracted from the current research-heavy source repository into a clean public repository.
 
 ## Run from source
 
@@ -14,80 +16,90 @@ corepack pnpm build
 node cli/dist/index.js --help
 ```
 
-Until the package is published, replace `goodreads-cli` below with `node cli/dist/index.js` unless you link the local binary.
+Use `node cli/dist/index.js` in the examples below until the public package is released.
 
-## Common workflows
+## Examples
 
-### Search for a book, then inspect it
+### Search and inspect a book
 
 ```bash
-goodreads-cli search books --query "Kindred Octavia Butler" --json
-goodreads-cli book show <book-slug-or-id> --json
-goodreads-cli book similar <work-slug> --json
+node cli/dist/index.js search books \
+  --query "Kindred Octavia Butler" \
+  --json
+
+node cli/dist/index.js book show <book-slug-or-id> --json
+node cli/dist/index.js book similar <work-slug> --json
 ```
 
 Search returns bounded candidates. It does not silently decide which edition is correct.
 
+### Inspect shelves and reading data
+
+```bash
+node cli/dist/index.js shelves discover --json
+node cli/dist/index.js books list --shelf read --json
+node cli/dist/index.js stats year-in-books --user-id <id> --year 2025 --json
+node cli/dist/index.js recent-reading list --json
+```
+
 ### Add a book to Want to Read
 
 ```bash
-goodreads-cli shelves add --book-id <id> --name to-read
-goodreads-cli shelves add --book-id <id> --name to-read --execute
+# Dry run
+node cli/dist/index.js shelves add \
+  --book-id <id> \
+  --name to-read
+
+# Live write after explicit approval
+node cli/dist/index.js shelves add \
+  --book-id <id> \
+  --name to-read \
+  --execute
 ```
 
-The first command is a dry run. The second sends the live write.
+A live response is not proof that the shelf changed. Verify the result with an authenticated library or shelf read.
 
-### Inspect shelves and reading history
-
-```bash
-goodreads-cli shelves discover --json
-goodreads-cli books list --shelf read --json
-goodreads-cli stats year-in-books --user-id <id> --year 2025 --json
-goodreads-cli recent-reading list --json
-```
-
-### Inspect and publicize Kindle notes
+### Inspect notes metadata
 
 ```bash
-goodreads-cli notes inspect --fixture <notes-page.html> --json
-goodreads-cli notes publicize-plan \
+node cli/dist/index.js notes inspect \
+  --fixture <sanitized-notes-page.html> \
+  --json
+
+node cli/dist/index.js notes publicize-plan \
   --book-id <id> \
   --approved-book-id <id> \
   --json
-
-GOODREADS_ALLOW_NOTES_PUBLICIZE=1 \
-goodreads-cli notes publicize \
-  --book-id <id> \
-  --approved-book-id <id> \
-  --execute \
-  --json
 ```
 
-The CLI emits metadata and counts, not raw highlight text.
+The CLI emits metadata and counts rather than raw highlight text.
 
-## Command families
+## Command groups
 
-| Family | Purpose |
+| Group | Purpose |
 | --- | --- |
 | `search`, `book`, `author`, `recommendations` | Public discovery and metadata |
 | `shelves`, `books`, `stats` | Shelf inventory, exports, and reading history |
 | `library` | Reading status, ratings, and reviews |
-| `notes`, `recent-reading`, `annotations` | Kindle-note and highlight workflows |
-| `quotes` | Quote creation, removal, and ordering |
+| `notes`, `recent-reading`, `annotations` | Notes and highlight workflows |
+| `quotes` | Quote management |
 | `comments`, `messages` | Redacted account metadata |
-| `api-map`, `request`, `write-plan` | Advanced development, route inspection, and explicit raw plans |
 
-Use `goodreads-cli <family> --help` to inspect subcommands.
+The current private source tree also contains route-catalog and generic-request commands used during development. Those are not intended for the clean public CLI.
 
-## JSON output
+Run `node cli/dist/index.js <group> --help` for current arguments and examples.
 
-Commands emit a stable envelope with source, timestamp, confidence, warnings, and data. This makes the CLI usable from shell scripts, cron jobs, and agents without maintaining a second parsing layer.
+## Output
+
+Commands return structured envelopes containing data, a generation time, confidence, and warnings. Use JSON output for scripts, scheduled jobs, and agents.
+
+The clean public CLI should add useful human-readable output as the default while retaining stable `--json` output for automation.
 
 ## Authentication
 
-Public discovery commands can run without account credentials. Authenticated reads and writes use your own Goodreads session.
+Public discovery can run without account credentials. Authenticated reads and writes use a local Goodreads session owned by the user.
 
-Keep auth in `~/.goodreads/auth.sh` with mode `600`. Never commit cookies, CSRF tokens, private RSS keys, raw authenticated pages, or personal reading content.
+Keep credentials in `~/.goodreads/auth.sh` with mode `600`. Never commit or paste cookies, CSRF tokens, private RSS keys, authenticated HTML, private URLs, or personal reading content.
 
 See [`docs/auth.md`](../docs/auth.md) and run:
 
@@ -99,21 +111,28 @@ node scripts/goodreads-doctor.mjs
 
 - Writes are dry-run by default.
 - Live writes require `--execute`.
-- Sensitive workflows also require exact approval values and narrow environment flags.
-- Every accepted write still requires a readback before it is considered verified.
+- Sensitive workflows require exact approval values and narrow environment gates.
+- Credentialed requests are restricted to the trusted Goodreads origin.
+- Every accepted write requires a readback before it is considered verified.
 - `--dry-run` wins over `--execute`.
 
 See [`docs/write-operations.md`](../docs/write-operations.md) and [`SECURITY.md`](../SECURITY.md).
 
-## Optional MCP adapter
+## Optional MCP feature
+
+The repository contains an MCP adapter over the same application behavior. MCP is optional and should ship through the same public installation rather than being presented as a second product.
 
 ```bash
+corepack pnpm build
 scripts/goodreads-mcp.sh
-GOODREADS_MCP_PROFILE=core scripts/goodreads-mcp.sh
-GOODREADS_MCP_PROFILE=notes scripts/goodreads-mcp.sh
-GOODREADS_MCP_PROFILE=full scripts/goodreads-mcp.sh
 ```
 
-With no profile set, the MCP server exposes the read-only tool set. Profiles change discovery, not the underlying engine or write approvals.
+With no profile set, the adapter exposes a read-only tool set. Other profiles change discovery scope but do not bypass write approvals.
 
 See [`mcp/README.md`](../mcp/README.md).
+
+## Public extraction
+
+The clean public repository will remove the full route research, generic route execution, browser-route inventory, historical audits, personal operator data, and build-time coupling to `api-map/`.
+
+See [`docs/public-repo-migration.md`](../docs/public-repo-migration.md).
