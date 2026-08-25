@@ -1,8 +1,12 @@
-# Goodreads MCP adapter
+# Optional MCP support for Goodreads CLI
 
-Optional stdio MCP access to the Goodreads CLI shared engine.
+This directory contains the repository-local MCP adapter for Goodreads CLI.
 
-Build from the repository root because the adapter imports the CLI's generated exports:
+MCP is an integration feature. It is not a separate product and should eventually ship from the same public package and installation as the CLI.
+
+## Run from the current source repository
+
+The adapter currently imports generated CLI output, so build from the repository root:
 
 ```bash
 corepack pnpm install --frozen-lockfile
@@ -10,36 +14,56 @@ corepack pnpm build
 scripts/goodreads-mcp.sh
 ```
 
-The tracked wrapper sources the mode-600 `~/.goodreads/auth.sh` file at runtime, rebuilds stale or missing generated artifacts, and keeps build output off MCP stdout. Windows uses `scripts\goodreads-mcp.cmd`.
+The wrapper loads `~/.goodreads/auth.sh` at runtime when present, rebuilds missing or stale generated files, and keeps build output away from MCP stdout. Windows uses `scripts\goodreads-mcp.cmd`.
 
 ## Profiles
 
-`GOODREADS_MCP_PROFILE` controls discovery cost without changing the underlying engine:
+`GOODREADS_MCP_PROFILE` controls the current tool-discovery set:
 
 - unset or `read`: read-only tools;
-- `core`: common books, shelves, and notes workflows;
-- `notes`: notes, annotations, and recent-reading workflows;
-- `full`: every registered tool for compatibility and development.
+- `core`: common books, shelves, and notes operations;
+- `notes`: notes, annotations, and recent-reading operations;
+- `full`: the legacy complete registry used for development and compatibility inside this source repository.
 
-Exact profile membership and current counts are defined and tested in `src/profile.ts`. Live truth is always `tools/list`.
+Profiles do not bypass write gates. Mutating tools still produce dry-run plans by default and require explicit execution and exact approvals.
 
-Profiles do not bypass write gates. A profile can expose a mutating tool while the tool itself still defaults to a dry run and requires exact approvals for execution.
+MCP output is compact JSON by default. Set `GOODREADS_MCP_OUTPUT=pretty` only for debugging.
 
-MCP results are compact JSON by default. Set `GOODREADS_MCP_OUTPUT=pretty` only for debugging. The human-facing CLI remains pretty-printed.
+## Safety boundary
 
-## Write boundary
+- Credentials are sent only to the exact trusted Goodreads origin.
+- Credentialed cross-origin redirects are rejected.
+- Writes remain dry-run by default.
+- Sensitive writes require exact approval values and narrow environment gates.
+- HTTP acceptance is not reported as account-state verification.
+- Cookies, CSRF tokens, private URLs, highlights, reviews, comments, and messages must not appear in tool output or logs.
 
-- Live-capable reads send requests when required inputs and auth are present. Fixture, catalog, and plan tools remain local.
-- Writes produce dry-run plans by default.
-- Notes publicize and hide require `execute`, exact book approval, and `GOODREADS_ALLOW_NOTES_PUBLICIZE=1`.
-- The generic executor requires `execute`, exact `approvedRoute`, and `GOODREADS_ALLOW_GENERIC_WRITES=1` for mutations.
-- Credentials are sent only to `https://www.goodreads.com`; credentialed cross-origin redirects are rejected.
-- An accepted HTTP response is never reported as mutation verification. Reload and verify account state after every write.
+See `../SECURITY.md` and `../docs/write-operations.md`.
 
-See `../docs/evidence-confidence-ledger.md` and `../SECURITY.md`.
+## Public product direction
 
-Run the stdio integration suite with:
+The clean public repository should expose MCP through the main installation, preferably with a command such as:
 
 ```bash
-pnpm --filter @zaydiscold/goodreads-mcp test
+goodreads mcp
+```
+
+The public MCP registry should be curated around useful agent workflows. It does not need a one-to-one tool for every CLI command.
+
+Do not carry these development-only MCP surfaces into the public product:
+
+- complete route-map inventory;
+- browser-route inventory;
+- arbitrary request execution;
+- dynamic route-inventory guidance;
+- research-only fixture and evidence tools.
+
+The default public MCP mode should remain read-only, and all tools should call the same feature services used by the CLI.
+
+See `../docs/public-repo-migration.md`.
+
+## Tests
+
+```bash
+corepack pnpm --filter @zaydiscold/goodreads-mcp test
 ```
