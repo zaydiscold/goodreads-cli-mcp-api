@@ -275,6 +275,7 @@ function notesDetailSummary(
   };
 }
 
+// eslint-disable-next-line complexity -- one plan reports independent identity, route, approval, and visibility evidence gates.
 export async function buildNotesPublicizeWorkflowPlan(
   options: NotesPublicizeWorkflowOptions,
 ) {
