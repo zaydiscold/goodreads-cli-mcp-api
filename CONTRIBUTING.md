@@ -1,80 +1,86 @@
 # Contributing
 
-Goodreads CLI accepts focused fixes, parsers, tests, command improvements, and documentation changes.
+Goodreads CLI is currently being separated from a research-heavy development repository into a clean public product repository.
 
-The public repository is for the product, not raw endpoint-research material.
+Contributions should focus on user-facing CLI behavior, parsers, safety, tests, installation, and documentation. Do not add raw route research or personal account material to the public tree.
 
 ## Before opening a pull request
 
 ```bash
 corepack pnpm install --frozen-lockfile
-corepack pnpm lint
-corepack pnpm format:check
-corepack pnpm typecheck
-corepack pnpm test
-corepack pnpm build
+corepack pnpm check
 ```
 
-Keep changes narrow enough that the behavior and safety boundary can be reviewed.
+Keep changes focused. A pull request should solve one concrete reader or maintainer problem and include the smallest useful test.
 
-## Public contribution boundary
+## Good public contributions
 
-Good public contributions include:
+Examples include:
 
-- a CLI command or parser with bounded, privacy-safe fixtures;
-- a bug fix with a regression test;
-- clearer error handling or readback verification;
-- documentation that reflects current behavior;
-- a sanitized route-manifest update produced by the private export process.
+- a CLI bug fix with a regression test;
+- a privacy-safe parser fixture;
+- clearer authentication or error handling;
+- human-readable output or stable JSON behavior;
+- a task-specific Goodreads feature with explicit safety boundaries;
+- package, installation, or release improvements;
+- documentation that matches current behavior.
 
-Do not commit or paste into a pull request, issue, fixture, log, or screenshot:
+## Research boundary
 
-- Goodreads cookies or individual cookie values;
+Do not commit or paste into a public issue, pull request, fixture, log, or screenshot:
+
+- Goodreads or Amazon cookies;
 - CSRF or Rails authenticity tokens;
 - private RSS keys;
 - raw authenticated HTML or browser captures;
-- Kindle highlight text, review text, comments, or message bodies;
-- account IDs, annotation pair IDs, private action URLs, or personal file paths;
-- request headers or response bodies copied from an authenticated session.
+- request or response bodies copied from an authenticated session;
+- Kindle highlight text;
+- private review, comment, or message bodies;
+- account IDs, private action URLs, local paths, or machine names;
+- the complete endpoint inventory or discovery chronology.
 
-See [`SECURITY.md`](./SECURITY.md) for the complete boundary.
+Detailed route discovery belongs in the private source repository. Public code should contain only the task-specific route definitions required by shipped commands.
 
-## Proposing a new capability
+See [SECURITY.md](./SECURITY.md).
 
-Open a redacted issue that explains:
+## Proposing a feature
+
+Describe:
 
 1. the user outcome;
-2. whether the operation reads or writes;
-3. the expected CLI shape;
-4. what can be verified after the operation;
-5. what privacy-safe fixture or test can prove it.
+2. the proposed CLI command;
+3. whether it reads or changes account state;
+4. the expected output;
+5. the privacy-safe test or fixture;
+6. the independent readback or rollback plan for a write.
 
-Do not attach raw captures. Detailed discovery belongs in the maintainer's private route-research workspace. The public change should contain only the sanitized runtime contract, implementation, and tests.
+MCP exposure is optional. Add it only when the capability is useful to agent clients. Do not create an MCP tool solely to maintain a one-to-one count with CLI commands.
 
 ## Write operations
 
 Every account mutation must:
 
-- default to a dry run;
-- require `--execute` for a live request;
-- use exact approval values for sensitive targets;
+- remain a dry run by default;
+- require explicit execution;
+- require exact approval values when the target or payload is sensitive;
 - emit a visible live-write warning;
-- define an independent readback;
-- avoid treating HTTP success as state verification;
-- preserve the existing origin, redirect, and credential boundaries.
+- restrict credentials to the trusted Goodreads origin;
+- define an independent readback when verification is possible;
+- avoid reporting HTTP acceptance as account-state verification.
 
-A new write without a rollback and verification story is not ready to merge.
+A write without a clear consent and verification story is not ready to merge.
 
-## CLI and MCP parity
+## Architecture
 
-The CLI is the primary interface. MCP is optional, but both use the same engine.
+Put business logic in shared feature or application services. CLI commands and MCP tools should be thin adapters over those services.
 
-When a capability is exposed on both surfaces, update the shared capability registry and parity tests. Do not duplicate business logic in the MCP server.
+The current development tree still contains a legacy shared engine and strict CLI-to-MCP parity tests. Preserve them while working in this repository. The clean public extraction will replace forced parity with a curated MCP registry and shared-service contract tests.
 
-## Style
+## Documentation style
 
-- Prefer one concrete user outcome over broad framework language.
-- Keep the root README focused on using the CLI.
-- Put advanced route-catalog and MCP details after the main workflows.
-- Avoid brittle feature counts in marketing copy.
-- Keep generated files deterministic and clearly labeled.
+- Explain what the tool does before how it is implemented.
+- Put installation and runnable examples near the top.
+- Keep MCP below the primary CLI workflow.
+- Avoid slogans, manufactured hooks, and brittle counts.
+- Do not put branch history, launch operations, internal audits, or personal examples in public docs.
+- Use synthetic IDs and generic paths in examples.
