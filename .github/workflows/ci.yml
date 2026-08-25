@@ -35,6 +35,8 @@ jobs:
       # Node 20 compatibility, but use pnpm 11's bulk-advisory audit client.
       - run: pnpm audit:security
         if: matrix.node-version == 22
+      - run: pnpm secret:scan
+        if: matrix.node-version == 22
       - run: pnpm lint
         if: matrix.node-version == 22
       - run: pnpm format:check
