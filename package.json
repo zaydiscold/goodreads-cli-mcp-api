@@ -10,6 +10,7 @@
     "test:mcp": "corepack pnpm --filter @zaydiscold/goodreads-mcp test",
     "typecheck": "corepack pnpm --filter @zaydiscold/goodreads-cli typecheck && corepack pnpm --filter @zaydiscold/goodreads-cli build && corepack pnpm --filter @zaydiscold/goodreads-mcp typecheck",
     "audit:security": "corepack pnpm@11.13.0 --pm-on-fail=ignore audit --audit-level moderate",
+    "secret:scan": "node scripts/secret-scan-production.mjs",
     "lint": "eslint cli/src cli/test mcp/src mcp/test",
     "lint:fix": "eslint cli/src cli/test mcp/src mcp/test --fix",
     "format": "prettier --write cli/src cli/test mcp/src mcp/test scripts",
@@ -20,6 +21,7 @@
     "regression:recent": "corepack pnpm integrity && corepack pnpm --filter @zaydiscold/goodreads-cli exec vitest run test/cookie.test.ts test/http.test.ts && corepack pnpm format:check",
     "integrity": "node scripts/source-integrity.mjs",
     "clean": "node scripts/clean-dist.mjs",
+    "check": "corepack pnpm audit:security && corepack pnpm secret:scan && corepack pnpm lint && corepack pnpm format:check && corepack pnpm typecheck && corepack pnpm test && corepack pnpm build",
     "prebuild": "node scripts/source-integrity.mjs && node scripts/clean-dist.mjs"
   },
   "devDependencies": {

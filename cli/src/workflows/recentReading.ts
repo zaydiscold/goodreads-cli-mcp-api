@@ -7,6 +7,7 @@ import { readShelfPagesFromFixtureDir, summarizeShelfPages } from "../shelf.js";
 import type { NotesPageParse, ShelfBookRow } from "../types/index.js";
 
 export const NOTES_PUBLICIZE_ENV_GATE = "GOODREADS_ALLOW_NOTES_PUBLICIZE";
+const MAX_RECENT_READING_ITEMS = 200;
 
 export interface RecentReadingOptions {
   fixtureDir: string;
@@ -33,31 +34,58 @@ export interface PublicizeApprovalCheck {
   blockers: string[];
 }
 
+interface DetailIdentity {
+  matched: boolean;
+  conflicting: boolean;
+  observedBookLinkCount: number;
+}
+
+function normalizedRecentReadingOptions(options: RecentReadingOptions): {
+  shelves: string[];
+  limit: number;
+} {
+  if (
+    !Number.isInteger(options.limit) ||
+    options.limit < 1 ||
+    options.limit > MAX_RECENT_READING_ITEMS
+  ) {
+    throw new Error(`limit must be an integer from 1 to ${MAX_RECENT_READING_ITEMS}`);
+  }
+  const shelves = [...new Set(options.shelves.map((shelf) => shelf.trim()).filter(Boolean))];
+  if (shelves.length === 0) throw new Error("at least one shelf slug is required");
+  return { shelves, limit: options.limit };
+}
+
 async function parseNotesIndex(
   fixtureDir: string,
   explicitFixture?: string,
-): Promise<NotesPageParse | null> {
-  const candidates = explicitFixture
-    ? [explicitFixture]
-    : [join(fixtureDir, "notes-index.html"), join(fixtureDir, "notes.html")];
-  const fixture = candidates.find((candidate) => existsSync(candidate));
-  if (!fixture) return null;
-  return parseNotesPage(await readFile(fixture, "utf8"));
+): Promise<{ page: NotesPageParse | null; fixture: string | null }> {
+  if (explicitFixture) {
+    if (!existsSync(explicitFixture)) {
+      throw new Error("Explicit notes index fixture was not found");
+    }
+    return {
+      page: parseNotesPage(await readFile(explicitFixture, "utf8")),
+      fixture: explicitFixture,
+    };
+  }
+
+  const candidates = [join(fixtureDir, "notes-index.html"), join(fixtureDir, "notes.html")];
+  const fixture = candidates.find((candidate) => existsSync(candidate)) ?? null;
+  if (!fixture) return { page: null, fixture: null };
+  return { page: parseNotesPage(await readFile(fixture, "utf8")), fixture };
 }
 
 export async function buildRecentReadingList(options: RecentReadingOptions) {
-  const shelves = [...new Set(options.shelves)];
+  const { shelves, limit } = normalizedRecentReadingOptions(options);
   const warnings: string[] = [];
   const perShelf = [];
-  const booksByKey = new Map<
-    string,
-    ShelfBookRow & { shelves: string[]; commentRoute: string | null }
-  >();
+  const booksByKey = new Map<string, ShelfBookRow & { shelves: string[] }>();
 
   for (const shelf of shelves) {
     const pages = await readShelfPagesFromFixtureDir(options.fixtureDir, shelf);
     if (pages.length === 0) {
-      warnings.push(`No shelf fixtures found for '${shelf}' in ${options.fixtureDir}.`);
+      warnings.push(`No shelf fixtures found for '${shelf}'.`);
       continue;
     }
     const result = summarizeShelfPages(pages);
@@ -73,13 +101,9 @@ export async function buildRecentReadingList(options: RecentReadingOptions) {
       if (!key) continue;
       const existing = booksByKey.get(key);
       if (existing) {
-        existing.shelves.push(shelf);
+        if (!existing.shelves.includes(shelf)) existing.shelves.push(shelf);
       } else {
-        booksByKey.set(key, {
-          ...row,
-          shelves: [shelf],
-          commentRoute: null,
-        });
+        booksByKey.set(key, { ...row, shelves: [shelf] });
       }
     }
   }
@@ -87,14 +111,15 @@ export async function buildRecentReadingList(options: RecentReadingOptions) {
   return {
     shelves,
     perShelf,
-    books: [...booksByKey.values()].slice(0, options.limit),
+    books: [...booksByKey.values()].slice(0, limit),
     warnings,
   };
 }
 
 export async function buildRecentReadingNotes(options: RecentReadingNotesOptions) {
   const recent = await buildRecentReadingList(options);
-  const notesIndex = await parseNotesIndex(options.fixtureDir, options.notesIndexFixture);
+  const loadedNotesIndex = await parseNotesIndex(options.fixtureDir, options.notesIndexFixture);
+  const notesIndex = loadedNotesIndex.page;
   const warnings = [...recent.warnings];
   if (!notesIndex) {
     warnings.push("No notes index fixture found; note-link join could not run.");
@@ -107,18 +132,22 @@ export async function buildRecentReadingNotes(options: RecentReadingNotesOptions
 
   const books = recent.books.map((book) => {
     const notesLink = book.bookId ? (linksByBookId.get(book.bookId) ?? null) : null;
+    const commentUserSlug = notesLink?.userSlug ?? null;
     return {
       ...book,
       notes: {
         hasNotesIndexMatch: Boolean(notesLink),
         notesHref: notesLink?.href ?? null,
         notesBookSlug: notesLink?.bookSlug ?? null,
-        notesUserSlug: notesLink?.userSlug ?? null,
+        notesUserSlug: commentUserSlug,
         detailStatus: notesLink ? "detail-not-loaded" : "no-index-match",
       },
       comments: {
-        routeAvailable: Boolean(book.bookId || book.reviewId),
+        routeAvailable: Boolean(commentUserSlug),
+        userSlugKnown: Boolean(commentUserSlug),
+        routeResolvable: Boolean(commentUserSlug),
         defaultRouteTemplate: "/comment/list/{user_slug}",
+        route: commentUserSlug ? `/comment/list/${encodeURIComponent(commentUserSlug)}` : null,
       },
     };
   });
@@ -128,6 +157,7 @@ export async function buildRecentReadingNotes(options: RecentReadingNotesOptions
     perShelf: recent.perShelf,
     notesIndex: notesIndex
       ? {
+          fixtureLoaded: true,
           noteBookLinkCount: notesIndex.noteBookLinks.length,
           noteCount: notesIndex.noteCount,
           visibleNoteCount: notesIndex.visibleNoteCount,
@@ -172,15 +202,22 @@ export async function buildRecentReadingPublicizePlan(
 
 async function loadNotesDetail(fixture: string | undefined): Promise<NotesPageParse | null> {
   if (!fixture) return null;
+  if (!existsSync(fixture)) throw new Error("Explicit notes detail fixture was not found");
   return parseNotesPage(await readFile(fixture, "utf8"));
 }
 
-function notesDetailBookSlug(detail: NotesPageParse | null, bookId: string): string | null {
-  return (
-    detail?.noteBookLinks.find((link) => link.bookId === bookId)?.bookSlug ??
-    detail?.noteBookLinks[0]?.bookSlug ??
-    null
-  );
+function matchingNotesLink(detail: NotesPageParse | null, bookId: string) {
+  return detail?.noteBookLinks.find((link) => link.bookId === bookId) ?? null;
+}
+
+function notesDetailIdentity(detail: NotesPageParse | null, bookId: string): DetailIdentity {
+  const links = detail?.noteBookLinks ?? [];
+  const matched = links.some((link) => link.bookId === bookId);
+  return {
+    matched,
+    conflicting: links.length > 0 && !matched,
+    observedBookLinkCount: links.length,
+  };
 }
 
 function isFullyVisible(detail: NotesPageParse | null): boolean {
@@ -188,16 +225,33 @@ function isFullyVisible(detail: NotesPageParse | null): boolean {
   return detail.visibleNoteCount === detail.noteCount;
 }
 
-function workflowBlockers(detail: NotesPageParse | null, approved: boolean): string[] {
+function workflowBlockers(options: {
+  detail: NotesPageParse | null;
+  approved: boolean;
+  identity: DetailIdentity;
+  routeResolvable: boolean;
+}): string[] {
   const blockers: string[] = [];
-  if (detail?.shelfGateDetected) {
+  if (options.detail?.shelfGateDetected) {
     blockers.push("notes detail page appears shelf-gated; do not auto-add shelves");
   }
-  if (!approved) blockers.push("book id is not in the explicit approved-book-id list");
+  if (options.identity.conflicting) {
+    blockers.push("notes detail fixture does not match the requested book id");
+  }
+  if (!options.routeResolvable) {
+    blockers.push("verification route is not resolvable for the requested book and user");
+  }
+  if (!options.approved) {
+    blockers.push("book id is not in the explicit approved-book-id list");
+  }
   return blockers;
 }
 
-function notesDetailSummary(detail: NotesPageParse | null, alreadyFullyVisible: boolean) {
+function notesDetailSummary(
+  detail: NotesPageParse | null,
+  alreadyFullyVisible: boolean,
+  identity: DetailIdentity,
+) {
   if (!detail) return null;
   return {
     noteCount: detail.noteCount,
@@ -207,34 +261,62 @@ function notesDetailSummary(detail: NotesPageParse | null, alreadyFullyVisible: 
     spoilerToggleCount: detail.spoilerToggleCount,
     shelfGateDetected: detail.shelfGateDetected,
     alreadyFullyVisible,
+    identity,
   };
 }
 
+// eslint-disable-next-line complexity -- one plan reports independent identity, route, approval, and visibility evidence gates.
 export async function buildNotesPublicizeWorkflowPlan(options: NotesPublicizeWorkflowOptions) {
+  const bookId = options.bookId.trim();
+  if (!bookId) throw new Error("bookId is required");
   const detail = await loadNotesDetail(options.detailFixture);
-  const detailBookSlug = notesDetailBookSlug(detail, options.bookId);
-  const verifyBookSlug = options.bookSlug ?? detailBookSlug ?? undefined;
-  const approved = Boolean(options.approvedBookIds?.includes(options.bookId));
-  const alreadyFullyVisible = isFullyVisible(detail);
+  const identity = notesDetailIdentity(detail, bookId);
+  const matchingLink = matchingNotesLink(detail, bookId);
+  const verifyBookSlug = options.bookSlug?.trim() || matchingLink?.bookSlug || undefined;
+  const verifyUserSlug = options.userSlug?.trim() || matchingLink?.userSlug || undefined;
+  const routeResolvable = Boolean(verifyBookSlug && verifyUserSlug);
+  const approved = Boolean(options.approvedBookIds?.includes(bookId));
+  const alreadyFullyVisible = identity.matched && isFullyVisible(detail);
+  const blockers = workflowBlockers({ detail, approved, identity, routeResolvable });
+  const confidence = identity.conflicting
+    ? "low"
+    : routeResolvable && identity.matched
+      ? "high"
+      : "medium";
 
   return {
-    bookId: options.bookId,
+    bookId,
     bookSlug: verifyBookSlug ?? null,
-    userSlug: options.userSlug ?? null,
-    route: `/notes/${options.bookId}/share`,
+    userSlug: verifyUserSlug ?? null,
+    route: `/notes/${bookId}/share`,
     method: "PUT",
     verifyRouteTemplate: "/notes/{book_slug}/{user_slug}",
-    verifyRoute: options.userSlug
-      ? notesVerifyRoute({ bookSlug: verifyBookSlug, userSlug: options.userSlug })
-      : null,
+    verifyRoute:
+      verifyBookSlug && verifyUserSlug
+        ? notesVerifyRoute({ bookSlug: verifyBookSlug, userSlug: verifyUserSlug })
+        : null,
     verifyBookSlugKnown: Boolean(verifyBookSlug),
+    verifyUserSlugKnown: Boolean(verifyUserSlug),
+    routeResolvable,
     dryRun: true,
     approved,
-    detail: notesDetailSummary(detail, alreadyFullyVisible),
-    action: alreadyFullyVisible ? "noop-already-public" : "publicize-notes",
-    blockers: workflowBlockers(detail, approved),
+    confidence,
+    evidence: {
+      detailFixtureLoaded: Boolean(detail),
+      requestedBookIdentityMatched: identity.matched,
+      conflictingBookIdentityObserved: identity.conflicting,
+      observedBookLinkCount: identity.observedBookLinkCount,
+    },
+    detail: notesDetailSummary(detail, alreadyFullyVisible, identity),
+    action: identity.conflicting
+      ? "blocked-identity-mismatch"
+      : alreadyFullyVisible
+        ? "noop-already-public"
+        : "publicize-notes",
+    blockers,
     workflowSteps: [
       "load notes detail page",
+      "prove the requested book identity before deriving verification metadata",
       "extract counts and visibility without highlight text",
       "stop if shelf gate appears",
       "require --execute, approved book id, and GOODREADS_ALLOW_NOTES_PUBLICIZE=1",
