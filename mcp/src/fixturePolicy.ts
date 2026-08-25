@@ -9,9 +9,7 @@ export function resolveMcpFixture(value: string): string {
   const root = fixtureRoot();
   const requested = value.trim();
   if (!requested) throw new Error("MCP fixture path is required");
-  const candidate = realpathSync(
-    isAbsolute(requested) ? requested : resolve(root, requested),
-  );
+  const candidate = realpathSync(isAbsolute(requested) ? requested : resolve(root, requested));
   if (process.env.GOODREADS_MCP_ALLOW_ARBITRARY_FIXTURES === "1") return candidate;
   const rel = relative(root, candidate);
   if (rel === "" || (!rel.startsWith("..") && !isAbsolute(rel))) return candidate;

@@ -35,9 +35,7 @@ describe("MCP fixture policy", () => {
     await writeFile(fixture, "private");
     process.env.GOODREADS_MCP_FIXTURE_ROOT = root;
 
-    expect(() => resolveMcpFixture(fixture)).toThrow(
-      "restricted to GOODREADS_MCP_FIXTURE_ROOT",
-    );
+    expect(() => resolveMcpFixture(fixture)).toThrow("restricted to GOODREADS_MCP_FIXTURE_ROOT");
   });
 
   it("rejects traversal and symlink escapes", async () => {

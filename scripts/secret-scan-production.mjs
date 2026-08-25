@@ -46,8 +46,7 @@ const RULES = [
   },
   {
     id: "rails-authenticity-token",
-    pattern:
-      /(?:authenticity_token|csrf-token)["'\s:=]+([A-Za-z0-9._%+/=-]{24,})/gi,
+    pattern: /(?:authenticity_token|csrf-token)["'\s:=]+([A-Za-z0-9._%+/=-]{24,})/gi,
     valueIndex: 1,
   },
   {
@@ -77,9 +76,7 @@ function lineNumber(text, index) {
 }
 
 function trackedFiles() {
-  return execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" })
-    .split("\0")
-    .filter(Boolean);
+  return execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
 }
 
 const findings = [];
@@ -117,7 +114,9 @@ for (const path of trackedFiles()) {
 
 if (findings.length > 0) {
   for (const finding of findings) {
-    console.error(`${finding.path}:${finding.line}: potential secret (${finding.rule}); value omitted`);
+    console.error(
+      `${finding.path}:${finding.line}: potential secret (${finding.rule}); value omitted`,
+    );
   }
   process.exitCode = 1;
 } else {

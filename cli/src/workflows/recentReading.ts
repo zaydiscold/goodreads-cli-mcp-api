@@ -51,9 +51,7 @@ function normalizedRecentReadingOptions(options: RecentReadingOptions): {
   ) {
     throw new Error(`limit must be an integer from 1 to ${MAX_RECENT_READING_ITEMS}`);
   }
-  const shelves = [
-    ...new Set(options.shelves.map((shelf) => shelf.trim()).filter(Boolean)),
-  ];
+  const shelves = [...new Set(options.shelves.map((shelf) => shelf.trim()).filter(Boolean))];
   if (shelves.length === 0) throw new Error("at least one shelf slug is required");
   return { shelves, limit: options.limit };
 }
@@ -120,10 +118,7 @@ export async function buildRecentReadingList(options: RecentReadingOptions) {
 
 export async function buildRecentReadingNotes(options: RecentReadingNotesOptions) {
   const recent = await buildRecentReadingList(options);
-  const loadedNotesIndex = await parseNotesIndex(
-    options.fixtureDir,
-    options.notesIndexFixture,
-  );
+  const loadedNotesIndex = await parseNotesIndex(options.fixtureDir, options.notesIndexFixture);
   const notesIndex = loadedNotesIndex.page;
   const warnings = [...recent.warnings];
   if (!notesIndex) {
@@ -152,9 +147,7 @@ export async function buildRecentReadingNotes(options: RecentReadingNotesOptions
         userSlugKnown: Boolean(commentUserSlug),
         routeResolvable: Boolean(commentUserSlug),
         defaultRouteTemplate: "/comment/list/{user_slug}",
-        route: commentUserSlug
-          ? `/comment/list/${encodeURIComponent(commentUserSlug)}`
-          : null,
+        route: commentUserSlug ? `/comment/list/${encodeURIComponent(commentUserSlug)}` : null,
       },
     };
   });
@@ -217,10 +210,7 @@ function matchingNotesLink(detail: NotesPageParse | null, bookId: string) {
   return detail?.noteBookLinks.find((link) => link.bookId === bookId) ?? null;
 }
 
-function notesDetailIdentity(
-  detail: NotesPageParse | null,
-  bookId: string,
-): DetailIdentity {
+function notesDetailIdentity(detail: NotesPageParse | null, bookId: string): DetailIdentity {
   const links = detail?.noteBookLinks ?? [];
   const matched = links.some((link) => link.bookId === bookId);
   return {
@@ -276,9 +266,7 @@ function notesDetailSummary(
 }
 
 // eslint-disable-next-line complexity -- one plan reports independent identity, route, approval, and visibility evidence gates.
-export async function buildNotesPublicizeWorkflowPlan(
-  options: NotesPublicizeWorkflowOptions,
-) {
+export async function buildNotesPublicizeWorkflowPlan(options: NotesPublicizeWorkflowOptions) {
   const bookId = options.bookId.trim();
   if (!bookId) throw new Error("bookId is required");
   const detail = await loadNotesDetail(options.detailFixture);
