@@ -42,17 +42,33 @@ function booksCommand(): Command {
     .description("List public annotated-book metadata without annotation text.")
     .requiredOption("--user-id <id>", "Goodreads numeric user id.")
     .option("--limit <n>", "Maximum books to return.", "100")
+    .option("--asin <asin>", "Hydrate only this ASIN (repeatable).", appendValue, [])
+    .option(
+      "--details",
+      "Fetch every returned notes detail page for exact highlight/note counts.",
+      false,
+    )
     .option("--base-url <url>", "Goodreads base URL.", "https://www.goodreads.com")
     .option("--json", "Emit JSON.", true)
-    .action(async (options: { userId: string; limit: string; baseUrl?: string }) => {
-      printJson(
-        await notesBooks({
-          userId: options.userId,
-          limit: Number(options.limit),
-          baseUrl: options.baseUrl,
-        }),
-      );
-    });
+    .action(
+      async (options: {
+        userId: string;
+        limit: string;
+        baseUrl?: string;
+        details?: boolean;
+        asin?: string[];
+      }) => {
+        printJson(
+          await notesBooks({
+            userId: options.userId,
+            limit: Number(options.limit),
+            baseUrl: options.baseUrl,
+            details: Boolean(options.details),
+            asins: options.asin ?? [],
+          }),
+        );
+      },
+    );
 }
 
 function publicizePlanCommand(): Command {

@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  fetchAuthenticatedText,
-  fetchPublicText,
-  fetchText,
-} from "../src/client/http.js";
+import { fetchAuthenticatedText, fetchPublicText, fetchText } from "../src/client/http.js";
 
 const originalCookie = process.env.GOODREADS_COOKIE;
 
@@ -64,9 +60,7 @@ describe("Goodreads HTTP origin boundary", () => {
     expect(result.signedOut).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0]?.[0]).toBe("https://www.goodreads.com/review/list");
-    expect(fetchMock.mock.calls[1]?.[0]).toBe(
-      "https://www.goodreads.com/review/list?page=2",
-    );
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("https://www.goodreads.com/review/list?page=2");
     for (const call of fetchMock.mock.calls) {
       const init = call[1] as RequestInit;
       const headers = init.headers as Record<string, string>;
@@ -86,9 +80,9 @@ describe("Goodreads HTTP origin boundary", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(
-      fetchAuthenticatedText("https://www.goodreads.com/review/list"),
-    ).rejects.toThrow("cross-origin redirect");
+    await expect(fetchAuthenticatedText("https://www.goodreads.com/review/list")).rejects.toThrow(
+      "cross-origin redirect",
+    );
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
@@ -108,9 +102,9 @@ describe("Goodreads HTTP origin boundary", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(
-      fetchAuthenticatedText("https://www.goodreads.com/review/list"),
-    ).rejects.toThrow("redirect with embedded credentials");
+    await expect(fetchAuthenticatedText("https://www.goodreads.com/review/list")).rejects.toThrow(
+      "redirect with embedded credentials",
+    );
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

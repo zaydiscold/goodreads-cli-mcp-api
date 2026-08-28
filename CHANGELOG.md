@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — 2026-08-28 (exact annotation counts + publication regression)
+
+- Added live detail hydration to `notes books` / `goodreads_notes_books`, including exact highlight, attached-note, visible, hidden, and total annotation counts without raw text.
+- Added repeatable ASIN filters so detail hydration targets active books before network requests are sent.
+- Added bounded-worker, parser, privacy, engine, CLI, and MCP regression coverage.
+- Documented the Goodreads cron publication-order regression that left 15 highlights unpublished across HWFWM1/2; restoring the proven idempotent publish-all-first contract verified all 34 books at 407 shared of 407 total annotations.
+- Raised the arbitrary production function-line ceiling from 80 to 140 while retaining complexity, typecheck, lint, format, integrity, and behavior gates.
+
+
 ## Unreleased — 2026-08-23 (HTTP origin hardening)
 
 - Restricted every shared Goodreads HTTP helper to the exact HTTPS origin `https://www.goodreads.com` before any network request is sent.

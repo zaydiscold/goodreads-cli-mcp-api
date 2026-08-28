@@ -1025,10 +1025,64 @@ export async function notesInspect(options: {
   });
 }
 
+type NotesBook = ReturnType<typeof parseNotesBooksPayload>["books"][number];
+type DetailedNotesBook = NotesBook & {
+  annotationCount: number;
+  visibleCount: number;
+  hiddenCount: number;
+  latestTimestamp: string | null;
+  detailsFetched: true;
+};
+
+async function hydrateNotesBook(book: NotesBook, baseUrl: string): Promise<DetailedNotesBook> {
+  if (!book.notesPath) {
+    throw new Error(`notes detail path missing for ${book.title ?? book.asin ?? "book"}`);
+  }
+  const { html, signedOut } = await fetchAuthenticatedText(goodreadsUrl(book.notesPath, baseUrl));
+  if (signedOut) {
+    throw new Error(`authenticated notes detail resolved signed-out for ${book.title}`);
+  }
+  const detail = parseNotesPage(html);
+  if (detail.annotationCount === 0 && (book.sharedCount ?? 0) > 0) {
+    throw new Error(`notes detail parser returned zero annotations for ${book.title}`);
+  }
+  return {
+    ...book,
+    annotationCount: detail.annotationCount,
+    highlightCount: detail.highlightCount,
+    highlightCountAvailable: true,
+    noteCount: detail.attachedNoteCount,
+    noteCountAvailable: true,
+    visibleCount: detail.visibleNoteCount,
+    hiddenCount: detail.hiddenNoteCount,
+    latestTimestamp: detail.latestTimestamp,
+    detailsFetched: true,
+  };
+}
+
+async function hydrateNotesBooks(
+  books: NotesBook[],
+  baseUrl: string,
+): Promise<DetailedNotesBook[]> {
+  const hydrated: DetailedNotesBook[] = new Array(books.length);
+  let nextIndex = 0;
+  const worker = async () => {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= books.length) return;
+      hydrated[index] = await hydrateNotesBook(books[index]!, baseUrl);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(5, books.length) }, async () => worker()));
+  return hydrated;
+}
+
 export async function notesBooks(options: {
   userId: string;
   limit?: number;
   baseUrl?: string;
+  details?: boolean;
+  asins?: string[];
 }): Promise<Envelope> {
   const userId = options.userId.trim();
   if (!/^\d+$/.test(userId)) throw new Error("user-id must be numeric");
@@ -1055,12 +1109,25 @@ export async function notesBooks(options: {
     );
   }
   const parsed = parseNotesBooksPayload(payload);
+  const asinFilter = new Set(
+    (options.asins ?? []).map((asin) => asin.trim().toUpperCase()).filter(Boolean),
+  );
+  const matched =
+    asinFilter.size > 0
+      ? parsed.books.filter((book) => Boolean(book.asin && asinFilter.has(book.asin.toUpperCase())))
+      : parsed.books;
+  const selected = matched.slice(0, limit);
+  const books = options.details
+    ? await hydrateNotesBooks(selected, options.baseUrl ?? DEFAULT_BASE_URL)
+    : selected;
   return envelope(
     {
       ...parsed,
       totalAvailable: parsed.bookCount,
-      returnedCount: Math.min(limit, parsed.bookCount),
-      books: parsed.books.slice(0, limit),
+      matchedAvailable: matched.length,
+      returnedCount: selected.length,
+      detailsRequested: Boolean(options.details),
+      books,
     },
     { confidence: parsed.bookCount > 0 ? "high" : "medium" },
   );

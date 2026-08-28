@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  parseSearchResultsPage,
-  parseSimilarBooksPage,
-} from "../src/parsers/discoveryPage.js";
+import { parseSearchResultsPage, parseSimilarBooksPage } from "../src/parsers/discoveryPage.js";
 import { parseShelfRss } from "../src/parsers/rss.js";
 import { parseShelfHtml } from "../src/parsers/shelfHtml.js";
 

@@ -167,7 +167,8 @@ export async function ls(o: LSO): Promise<CommandEnvelope<unknown>> {
         const parts = xml.split("<item>");
         for (const part of parts) {
           if (!(
-            part.includes(`<book_id>${o.bookId}</book_id>`) || part.includes(`book/show/${o.bookId}`)
+            part.includes(`<book_id>${o.bookId}</book_id>`) ||
+            part.includes(`book/show/${o.bookId}`)
           )) {
             continue;
           }
