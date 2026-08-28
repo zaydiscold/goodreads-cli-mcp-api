@@ -104,6 +104,10 @@ export interface BookPageParse {
 export interface NotesPageParse {
   kind: "notes_page";
   title: string | null;
+  annotationCount: number;
+  highlightCount: number;
+  attachedNoteCount: number;
+  latestTimestamp: string | null;
   noteCount: number;
   visibleNoteCount: number;
   hiddenNoteCount: number;

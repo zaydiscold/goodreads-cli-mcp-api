@@ -53,7 +53,7 @@ Full read **and** write across Goodreads:
 - **One authenticated session, surface-specific cookie routing** — account reads and writes share `GOODREADS_COOKIE`, but public discovery reads deliberately strip account/SSO cookies. Rails mutations mint CSRF from the signed-in `/review/list` page and use the request shape each endpoint actually expects.
 - **Books** — parse any public book page (JSON-LD + Next.js metadata) and list public Readers-also-enjoyed candidates from Goodreads' server-rendered React props.
 - **Year in Books** — public yearly books/pages totals, average length/rating, and shortest/longest/most/least-shelved/highest-rated book metadata without emitting review text.
-- **Kindle Notes & Highlights** — list annotated books and available counts from public JSON, inspect notes metadata, plan + execute publicize/hide (gated), and join your current/read shelves to your notes index.
+- **Kindle Notes & Highlights** — list annotated books from public JSON; optionally hydrate exact live highlight/note/visibility counts with repeatable ASIN filters; plan + execute publicize/hide (gated); and join your current/read shelves to your notes index.
 - **Annotations** — per-highlight annotation metadata (visibility, spoiler, persist endpoints) without raw highlight text.
 - **Quotes** — add, remove, and reorder your quotes (up/down/top/bottom); create/remove and down/up restoration were live-verified against the canonical user quote list.
 - **Ratings & Reviews** — live Rails rating (`POST /review/rate/{book_id}`) and review-form (`POST /review/update/{book_id}`) workflows with authenticated `/review/edit/{book_id}` readback. Modern AppSync `RateBook`/`UnrateBook` metadata remains catalog-only until freshly recaptured.
@@ -92,7 +92,7 @@ Live-capable reads send real requests when their required inputs/auth are presen
 | `stats year-in-books --user-id <id> --year <yyyy>`     | "What did this reader finish that year?" — books/pages, averages and extrema without review text                         |
 | `recent-reading list / notes`                          | "Join my current/read shelves to my Kindle notes index"                                                                  |
 | `recent-reading publicize-plan / publicize`            | "Plan, then publicize, my recent books' highlights" (gated)                                                              |
-| `notes books --user-id <id>`                           | "Which books have Kindle annotations?" — ASIN/title/author and available counts, never annotation text                   |
+| `notes books --user-id <id> [--asin <asin>] [--details]` | "Which books have Kindle annotations?" — optionally hydrate exact live highlight/note/visibility counts, never annotation text |
 | `notes inspect`                                        | "What's in this notes page?" — counts + visibility, no highlight text                                                    |
 | `notes publicize-plan`                                 | "Build the verified plan for one book's notes"                                                                           |
 | `notes publicize` / `notes hide`                       | "Make all highlights public / hidden for a book" (gated)                                                                 |

@@ -34,7 +34,9 @@ for (const [relativePath, rule] of Object.entries(manifest.files ?? {})) {
   const text = readFileSync(path, "utf8");
   for (const required of requiredSubstrings) {
     if (!text.includes(required)) {
-      failures.push(`${relativePath}: missing required source sentinel ${JSON.stringify(required)}`);
+      failures.push(
+        `${relativePath}: missing required source sentinel ${JSON.stringify(required)}`,
+      );
     }
   }
 }
