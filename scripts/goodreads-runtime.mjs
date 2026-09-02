@@ -25,6 +25,16 @@ const BUILD_INPUTS = [
   "mcp/tsconfig.json",
 ];
 
+export function resolveBuildInvocation(platform = process.platform, env = process.env) {
+  if (platform === "win32") {
+    return {
+      command: env.ComSpec || env.COMSPEC || "cmd.exe",
+      args: ["/d", "/s", "/c", "corepack.cmd pnpm build"],
+    };
+  }
+  return { command: "pnpm", args: ["build"] };
+}
+
 export function resolveRepoRoot(moduleUrl = import.meta.url) {
   const modulePath = realpathSync(fileURLToPath(moduleUrl));
   return resolve(dirname(modulePath), "..");
