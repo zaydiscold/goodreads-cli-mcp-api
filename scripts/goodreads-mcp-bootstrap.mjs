@@ -3,7 +3,12 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { acquireBuildLock, inspectBuild, resolveRepoRoot } from "./goodreads-runtime.mjs";
+import {
+  acquireBuildLock,
+  inspectBuild,
+  resolveBuildInvocation,
+  resolveRepoRoot,
+} from "./goodreads-runtime.mjs";
 
 const root = resolveRepoRoot(import.meta.url);
 
@@ -12,9 +17,7 @@ function stderr(message) {
 }
 
 function runBuild() {
-  const windows = process.platform === "win32";
-  const command = windows ? "corepack.cmd" : "pnpm";
-  const args = windows ? ["pnpm", "build"] : ["build"];
+  const { command, args } = resolveBuildInvocation();
   const result = spawnSync(command, args, {
     cwd: root,
     env: process.env,
