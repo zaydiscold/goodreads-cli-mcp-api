@@ -35,7 +35,7 @@ node cli/dist/index.js search books \
 node cli/dist/index.js book show 52397-parable-of-the-sower --json
 
 # Inspect shelves and reading data
-node cli/dist/index.js shelves discover --json
+node cli/dist/index.js shelves discover --user <user-id> --json
 node cli/dist/index.js stats year-in-books --user-id <id> --year 2025 --json
 
 # Plan a shelf change, then execute it explicitly
@@ -44,6 +44,10 @@ node cli/dist/index.js shelves add --book-id <id> --name to-read --execute
 
 # Inspect notes metadata without printing highlight text
 node cli/dist/index.js notes inspect --fixture <notes-page.html> --json
+node cli/dist/index.js notes books --user-id <user-id> --details --json
+
+# Preview a review without publishing it
+node cli/dist/index.js library review --book-id <id> --text "My review draft."
 ```
 
 Run `node cli/dist/index.js <command> --help` for the current command contract.
@@ -63,7 +67,13 @@ The CLI itself does not perform computer vision. A bookstore or bookshelf photo 
 
 Public discovery commands do not require an authenticated Goodreads session. Account reads and writes do.
 
-Local credentials are loaded from `~/.goodreads/auth.sh` by the tracked wrappers. Keep that file outside the repository with owner-only permissions. Never paste cookies, CSRF tokens, private RSS keys, authenticated HTML, private URLs, or personal reading content into issues, pull requests, logs, or screenshots.
+The MCP wrapper loads local credentials from `~/.goodreads/auth.sh`. For direct CLI commands on macOS/Linux, load your existing auth file into the shell first:
+
+```bash
+source ~/.goodreads/auth.sh
+```
+
+Keep that file outside the repository with owner-only permissions. Never paste cookies, CSRF tokens, private RSS keys, authenticated HTML, private URLs, or personal reading content into issues, pull requests, logs, or screenshots.
 
 See [Authentication](./docs/auth.md) and run:
 
@@ -96,7 +106,7 @@ Read [Write operations](./docs/write-operations.md), [Authentication](./docs/aut
 
 ## Optional MCP support
 
-MCP is an integration feature, not the product name. The repository-local adapter exposes selected Goodreads operations to compatible agent clients and defaults to a read-only profile when `GOODREADS_MCP_PROFILE` is unset.
+The optional MCP adapter exposes Goodreads operations to compatible agent clients and defaults to a read-only profile when `GOODREADS_MCP_PROFILE` is unset.
 
 ```bash
 corepack pnpm build

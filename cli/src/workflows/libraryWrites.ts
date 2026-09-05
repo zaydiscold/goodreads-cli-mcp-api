@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { load } from "cheerio";
 import {
   buildLiveRequestPlan,
   executeLiveRequest,
@@ -256,6 +257,12 @@ async function observeAuthenticated(bookId: string, state: LibraryObservation) {
       state.warnings.push("Authenticated library read resolved to the Goodreads sign-in page.");
       return;
     }
+    const $ = load(result.html);
+    if ($('textarea[name="review[review]"], textarea#review_review_usertext').length === 0) {
+      state.sourceResults[state.sourceResults.length - 1]!.ok = false;
+      state.warnings.push("Authenticated library read did not contain the review edit form.");
+      return;
+    }
     state.authenticatedSuccess = true;
     const parsed = parseLibraryEditState(result.html);
     state.reviewId = parsed.reviewId;
@@ -328,6 +335,13 @@ export async function ls(options: LSO): Promise<CommandEnvelope<unknown>> {
   });
 }
 
+function hasAuthenticatedEvidence(result: CommandEnvelope<unknown>): boolean {
+  return (
+    (result.data as { evidence?: { authenticatedSuccess?: boolean } }).evidence
+      ?.authenticatedSuccess === true
+  );
+}
+
 export async function ss(options: SSO): Promise<CommandEnvelope<unknown>> {
   const bookId = validateBookId(options.bookId);
   if (!EXCLUSIVE.has(options.status)) {
@@ -371,7 +385,7 @@ export async function ss(options: SSO): Promise<CommandEnvelope<unknown>> {
     await new Promise((resolve) => setTimeout(resolve, 800));
     const again = await ls({ bookId, userId: options.userId });
     verifiedStatus = (again.data as { status?: string }).status ?? null;
-    mutationVerified = verifiedStatus === options.status;
+    mutationVerified = hasAuthenticatedEvidence(again) && verifiedStatus === options.status;
   }
   return envelope({
     ok: execute ? mutationVerified : true,
@@ -430,9 +444,8 @@ export async function ru(options: RUO): Promise<CommandEnvelope<unknown>> {
     const again = await ls({ bookId });
     verifiedRating = (again.data as { rating?: number | null }).rating ?? null;
     mutationVerified =
-      options.action === "clear"
-        ? verifiedRating === null || verifiedRating === 0
-        : verifiedRating === options.rating;
+      hasAuthenticatedEvidence(again) &&
+      (options.action === "clear" ? verifiedRating === 0 : verifiedRating === options.rating);
   }
   return envelope({
     ok: execute ? mutationVerified : true,
@@ -484,9 +497,9 @@ async function verifyReviewWrite(
   const exists = Boolean(review?.exists);
   const verifiedHash = review?.textSha256 ?? "";
   return {
-    mutationVerified: canonicalText
-      ? exists && verifiedHash === hash
-      : !exists && verifiedHash === "",
+    mutationVerified:
+      hasAuthenticatedEvidence(again) &&
+      (canonicalText ? exists && verifiedHash === hash : !exists && verifiedHash === ""),
     verifiedHash,
     exists,
   };
