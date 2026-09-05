@@ -53,6 +53,17 @@ export function parseNotesPage(html: string): NotesPageParse {
   const hiddenNoteCount = notes.filter((note) => note.visible === "false").length;
   const notePersistEndpointCount = notes.filter((note) => note.notePersistEndpoint).length;
   const spoilerToggleCount = notes.filter((note) => note.hasSpoilerToggle).length;
+  const annotationCount = notes.length;
+  const attachedNoteCount = Math.min(
+    annotationCount,
+    (html.match(/["']type["']\s*:\s*["']note["']/gi) ?? []).length,
+  );
+  const highlightCount = Math.max(0, annotationCount - attachedNoteCount);
+  const timestamps = Array.from(
+    html.matchAll(/["']updatedAt["']\s*:\s*["']([^"']+)["']/gi),
+    (match) => match[1],
+  ).filter((value): value is string => Boolean(value));
+  const latestTimestamp = timestamps.length > 0 ? [...timestamps].sort().at(-1)! : null;
   const shelfGateDetected = /add\s+to\s+shelf|shelf\s+gate|must\s+add/i.test(
     cleanText($("body").text()),
   );
@@ -60,6 +71,10 @@ export function parseNotesPage(html: string): NotesPageParse {
   return {
     kind: "notes_page",
     title: cleanText($("title").first().text()) || null,
+    annotationCount,
+    highlightCount,
+    attachedNoteCount,
+    latestTimestamp,
     noteCount: notes.length,
     visibleNoteCount,
     hiddenNoteCount,

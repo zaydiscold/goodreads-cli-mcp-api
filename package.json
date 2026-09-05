@@ -5,7 +5,8 @@
   "packageManager": "pnpm@10.12.1",
   "scripts": {
     "build": "corepack pnpm --filter @zaydiscold/goodreads-cli build && corepack pnpm --filter @zaydiscold/goodreads-mcp build",
-    "test": "corepack pnpm test:cli && corepack pnpm test:mcp",
+    "test": "corepack pnpm test:runtime && corepack pnpm test:cli && corepack pnpm test:mcp",
+    "test:runtime": "node --test scripts/goodreads-runtime.test.mjs",
     "test:cli": "corepack pnpm --filter @zaydiscold/goodreads-cli test",
     "test:mcp": "corepack pnpm --filter @zaydiscold/goodreads-mcp test",
     "typecheck": "corepack pnpm --filter @zaydiscold/goodreads-cli typecheck && corepack pnpm --filter @zaydiscold/goodreads-cli build && corepack pnpm --filter @zaydiscold/goodreads-mcp typecheck",

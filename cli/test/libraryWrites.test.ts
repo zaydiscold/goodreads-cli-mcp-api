@@ -135,6 +135,7 @@ describe("library show account selection and evidence", () => {
       evidence: { authenticatedSuccess: true },
     });
     expect(fetchMock).toHaveBeenCalledOnce();
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://www.goodreads.com/review/edit/123");
     expect(JSON.stringify(result)).not.toContain("179929687");
   });
 

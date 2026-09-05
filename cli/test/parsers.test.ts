@@ -159,6 +159,30 @@ describe("Goodreads parsers", () => {
     expect(JSON.stringify(parsed)).not.toContain("Raw highlight text");
   });
 
+  it("separates highlights from attached notes and exposes the latest timestamp", () => {
+    const html = `
+      <html><body>
+        <div class="js-readingNote" data-visible="true" data-annotation-pair-id="one"></div>
+        <div class="js-readingNote" data-visible="true" data-annotation-pair-id="two"></div>
+        <script>
+          window.__notes = [
+            {"type":"highlight","updatedAt":"2026-08-27T01:00:00.000-07:00"},
+            {"type":"note","updatedAt":"2026-08-28T02:00:00.000-07:00"}
+          ];
+        </script>
+        <span class="highlightText">Never emit either annotation body.</span>
+      </body></html>
+    `;
+    const parsed = parseNotesPage(html);
+    expect(parsed).toMatchObject({
+      annotationCount: 2,
+      highlightCount: 1,
+      attachedNoteCount: 1,
+      latestTimestamp: "2026-08-28T02:00:00.000-07:00",
+    });
+    expect(JSON.stringify(parsed)).not.toContain("Never emit either annotation body");
+  });
+
   it("normalizes annotated-book metadata without treating object counts as zero", () => {
     const parsed = parseNotesBooksPayload({
       annotated_books_collection: [

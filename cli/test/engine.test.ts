@@ -241,6 +241,144 @@ describe("Goodreads engine correctness", () => {
     expect(JSON.stringify(result)).not.toContain("opaque-secret");
   });
 
+  it("hydrates exact live annotation counts when details are requested", async () => {
+    process.env.GOODREADS_COOKIE = "session-token=synthetic";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            annotated_books_collection: [
+              {
+                asin: "B08XVT2FKW",
+                title: "He Who Fights with Monsters 2",
+                authorName: "Shirtaloon",
+                sharedCount: 2,
+                readingNotesUrl:
+                  "https://www.goodreads.com/notes/57456018-he-who-fights-with-monsters-2/179929687-zayd-khan?ref=abp",
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          `<html><body>
+            <a href="/user/sign_out">Sign out</a>
+            <div class="js-readingNote" data-visible="true" data-annotation-pair-id="one"></div>
+            <div class="js-readingNote" data-visible="true" data-annotation-pair-id="two"></div>
+            <div class="js-readingNote" data-visible="false" data-annotation-pair-id="three"></div>
+            <script>[
+              {"type":"highlight","updatedAt":"2026-08-27T01:00:00.000-07:00"},
+              {"type":"highlight","updatedAt":"2026-08-28T01:00:00.000-07:00"},
+              {"type":"note","updatedAt":"2026-08-28T02:00:00.000-07:00"}
+            ]</script>
+            <span class="highlightText">Private text must never survive.</span>
+          </body></html>`,
+          { status: 200 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await notesBooks({ userId: "179929687", details: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain(
+      "/notes/57456018-he-who-fights-with-monsters-2/179929687-zayd-khan",
+    );
+    expect(dataOf<{ books: Array<Record<string, unknown>> }>(result).books[0]).toMatchObject({
+      annotationCount: 3,
+      highlightCount: 2,
+      highlightCountAvailable: true,
+      noteCount: 1,
+      noteCountAvailable: true,
+      visibleCount: 2,
+      hiddenCount: 1,
+      latestTimestamp: "2026-08-28T02:00:00.000-07:00",
+      detailsFetched: true,
+    });
+    expect(JSON.stringify(result)).not.toContain("Private text must never survive");
+  });
+
+  it("filters annotated books by ASIN before detail hydration", async () => {
+    process.env.GOODREADS_COOKIE = "session-token=synthetic";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            annotated_books_collection: [
+              {
+                asin: "B000SKIP00",
+                title: "Historical Book",
+                sharedCount: 9,
+                readingNotesUrl: "https://www.goodreads.com/notes/1-old/179-reader",
+              },
+              {
+                asin: "B08XVT2FKW",
+                title: "Current Book",
+                sharedCount: 2,
+                readingNotesUrl: "https://www.goodreads.com/notes/2-current/179-reader",
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          '<html><body><a href="/user/sign_out">Sign out</a><div class="js-readingNote" data-visible="true"></div></body></html>',
+          { status: 200 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await notesBooks({
+      userId: "179929687",
+      asins: ["b08xvt2fkw"],
+      details: true,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(dataOf<{ books: Array<{ asin: string }> }>(result).books).toEqual([
+      expect.objectContaining({ asin: "B08XVT2FKW" }),
+    ]);
+  });
+
+  it("keeps the detail worker pool moving when one request is slow", async () => {
+    process.env.GOODREADS_COOKIE = "session-token=synthetic";
+    let releaseSlow!: (value: Response) => void;
+    const slow = new Promise<Response>((resolve) => {
+      releaseSlow = resolve;
+    });
+    const books = Array.from({ length: 6 }, (_, index) => ({
+      asin: `B00000000${index}`,
+      title: `Book ${index}`,
+      authorName: "Author",
+      sharedCount: 1,
+      readingNotesUrl: `https://www.goodreads.com/notes/${index + 1}-book/179-reader`,
+    }));
+    const detailHtml =
+      '<html><body><a href="/user/sign_out">Sign out</a><div class="js-readingNote" data-visible="true"></div></body></html>';
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      const value = String(url);
+      if (value.includes("/load_more")) {
+        return new Response(JSON.stringify({ annotated_books_collection: books }), { status: 200 });
+      }
+      if (value.includes("/notes/1-book/")) return slow;
+      return new Response(detailHtml, { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const pending = notesBooks({ userId: "179929687", details: true });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const callsBeforeSlowRelease = fetchMock.mock.calls.length;
+    releaseSlow(new Response(detailHtml, { status: 200 }));
+    await pending;
+
+    // Inventory + all six details should start; a batch barrier stops at six total calls.
+    expect(callsBeforeSlowRelease).toBe(7);
+  });
+
   it("reports a non-JSON notes-books response as low confidence", async () => {
     vi.stubGlobal(
       "fetch",
