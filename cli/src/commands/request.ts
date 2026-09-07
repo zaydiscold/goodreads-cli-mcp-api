@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { parseJsonInput, parsePairs, requestExecute, requestPlan } from "../engine.js";
+import { parseJsonInput, parsePairs, requestExecute, requestPlan } from "../publicEngine.js";
 import { printJson } from "../lib.js";
 
 interface RequestInputOptions {
@@ -44,7 +44,7 @@ function planCommand(): Command {
     new Command("plan").description("Build a request plan without sending it."),
     true,
   )
-    .option("--base-url <url>", "Base URL.", "https://www.goodreads.com")
+    .option("--base-url <url>", "Base URL for a local plan only.", "https://www.goodreads.com")
     .option("--authenticated", "Plan an authenticated read using GOODREADS_COOKIE.", false)
     .action(async (options: PlanOptions) => {
       printJson(
@@ -64,17 +64,17 @@ function planCommand(): Command {
 function executeCommand(): Command {
   return requestInputs(
     new Command("execute").description(
-      "Run a mapped Goodreads request. Reads run live; mutating routes require --execute and otherwise return a dry-run plan.",
+      "Run a mapped Goodreads request. Reads run live; mutations remain previews unless every live-write gate is present.",
     ),
     false,
   )
     .option("--authenticated", "Send GOODREADS_COOKIE for a Goodreads read route.", false)
     .option(
       "--approved-route <method-and-path-or-id>",
-      "Exact route approval required with --execute for mutations.",
+      "Exact route approval required for a live mutation.",
     )
     .option("--execute", "Allow a mutating route to write to the live account.", false)
-    .option("--dry-run", "Force a preview without sending, even when --execute is present.", false)
+    .option("--dry-run", "Force a side-effect-free preview, even with --execute.", false)
     .action(async (options: ExecuteOptions) => {
       printJson(
         await requestExecute({
@@ -94,7 +94,7 @@ function executeCommand(): Command {
 
 export function requestCommand(): Command {
   return new Command("request")
-    .description("Plan or execute live Goodreads web requests.")
+    .description("Plan or execute mapped Goodreads web requests.")
     .addCommand(planCommand())
     .addCommand(executeCommand());
 }

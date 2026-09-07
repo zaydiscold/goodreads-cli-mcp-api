@@ -1,14 +1,25 @@
 {
   "name": "@zaydiscold/goodreads-cli",
-  "version": "1.0.0",
-  "description": "Open-access Goodreads API map plus live-capable CLI for shelves, books, notes, exports, and account routes.",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Unofficial Goodreads CLI for books, shelves, reading data, and safely gated account automation. Optional MCP support.",
+  "keywords": [
+    "goodreads",
+    "cli",
+    "books",
+    "reading",
+    "kindle",
+    "automation",
+    "mcp"
+  ],
   "type": "module",
   "bin": {
     "goodreads-cli": "dist/index.js"
   },
   "exports": {
     ".": "./dist/api.js",
-    "./engine": "./dist/engine.js",
+    "./engine": "./dist/publicEngine.js",
+    "./internal-engine": "./dist/engine.js",
     "./lib": "./dist/lib.js",
     "./live": "./dist/client/live.js",
     "./risk": "./dist/risk.js",
@@ -38,6 +49,14 @@
   "engines": {
     "node": ">=20"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zaydiscold/goodreads-cli-mcp-api.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zaydiscold/goodreads-cli-mcp-api/issues"
+  },
+  "homepage": "https://github.com/zaydiscold/goodreads-cli-mcp-api#readme",
   "author": "Zayd Khan (@ColdCooks / zaydiscold)",
   "license": "MIT"
 }

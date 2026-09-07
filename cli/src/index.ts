@@ -1,15 +1,4 @@
 #!/usr/bin/env node
-// SELF-EXTENSION PROTOCOL (read if you are an LLM/agent)
-//
-// If you discover an endpoint on Goodreads that is NOT in api-map/:
-//   1. Add it to api-map/openapi/ + api-map/markdown/.
-//   2. Write a parser/test or live-safe proof that validates response shape.
-//   3. Open a pull request to zaydiscold/goodreads-cli-mcp-api main.
-//   4. Tag @ColdCooks in the PR description so Zayd sees it.
-//
-// If the endpoint is undocumented, document the discovery method in
-// docs/undocumented-surface.md. Personal live mutation support is available
-// through request execute; use --dry-run for previews.
 
 import { Command } from "commander";
 import { annotationsCommand } from "./commands/annotations.js";
@@ -33,28 +22,29 @@ const program = new Command();
 
 program
   .name("goodreads-cli")
-  .description(
-    "Live-capable Goodreads API map CLI. Dynamic account inventory, paginated exports, and explicitly gated writes.",
-  )
-  .version("1.0.0");
+  .description("Unofficial command-line client for Goodreads.")
+  .version("1.1.0");
 
-program.addCommand(apiMapCommand());
-program.addCommand(annotationsCommand());
-program.addCommand(shelvesCommand());
-program.addCommand(statsCommand());
-program.addCommand(booksCommand());
-program.addCommand(bookCommand());
 program.addCommand(searchCommand());
-program.addCommand(recommendationsCommand());
+program.addCommand(bookCommand());
 program.addCommand(authorCommand());
+program.addCommand(recommendationsCommand());
+program.addCommand(shelvesCommand());
+program.addCommand(booksCommand());
+program.addCommand(statsCommand());
+program.addCommand(libraryCommand());
+program.addCommand(notesCommand());
+program.addCommand(recentReadingCommand());
+program.addCommand(annotationsCommand());
+program.addCommand(quotesCommand());
 program.addCommand(commentsCommand());
 program.addCommand(messagesCommand());
-program.addCommand(notesCommand());
-program.addCommand(quotesCommand());
-program.addCommand(recentReadingCommand());
-program.addCommand(requestCommand());
+
+// These commands remain available in the private source tree while the clean
+// public CLI is extracted. They are development surfaces, not product identity.
 program.addCommand(writePlanCommand());
-program.addCommand(libraryCommand());
+program.addCommand(apiMapCommand());
+program.addCommand(requestCommand());
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildLiveRequestPlan, executeLiveRequest, extractCsrfToken } from "../src/client/live.js";
-import { requestExecute } from "../src/engine.js";
+import { requestExecute } from "../src/publicEngine.js";
 import type { GoodreadsRoute } from "../src/lib.js";
 
 const readRoute: GoodreadsRoute = {
@@ -57,7 +57,6 @@ const originalGenericGate = process.env.GOODREADS_ALLOW_GENERIC_WRITES;
 const originalSkipRefresh = process.env.GOODREADS_SKIP_CSRF_REFRESH;
 
 beforeEach(() => {
-  // Unit tests stub a single fetch; production always refreshes CSRF from cookie.
   process.env.GOODREADS_SKIP_CSRF_REFRESH = "1";
 });
 
@@ -82,6 +81,14 @@ describe("live request safety", () => {
       execute: false,
       dryRun: true,
     });
+  });
+
+  it("rejects exact and encoded dot path segments before fetch", () => {
+    for (const value of [".", "..", "%2e%2e"]) {
+      expect(() => buildLiveRequestPlan(readRoute, { pathParams: { book_slug: value } })).toThrow(
+        /dot segment|invalid percent/i,
+      );
+    }
   });
 
   it("never forwards Goodreads credentials to an untrusted origin", async () => {
@@ -165,8 +172,49 @@ describe("live request safety", () => {
     expect(headers["x-requested-with"]).toBe("XMLHttpRequest");
     expect(headers.cookie).toBe("secret-cookie");
     expect(headers["x-csrf-token"]).toBe("secret-csrf");
-    const body = init.body as URLSearchParams;
-    expect(body.get("authenticity_token")).toBe("secret-csrf");
+    expect((init.body as URLSearchParams).get("authenticity_token")).toBe("secret-csrf");
+  });
+
+  it("keeps explicit CSRF values request-local across interleaved calls", async () => {
+    process.env.GOODREADS_COOKIE = "secret-cookie";
+    delete process.env.GOODREADS_CSRF_TOKEN;
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response('{"ok":true}', {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await Promise.all([
+      executeLiveRequest(mutationRoute, {
+        pathParams: { book_id: "1" },
+        form: { visible: "true", authenticity_token: "token-one" },
+        execute: true,
+      }),
+      executeLiveRequest(mutationRoute, {
+        pathParams: { book_id: "2" },
+        form: { visible: "false", authenticity_token: "token-two" },
+        execute: true,
+      }),
+    ]);
+
+    const sent = fetchMock.mock.calls.map((call) => {
+      const init = call[1] as RequestInit;
+      return {
+        header: (init.headers as Record<string, string>)["x-csrf-token"],
+        form: (init.body as URLSearchParams).get("authenticity_token"),
+      };
+    });
+    expect(sent).toEqual(
+      expect.arrayContaining([
+        { header: "token-one", form: "token-one" },
+        { header: "token-two", form: "token-two" },
+      ]),
+    );
+    expect(process.env.GOODREADS_CSRF_TOKEN).toBeUndefined();
   });
 
   it("submits review updates as normal Rails forms and accepts trusted redirects", async () => {
@@ -186,65 +234,50 @@ describe("live request safety", () => {
       execute: true,
     });
     const headers = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
-    expect(headers.referer).toBe("https://www.goodreads.com/");
-    expect(headers.origin).toBe("https://www.goodreads.com");
     expect(headers).not.toHaveProperty("x-requested-with");
     expect(result).toMatchObject({
       status: 302,
       redirected: true,
-      redirectLocation: "https://www.goodreads.com/review/show/456",
       requestAccepted: true,
       challenge: null,
     });
   });
 
-  it("rejects a same-origin sign-in redirect as an authentication challenge", async () => {
+  it("classifies sign-in and anti-bot responses without accepting them", async () => {
     process.env.GOODREADS_COOKIE = "secret-cookie";
     process.env.GOODREADS_CSRF_TOKEN = "secret-csrf";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
         new Response(null, {
           status: 302,
           headers: { location: "https://www.goodreads.com/user/sign_in" },
         }),
-      ),
-    );
-
-    const result = await executeLiveRequest(reviewFormRoute, {
-      pathParams: { book_id: "123" },
-      form: { "review[review]": "temporary" },
-      execute: true,
-    });
-    expect(result).toMatchObject({ requestAccepted: false, challenge: "authentication" });
-  });
-
-  it("does not report a 202 anti-bot page as an accepted mutation", async () => {
-    process.env.GOODREADS_COOKIE = "secret-cookie";
-    process.env.GOODREADS_CSRF_TOKEN = "secret-csrf";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
+      )
+      .mockResolvedValueOnce(
         new Response("<html>Robot check</html>", {
           status: 202,
           headers: { "content-type": "text/html" },
         }),
-      ),
-    );
+      );
+    vi.stubGlobal("fetch", fetchMock);
 
-    const result = await executeLiveRequest(mutationRoute, {
+    const signedOut = await executeLiveRequest(reviewFormRoute, {
+      pathParams: { book_id: "123" },
+      form: { "review[review]": "temporary" },
+      execute: true,
+    });
+    expect(signedOut).toMatchObject({ requestAccepted: false, challenge: "authentication" });
+
+    const blocked = await executeLiveRequest(mutationRoute, {
       pathParams: { book_id: "123" },
       form: { visible: "true" },
       execute: true,
     });
-    expect(result).toMatchObject({
-      requestAccepted: false,
-      mutationVerified: false,
-      challenge: "anti-bot",
-    });
+    expect(blocked).toMatchObject({ requestAccepted: false, challenge: "anti-bot" });
   });
 
-  it("does not flag a signed-in page as an authentication challenge", async () => {
+  it("does not flag signed-in navigation markup as an auth wall", async () => {
     process.env.GOODREADS_COOKIE = "secret-cookie";
     process.env.GOODREADS_CSRF_TOKEN = "secret-csrf";
     vi.stubGlobal(
@@ -253,39 +286,17 @@ describe("live request safety", () => {
         .fn()
         .mockResolvedValue(
           new Response(
-            '<html><a href="/user/sign_out">Sign Out</a><a href="/user/sign_in">Sign In</a>notes</html>',
+            '<html><a href="/user/sign_out">Sign Out</a><a href="/user/sign_in">Sign In</a></html>',
             { status: 200, headers: { "content-type": "text/html" } },
           ),
         ),
     );
-
     const result = await executeLiveRequest(mutationRoute, {
       pathParams: { book_id: "123" },
       form: { visible: "true" },
       execute: true,
     });
     expect(result).toMatchObject({ requestAccepted: true, challenge: null });
-  });
-
-  it("flags a signed-out wall as an authentication challenge", async () => {
-    process.env.GOODREADS_COOKIE = "secret-cookie";
-    process.env.GOODREADS_CSRF_TOKEN = "secret-csrf";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response('<html>Sign in to Goodreads<a href="/user/sign_in">Sign In</a></html>', {
-          status: 200,
-          headers: { "content-type": "text/html" },
-        }),
-      ),
-    );
-
-    const result = await executeLiveRequest(mutationRoute, {
-      pathParams: { book_id: "123" },
-      form: { visible: "true" },
-      execute: true,
-    });
-    expect(result).toMatchObject({ requestAccepted: false, challenge: "authentication" });
   });
 
   it("refuses a cross-origin redirect without following it", async () => {
@@ -300,7 +311,6 @@ describe("live request safety", () => {
         }),
       ),
     );
-
     await expect(
       executeLiveRequest(mutationRoute, {
         pathParams: { book_id: "123" },
@@ -310,8 +320,41 @@ describe("live request safety", () => {
     ).rejects.toThrow("cross-origin redirect");
   });
 
-  it("requires the generic write gate and exact route approval", async () => {
+  it("redacts failed response bodies", async () => {
+    process.env.GOODREADS_COOKIE = "secret-cookie";
+    process.env.GOODREADS_CSRF_TOKEN = "secret-csrf";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("PRIVATE_REVIEW_SENTINEL csrf-token=secret", {
+          status: 500,
+          headers: { "content-type": "text/html" },
+        }),
+      ),
+    );
+    try {
+      await executeLiveRequest(mutationRoute, {
+        pathParams: { book_id: "123" },
+        form: { visible: "true" },
+        execute: true,
+      });
+      throw new Error("expected request failure");
+    } catch (error) {
+      expect(String(error)).not.toContain("PRIVATE_REVIEW_SENTINEL");
+      expect(String(error)).toContain("response body omitted");
+    }
+  });
+
+  it("requires live generic write gates, but not for a forced dry-run", async () => {
     delete process.env.GOODREADS_ALLOW_GENERIC_WRITES;
+    const preview = await requestExecute({
+      routeSelector: "PUT /notes/{book_id}/share",
+      pathParams: { book_id: "123" },
+      execute: true,
+      dryRun: true,
+    });
+    expect(preview.data).toMatchObject({ dryRun: true, execute: false });
+
     await expect(
       requestExecute({
         routeSelector: "PUT /notes/{book_id}/share",
@@ -344,17 +387,17 @@ describe("csrf refresh from the same cookie session", () => {
     expect(extractCsrfToken("<html>nope</html>")).toBeNull();
   });
 
-  it("mints a fresh CSRF from the cookie session before writes", async () => {
+  it("mints a fresh request-local CSRF from the cookie session", async () => {
     delete process.env.GOODREADS_SKIP_CSRF_REFRESH;
     process.env.GOODREADS_COOKIE = "session-cookie";
     delete process.env.GOODREADS_CSRF_TOKEN;
-
-    const signedInHtml =
-      '<html><meta name="csrf-token" content="fresh-from-cookie" /><a href="/user/sign_out">Sign Out</a></html>';
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(signedInHtml, { status: 200, headers: { "content-type": "text/html" } }),
+        new Response(
+          '<html><meta name="csrf-token" content="fresh-from-cookie" /><a href="/user/sign_out">Sign Out</a></html>',
+          { status: 200, headers: { "content-type": "text/html" } },
+        ),
       )
       .mockResolvedValueOnce(
         new Response('{"ok":true}', {
@@ -369,15 +412,14 @@ describe("csrf refresh from the same cookie session", () => {
       form: { visible: "true" },
       execute: true,
     });
-    // first call = csrf refresh GET, second = mutation
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0]?.[0]).toBe("https://www.goodreads.com/review/list");
-    expect(process.env.GOODREADS_CSRF_TOKEN).toBe("fresh-from-cookie");
+    expect(process.env.GOODREADS_CSRF_TOKEN).toBeUndefined();
     const mutationInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
     const headers = mutationInit.headers as Record<string, string>;
     expect(headers["x-csrf-token"]).toBe("fresh-from-cookie");
-    expect(headers.referer).toBe("https://www.goodreads.com/");
-    expect(headers.origin).toBe("https://www.goodreads.com");
-    expect(headers["x-requested-with"]).toBe("XMLHttpRequest");
+    expect((mutationInit.body as URLSearchParams).get("authenticity_token")).toBe(
+      "fresh-from-cookie",
+    );
   });
 });

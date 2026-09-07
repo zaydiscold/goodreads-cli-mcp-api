@@ -1,0 +1,51 @@
+name: Bug report
+description: Report incorrect Goodreads CLI behavior with a sanitized reproduction
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste cookies, CSRF tokens, private RSS keys, authenticated HTML, raw highlights, private reviews, comments, messages, account IDs, private URLs, or machine-specific paths.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect the CLI to do?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the sanitized error and any confidence or warning fields.
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      placeholder: goodreads-cli books list --shelf read --json
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version and runtime
+      placeholder: goodreads-cli 0.x, Node 22, macOS 15
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Sanitized reproduction
+      description: Use synthetic IDs and the smallest reproducible input. Attach only privacy-safe fixtures.
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed credentials, personal reading content, private URLs, account identifiers, and local machine details.
+          required: true

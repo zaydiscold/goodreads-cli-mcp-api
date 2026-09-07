@@ -1,0 +1,68 @@
+name: Feature proposal
+description: Propose a task-focused Goodreads CLI feature
+title: "feature: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: User outcome
+      description: What should a reader be able to accomplish?
+    validations:
+      required: true
+  - type: input
+    id: cli
+    attributes:
+      label: Proposed CLI shape
+      placeholder: goodreads-cli shelves ...
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Account effect
+      options:
+        - Public read only
+        - Authenticated read only
+        - Dry-run plan
+        - Account mutation
+        - Destructive account mutation
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Expected output
+      description: Describe useful human output and, when relevant, the stable JSON shape.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Privacy-safe test or evidence
+      description: Explain how synthetic data, a sanitized fixture, or a bounded read can prove the behavior. Do not attach raw captures.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Write verification or rollback
+      description: Required for mutations. HTTP success alone is not verification. Enter "not applicable" for reads.
+    validations:
+      required: true
+  - type: textarea
+    id: mcp
+    attributes:
+      label: Optional MCP use case
+      description: Explain why an agent tool would be useful, or enter "not needed". MCP parity is not required.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: This proposal does not require publishing the full route research corpus or committing private account data.
+          required: true
+        - label: Any live write will remain dry-run by default and require explicit approval.
+          required: true
