@@ -101,6 +101,8 @@ export interface RUO {
 }
 
 export interface RVO {
+  mode?: "replace" | "append";
+  approvedPreviousTextSha256?: string;
   bookId: string;
   reviewText: string;
   userId?: string;
@@ -512,6 +514,7 @@ function reviewApprovalBlockers(options: RVO, bookId: string, hash: string): str
 
 function blockedReview(bookId: string, textLength: number, hash: string, blockers: string[]) {
   return envelope({
+    ok: false,
     bookId,
     textLength,
     textSha256: hash,
@@ -543,14 +546,78 @@ async function verifyReviewWrite(bookId: string, canonicalText: string, hash: st
   };
 }
 
+async function reviewFormDraft(options: RVO, bookId: string) {
+  const page = await fetchAuthenticatedText(`https://www.goodreads.com/review/edit/${bookId}`);
+  if (page.signedOut) throw new Error("Authenticated review read is required for append");
+  const $ = cheerio.load(page.html);
+  const form = $("form")
+    .filter((_, el) => {
+      try {
+        const action = new URL($(el).attr("action") ?? "", "https://www.goodreads.com");
+        return (
+          action.origin === "https://www.goodreads.com" &&
+          action.pathname === `/review/update/${bookId}`
+        );
+      } catch {
+        return false;
+      }
+    })
+    .first();
+  const field = form.find('textarea[name="review[review]"]');
+  if (!field.length) throw new Error("Exact existing review form is required for append");
+  const previous = field.text();
+  const previousTextSha256 = reviewHash(previous);
+  if (
+    options.mode === "append" &&
+    options.execute &&
+    options.approvedPreviousTextSha256 !== previousTextSha256
+  ) {
+    throw new Error(
+      "Existing review changed or approvedPreviousTextSha256 is missing; preview again",
+    );
+  }
+  const text =
+    options.mode === "append"
+      ? previous + (previous ? "\n\n" : "") + options.reviewText
+      : options.reviewText;
+  const preserved: Record<string, string> = {};
+  form.find("input[name],textarea[name],select[name]").each((_, element) => {
+    const control = $(element);
+    const name = control.attr("name")!;
+    const type = control.attr("type") ?? "";
+    if (
+      ["authenticity_token", "add_update", "add_to_blog"].includes(name) ||
+      ["submit", "button", "file"].includes(type) ||
+      (["checkbox", "radio"].includes(type) && !control.is(":checked"))
+    )
+      return;
+    const value = control.val();
+    if (typeof value === "string") preserved[name] = value;
+  });
+  return { text, previousTextSha256, preserved };
+}
+
 export async function rv(options: RVO): Promise<CommandEnvelope<unknown>> {
   const bookId = validateBookId(options.bookId);
-  const canonicalText = canonicalReviewText(options.reviewText);
+  if (options.mode && !["replace", "append"].includes(options.mode))
+    throw new Error("mode must be replace or append");
+  let draft = options.mode === "append" ? await reviewFormDraft(options, bookId) : undefined;
+  const text = draft?.text ?? options.reviewText;
+  const canonicalText = canonicalReviewText(text);
   const hash = reviewHash(canonicalText);
   const execute = Boolean(options.execute);
   if (execute) {
     const blockers = reviewApprovalBlockers(options, bookId, hash);
     if (blockers.length) return blockedReview(bookId, canonicalText.length, hash, blockers);
+    if (!draft) {
+      try {
+        draft = await reviewFormDraft(options, bookId);
+      } catch {
+        return blockedReview(bookId, canonicalText.length, hash, [
+          "Exact existing review form is required to preserve review settings",
+        ]);
+      }
+    }
   }
 
   const route = await routeBySelector("POST /review/update/{book_id}");
@@ -559,10 +626,9 @@ export async function rv(options: RVO): Promise<CommandEnvelope<unknown>> {
     {
       pathParams: { book_id: bookId },
       form: {
+        ...draft?.preserved,
         utf8: "✓",
-        "review[review]": options.reviewText,
-        "review[spoiler_flag]": "0",
-        "review[sell_flag]": "0",
+        "review[review]": text,
         next: "Post",
         source: "form",
       },
@@ -581,6 +647,8 @@ export async function rv(options: RVO): Promise<CommandEnvelope<unknown>> {
     bookId,
     textLength: canonicalText.length,
     textSha256: hash,
+    mode: options.mode ?? "replace",
+    ...(draft ? { previousTextSha256: draft.previousTextSha256 } : {}),
     canonicalization: "HTML entities decoded; whitespace collapsed and trimmed",
     transport: "POST /review/update/{book_id}",
     implementationStatus: "live",

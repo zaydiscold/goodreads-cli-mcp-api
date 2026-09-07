@@ -11,6 +11,7 @@ export const FULL_TOOL_NAMES = [
   "goodreads_recommendations_list",
   "goodreads_author_show",
   "goodreads_year_in_books",
+  "goodreads_comments_create",
   "goodreads_comments_list",
   "goodreads_messages_folders",
   "goodreads_messages_list",

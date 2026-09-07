@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseCommentsPage } from "../src/parsers/commentsPage.js";
 import { ls, ru, rv } from "../src/workflows/libraryWrites.js";
 import { fetchAuthenticatedText } from "../src/client/http.js";
+import { executeLiveRequest } from "../src/client/live.js";
 
 vi.mock("../src/client/live.js", async (original) => ({
   ...(await original<typeof import("../src/client/live.js")>()),
@@ -21,6 +22,32 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
+
+it("preserves review settings and private notes when replacing through an absolute form action", async () => {
+  auth();
+  vi.mocked(fetchAuthenticatedText).mockResolvedValue({
+    signedOut: false,
+    html: '<form action="https://www.goodreads.com/review/update/123"><textarea name="review[review]">Replacement</textarea><input name="review[spoiler_flag]" value="0"><input type="checkbox" checked name="review[spoiler_flag]" value="1"><input name="review[sell_flag]" value="0"><textarea name="review[notes]">synthetic private note</textarea></form>',
+  });
+  const receipt = await rv({
+    bookId: "123",
+    reviewText: "Replacement",
+    execute: true,
+    approvedBookId: ["123"],
+    approvedTextSha256: hash("Replacement"),
+  });
+  expect(executeLiveRequest).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({
+      form: expect.objectContaining({
+        "review[spoiler_flag]": "1",
+        "review[sell_flag]": "0",
+        "review[notes]": "synthetic private note",
+      }),
+    }),
+  );
+  expect(JSON.stringify(receipt)).not.toContain("synthetic private note");
+});
 function auth() {
   vi.stubEnv("GOODREADS_COOKIE", "session-token=synthetic");
   vi.stubEnv("GOODREADS_USER_ID", "");
@@ -104,5 +131,39 @@ describe("comment record counting", () => {
     );
     expect(result.commentLinkCount).toBe(1);
     expect(JSON.stringify(result)).not.toMatch(/private|body|42/);
+  });
+});
+
+describe("review append", () => {
+  it("previews the combined content without exposing it", async () => {
+    auth();
+    vi.mocked(fetchAuthenticatedText).mockResolvedValue({
+      signedOut: false,
+      html: '<form action="/review/update/123"><textarea name="review[review]">Existing private review</textarea><input type="checkbox" name="review[spoiler_flag]" value="1" checked></form>',
+    } as never);
+    const result = await rv({ bookId: "123", reviewText: "New addendum", mode: "append" });
+    expect(result.data).toMatchObject({
+      mode: "append",
+      outcome: "planned",
+      previousTextSha256: hash("Existing private review"),
+      textSha256: hash("Existing private review New addendum"),
+    });
+    expect(JSON.stringify(result)).not.toMatch(/Existing private review|New addendum/);
+  });
+  it("blocks append when the existing review changed after approval", async () => {
+    auth();
+    vi.mocked(fetchAuthenticatedText).mockResolvedValue({
+      signedOut: false,
+      html: '<form action="/review/update/123"><textarea name="review[review]">Changed review</textarea></form>',
+    } as never);
+    await expect(
+      rv({
+        bookId: "123",
+        reviewText: "Addendum",
+        mode: "append",
+        execute: true,
+        approvedPreviousTextSha256: hash("Original review"),
+      }),
+    ).rejects.toThrow(/Existing review changed/);
   });
 });

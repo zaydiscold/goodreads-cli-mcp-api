@@ -18,11 +18,10 @@
     "test": "vitest run test"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@zaydiscold/goodreads-cli": "workspace:*",
     "zod": "^4.4.3"
   },
-  "devDependencies": {},
   "engines": {
     "node": ">=20"
   },

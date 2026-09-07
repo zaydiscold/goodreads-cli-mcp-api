@@ -33,14 +33,14 @@ Privacy boundary:
 | friend_requests            | `/friend/requests?ref=nav_my_friends`                       | Friend Requests           |   101 |     3 |
 | notifications              | `/notifications?ref=nav_my_notifs`                          | Notifications             |   129 |     2 |
 | group_discussions          | `/topic?discussion_filter=groups`                           | Discussions               |   128 |     2 |
-| profile                    | `/user/show/179929687-zayd-khan`                            | Zayd Khan profile         |   398 |    51 |
-| my_books_all               | `/review/list/179929687`                                    | 182 books                 |   784 |     9 |
-| my_books_read              | `/review/list/179929687?shelf=read`                         | 38 read books             |   799 |     9 |
-| my_books_currently_reading | `/review/list/179929687?shelf=currently-reading`            | 6 currently-reading books |   308 |     9 |
-| my_books_to_read           | `/review/list/179929687?shelf=to-read`                      | 132 to-read books         |   791 |     9 |
+| profile                    | `/user/show/123456789-example-reader`                            | Zayd Khan profile         |   398 |    51 |
+| my_books_all               | `/review/list/123456789`                                    | 182 books                 |   784 |     9 |
+| my_books_read              | `/review/list/123456789?shelf=read`                         | 38 read books             |   799 |     9 |
+| my_books_currently_reading | `/review/list/123456789?shelf=currently-reading`            | 6 currently-reading books |   308 |     9 |
+| my_books_to_read           | `/review/list/123456789?shelf=to-read`                      | 132 to-read books         |   791 |     9 |
 | my_quotes                  | `/quotes/list`                                              | 30 quotes                 |   544 |     5 |
-| my_comments                | `/comment/list/179929687-zayd-khan?ref=nav_profile_comment` | recent posts/comments     |    94 |     3 |
-| kindle_notes               | `/notes/179929687-zayd-khan`                                | Kindle Notes & Highlights |   118 |     2 |
+| my_comments                | `/comment/list/123456789-example-reader?ref=nav_profile_comment` | recent posts/comments     |    94 |     3 |
+| kindle_notes               | `/notes/123456789-example-reader`                                | Kindle Notes & Highlights |   118 |     2 |
 | recommendations            | `/recommendations`                                          | Recommended for You       |   219 |    27 |
 
 ## Batch 2 Pages Captured
@@ -60,23 +60,23 @@ Mode:
 | Label                              | Route                                                               | Title                        | Links | Forms |
 | ---------------------------------- | ------------------------------------------------------------------- | ---------------------------- | ----: | ----: |
 | message_inbox                      | `/message/inbox?ref=nav_my_messages`                                | my inbox                     |   100 |     3 |
-| year_in_books_2025                 | `/user/year_in_books/2025/179929687`                                | Zayd's Year in Books         |   115 |     2 |
+| year_in_books_2025                 | `/user/year_in_books/2025/123456789`                                | Zayd's Year in Books         |   115 |     2 |
 | friends_index                      | `/friend`                                                           | Friends                      |   151 |     4 |
 | list_show_1                        | `/list/show/1`                                                      | Best Books Ever              |  2473 |   224 |
-| review_list_slug_read              | `/review/list/179929687-zayd-khan?shelf=read`                       | read shelf                   |   797 |     9 |
-| review_list_numeric_all            | `/review/list/179929687`                                            | all books                    |   784 |     9 |
-| review_list_numeric_to_read        | `/review/list/179929687?shelf=to-read`                              | to-read shelf                |   791 |     9 |
+| review_list_slug_read              | `/review/list/123456789-example-reader?shelf=read`                       | read shelf                   |   797 |     9 |
+| review_list_numeric_all            | `/review/list/123456789`                                            | all books                    |   784 |     9 |
+| review_list_numeric_to_read        | `/review/list/123456789?shelf=to-read`                              | to-read shelf                |   791 |     9 |
 | book_show_gate_feral_gods          | `/book/show/57905101-the-gate-of-the-feral-gods`                    | book page                    |   145 |     1 |
-| review_list_slug_currently_reading | `/review/list/179929687-zayd-khan?shelf=currently-reading`          | currently-reading shelf      |   308 |     9 |
-| notes_list_ref                     | `/notes/179929687-zayd-khan?ref=us_w`                               | My Kindle Notes & Highlights |   118 |     2 |
-| notes_detail_inevitable_ruin       | `/notes/220329192-this-inevitable-ruin/179929687-zayd-khan?ref=abp` | notes detail                 |   224 |    14 |
-| profile_text_fragment_notes        | `/user/show/179929687-zayd-khan`                                    | profile                      |   421 |    53 |
+| review_list_slug_currently_reading | `/review/list/123456789-example-reader?shelf=currently-reading`          | currently-reading shelf      |   308 |     9 |
+| notes_list_ref                     | `/notes/123456789-example-reader?ref=us_w`                               | My Kindle Notes & Highlights |   118 |     2 |
+| notes_detail_inevitable_ruin       | `/notes/220329192-this-inevitable-ruin/123456789-example-reader?ref=abp` | notes detail                 |   224 |    14 |
+| profile_text_fragment_notes        | `/user/show/123456789-example-reader`                                    | profile                      |   421 |    53 |
 
 Route implications:
 
 - Shelf pages accept both numeric and slugged user route forms.
 - Shelf selection is controlled with `?shelf=<shelf-slug>`.
-- The stable user id in the pasted URLs is `179929687`.
+- The stable user id in the pasted URLs is `123456789`.
 - Book detail pages are Next.js-backed now; legacy Goodreads pages and Next.js pages coexist.
 - Public list pages such as `/list/show/1` are large and form-heavy; parser code must cap link/form extraction in debug output.
 
@@ -100,11 +100,11 @@ Important profile menu links observed:
 
 | Label                     | Route                                                       |
 | ------------------------- | ----------------------------------------------------------- |
-| Zayd Khan / Profile       | `/user/show/179929687-zayd-khan`                            |
+| Zayd Khan / Profile       | `/user/show/123456789-example-reader`                            |
 | Friends                   | `/friend?ref=nav_my_friends`                                |
 | Groups                    | `/group?ref=nav_comm_groups`                                |
 | Discussions               | `/topic?ref=nav_comm_discuss`                               |
-| Comments                  | `/comment/list/179929687-zayd-khan?ref=nav_profile_comment` |
+| Comments                  | `/comment/list/123456789-example-reader?ref=nav_profile_comment` |
 | Kindle Notes & Highlights | `/notes?ref=nav_profile_knh`                                |
 | Quotes                    | `/quotes?ref=nav_comm_quotes`                               |
 | Favorite genres           | `/user/edit_fav_genres?...`                                 |
@@ -149,22 +149,22 @@ Important My Books and tools links observed:
 
 | Label                     | Route                                                       |
 | ------------------------- | ----------------------------------------------------------- |
-| My Books                  | `/review/list/179929687?ref=nav_mybooks`                    |
-| Batch Edit                | `/review/list/179929687#`                                   |
-| Settings                  | `/review/list/179929687#`                                   |
-| Stats                     | `/review/stats/179929687`                                   |
-| Print                     | `/review/list/179929687?print=true`                         |
-| All                       | `/review/list/179929687?shelf=%23ALL%23`                    |
-| Want to Read              | `/review/list/179929687-zayd-khan?shelf=to-read`            |
-| Currently Reading         | `/review/list/179929687-zayd-khan?shelf=currently-reading`  |
-| Read                      | `/review/list/179929687-zayd-khan?shelf=read`               |
-| Did Not Finish            | `/review/list/179929687-zayd-khan?shelf=did-not-finish`     |
-| for-the-aesthetic         | `/review/list/179929687-zayd-khan?shelf=for-the-aesthetic`  |
-| want-to-read-again        | `/review/list/179929687-zayd-khan?shelf=want-to-read-again` |
+| My Books                  | `/review/list/123456789?ref=nav_mybooks`                    |
+| Batch Edit                | `/review/list/123456789#`                                   |
+| Settings                  | `/review/list/123456789#`                                   |
+| Stats                     | `/review/stats/123456789`                                   |
+| Print                     | `/review/list/123456789?print=true`                         |
+| All                       | `/review/list/123456789?shelf=%23ALL%23`                    |
+| Want to Read              | `/review/list/123456789-example-reader?shelf=to-read`            |
+| Currently Reading         | `/review/list/123456789-example-reader?shelf=currently-reading`  |
+| Read                      | `/review/list/123456789-example-reader?shelf=read`               |
+| Did Not Finish            | `/review/list/123456789-example-reader?shelf=did-not-finish`     |
+| for-the-aesthetic         | `/review/list/123456789-example-reader?shelf=for-the-aesthetic`  |
+| want-to-read-again        | `/review/list/123456789-example-reader?shelf=want-to-read-again` |
 | Review Drafts             | `/review/drafts`                                            |
 | Kindle Notes & Highlights | `/notes?ref=nav_profile_knh`                                |
 | Reading Challenge         | `/readingchallenges?ref=web_ingress`                        |
-| Reading stats             | `/review/stats/179929687-zayd-khan`                         |
+| Reading stats             | `/review/stats/123456789-example-reader`                         |
 | Amazon book purchases     | `/amazon_purchases?source=bn`                               |
 | Find duplicates           | `/review/duplicates`                                        |
 | Widgets                   | `/user/edit?tab=widgets`                                    |
@@ -248,7 +248,7 @@ By contrast, the public RSS fallback returned only 100 items for the 132-book `t
 Batch shelf move/add form:
 
 ```text
-POST /review/update_list/179929687
+POST /review/update_list/123456789
 authenticity_token=<from-current-page>
 view=table
 edit[shelf]=<shelf-slug>
@@ -284,25 +284,25 @@ Read-oriented:
 - `GET /friend/requests?ref=nav_my_friends`
 - `GET /notifications?ref=nav_my_notifs`
 - `GET /topic?discussion_filter=groups&ref=...`
-- `GET /user/show/179929687-zayd-khan`
-- `GET /user/delayable_user_show/179929687`
-- `GET /review/list/179929687`
-- `GET /review/list/179929687?shelf=read`
-- `GET /review/list/179929687?shelf=currently-reading`
-- `GET /review/list/179929687?shelf=to-read`
+- `GET /user/show/123456789-example-reader`
+- `GET /user/delayable_user_show/123456789`
+- `GET /review/list/123456789`
+- `GET /review/list/123456789?shelf=read`
+- `GET /review/list/123456789?shelf=currently-reading`
+- `GET /review/list/123456789?shelf=to-read`
 - `GET /tooltips?resources[Book.<id>]...`
 - `GET /quotes/list`
-- `GET /quotes/widget/179929687-zayd-khan`
-- `GET /comment/list/179929687-zayd-khan`
-- `GET /notes/179929687-zayd-khan`
-- `GET /notes/179929687/load_more`
+- `GET /quotes/widget/123456789-example-reader`
+- `GET /comment/list/123456789-example-reader`
+- `GET /notes/123456789-example-reader`
+- `GET /notes/123456789/load_more`
 - `GET /recommendations`
 - `GET /message/inbox`
-- `GET /user/year_in_books/2025/179929687`
+- `GET /user/year_in_books/2025/123456789`
 - `GET /friend`
 - `GET /list/show/1`
 - `GET /book/show/57905101-the-gate-of-the-feral-gods`
-- `GET /notes/220329192-this-inevitable-ruin/179929687-zayd-khan`
+- `GET /notes/220329192-this-inevitable-ruin/123456789-example-reader`
 
 Repeated background probes:
 

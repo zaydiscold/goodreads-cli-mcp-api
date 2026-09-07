@@ -138,7 +138,7 @@ describe("library show account selection and evidence", () => {
     });
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://www.goodreads.com/review/edit/123");
-    expect(JSON.stringify(result)).not.toContain("179929687");
+    expect(JSON.stringify(result)).not.toContain("123456789");
   });
 
   it("returns low confidence and warnings when every configured source fails", async () => {

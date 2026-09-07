@@ -16,6 +16,7 @@ import {
   bookshelfMovePlan,
   browserRoutes,
   commentsList,
+  commentCreate,
   dynamicInventoryGuidance,
   messagesFolders,
   messagesList,
@@ -346,6 +347,27 @@ registerTool(
         baseUrl,
       }),
     ),
+);
+
+registerTool(
+  "goodreads_comments_create",
+  {
+    title: "Goodreads Create Comment",
+    description:
+      "Preview or submit an exact review comment. Requires exact review and text-hash approvals. Submitted results remain unverified until independently inspected; never blindly retry.",
+    annotations: toolAnnotations(false, "write-mutate"),
+    inputSchema: {
+      reviewId: z.string().regex(/^\d+$/),
+      text: z.string().min(1),
+      approvedReviewId: z.string().optional(),
+      approvedTextSha256: z
+        .string()
+        .regex(/^[a-f0-9]{64}$/i)
+        .optional(),
+      execute: z.boolean().default(false),
+    },
+  },
+  async (options) => emit(await commentCreate(options)),
 );
 
 registerTool(
@@ -931,6 +953,11 @@ registerTool(
       bookId: z.string(),
       userId: z.string().optional(),
       reviewText: z.string(),
+      mode: z.enum(["replace", "append"]).default("replace"),
+      approvedPreviousTextSha256: z
+        .string()
+        .regex(/^[a-f0-9]{64}$/i)
+        .optional(),
       approvedBookId: z.array(z.string()).default([]),
       approvedTextSha256: z
         .string()
@@ -940,12 +967,23 @@ registerTool(
     },
     annotations: toolAnnotations(false, "write-mutate"),
   },
-  async ({ bookId, userId, reviewText, approvedBookId, approvedTextSha256, execute }) =>
+  async ({
+    bookId,
+    userId,
+    reviewText,
+    mode,
+    approvedPreviousTextSha256,
+    approvedBookId,
+    approvedTextSha256,
+    execute,
+  }) =>
     emit(
       await rv({
         bookId,
         userId,
         reviewText,
+        mode,
+        approvedPreviousTextSha256,
         approvedBookId,
         approvedTextSha256,
         execute,

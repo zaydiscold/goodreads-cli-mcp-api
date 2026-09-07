@@ -76,7 +76,7 @@ Publish sweep: 34/34 books accepted + verified
 
 ```bash
 goodreads-cli notes books \
-  --user-id 179929687 \
+  --user-id 123456789 \
   --asin B08XVT2FKW \
   --details
 ```
@@ -85,7 +85,7 @@ The same fields are exposed by `goodreads_notes_books` with:
 
 ```json
 {
-  "userId": "179929687",
+  "userId": "123456789",
   "asins": ["B08XVT2FKW"],
   "details": true
 }

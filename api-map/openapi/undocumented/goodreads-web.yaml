@@ -121,7 +121,7 @@ paths:
           required: true
           schema:
             type: string
-          example: 179929687-zayd-khan
+          example: 123456789-example-reader
       x-observed:
         artifacts:
           - goodreads/proofs/user-pages-map-2026-05-22.json
@@ -141,7 +141,7 @@ paths:
           required: true
           schema:
             type: integer
-          example: 179929687
+          example: 123456789
         - name: skip_cache
           in: query
           required: false
@@ -353,9 +353,9 @@ paths:
             type: string
           examples:
             numeric:
-              value: "179929687"
+              value: "123456789"
             slugged:
-              value: "179929687-zayd-khan"
+              value: "123456789-example-reader"
         - $ref: "#/components/parameters/Shelf"
         - name: print
           in: query
@@ -471,7 +471,7 @@ paths:
           required: true
           schema:
             type: string
-          example: "179929687"
+          example: "123456789"
         - $ref: "#/components/parameters/Shelf"
         - name: key
           in: query
@@ -1009,7 +1009,7 @@ paths:
           required: true
           schema:
             type: string
-          example: 179929687-zayd-khan
+          example: 123456789-example-reader
       x-observed:
         artifact: goodreads/proofs/user-pages-map-2026-05-22.json
         status: 200
@@ -1028,7 +1028,7 @@ paths:
           required: true
           schema:
             type: string
-          example: 179929687-zayd-khan
+          example: 123456789-example-reader
         - $ref: "#/components/parameters/Ref"
       x-observed:
         artifact: goodreads/proofs/user-pages-map-2026-05-22.json
@@ -1080,7 +1080,7 @@ paths:
           required: true
           schema:
             type: string
-          example: 179929687-zayd-khan
+          example: 123456789-example-reader
         - $ref: "#/components/parameters/Ref"
       x-observed:
         artifacts:
@@ -1101,7 +1101,7 @@ paths:
           required: true
           schema:
             type: integer
-          example: 179929687
+          example: 123456789
       x-observed:
         artifacts:
           - goodreads/proofs/user-pages-map-2026-05-22.json
@@ -1134,7 +1134,7 @@ paths:
           required: true
           schema:
             type: string
-          example: 179929687-zayd-khan
+          example: 123456789-example-reader
         - $ref: "#/components/parameters/Ref"
       x-observed:
         artifacts:
@@ -1741,7 +1741,7 @@ paths:
           required: true
           schema:
             type: integer
-          example: 179929687
+          example: 123456789
       x-observed:
         artifacts:
           - goodreads/proofs/user-pages-map-batch2-2026-05-22.json
@@ -2267,9 +2267,9 @@ paths:
             type: string
           examples:
             numeric:
-              value: "179929687"
+              value: "123456789"
             slugged:
-              value: "179929687-zayd-khan"
+              value: "123456789-example-reader"
       x-observed:
         artifact: goodreads/proofs/nav-bookshelves-links-2026-05-22-v3.json
         source: navigation link

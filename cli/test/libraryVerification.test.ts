@@ -42,8 +42,9 @@ describe("library mutation verification requires observed account state", () => 
   ] as const)("compares the exact review readback: %s", async (observed, expected) => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(`<html><a href="/user/sign_out">Sign Out</a>
+      vi.fn().mockImplementation(
+        async () =>
+          new Response(`<html><a href="/user/sign_out">Sign Out</a>
           <form action="/review/update/123">
           <textarea name="review[review]">${observed}</textarea></form></html>`),
       ),
@@ -60,7 +61,11 @@ describe("library mutation verification requires observed account state", () => 
   ] as const)("does not verify a cleared %s when account readback fails", async (_name, write) => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network unavailable")));
     await expect(write()).resolves.toMatchObject({
-      data: { ok: false, outcome: "indeterminate", mutationVerified: false },
+      data: {
+        ok: false,
+        outcome: _name === "review" ? "blocked" : "indeterminate",
+        mutationVerified: false,
+      },
     });
   });
 
@@ -73,7 +78,11 @@ describe("library mutation verification requires observed account state", () => 
       vi.fn().mockResolvedValue(new Response("<html><h1>Try again later</h1></html>")),
     );
     await expect(write()).resolves.toMatchObject({
-      data: { ok: false, outcome: "indeterminate", mutationVerified: false },
+      data: {
+        ok: false,
+        outcome: _name === "review" ? "blocked" : "indeterminate",
+        mutationVerified: false,
+      },
     });
   });
 
@@ -83,8 +92,9 @@ describe("library mutation verification requires observed account state", () => 
   ] as const)("verifies a cleared %s from the authenticated edit form", async (_name, write) => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(`<html><a href="/user/sign_out">Sign Out</a>
+      vi.fn().mockImplementation(
+        async () =>
+          new Response(`<html><a href="/user/sign_out">Sign Out</a>
           <form action="/review/update/123"><div data-rating="0.0"></div>
           <textarea name="review[review]"></textarea></form></html>`),
       ),

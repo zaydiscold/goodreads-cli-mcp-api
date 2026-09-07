@@ -51,7 +51,7 @@ are not followed across origins. Mutating routes print
 `[WRITES TO LIVE GOODREADS]` to stderr before execution. Workflow commands can
 be stricter than the generic executor.
 
-## Extract cookie (Windows / mothership)
+## Extract cookie (Windows / operator-host)
 
 ```bash
 # Prefer CDP from a logged-in Chrome tab on goodreads.com, then:

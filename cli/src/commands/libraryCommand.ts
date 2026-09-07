@@ -68,6 +68,8 @@ export function libraryCommand(): Command {
     .description("Create/update review via POST /review/update/{book_id}.")
     .requiredOption("--book-id <id>")
     .option("--text <text>")
+    .option("--append", "Append to the existing review without replacing it", false)
+    .option("--approved-previous-text-sha256 <sha>")
     .option("--approved-book-id <ids...>")
     .option("--approved-text-sha256 <sha>")
     .option("--execute", "", false)
@@ -76,6 +78,8 @@ export function libraryCommand(): Command {
         await rv({
           bookId: o.bookId,
           reviewText: o.text || "",
+          mode: o.append ? "append" : "replace",
+          approvedPreviousTextSha256: o.approvedPreviousTextSha256,
           approvedBookId: o.approvedBookId,
           approvedTextSha256: o.approvedTextSha256,
           execute: Boolean(o.execute),

@@ -56,6 +56,8 @@ import {
 } from "./workflows/recentReading.js";
 import { ls as _ls, ss as _ss, ru as _ru, rv as _rv } from "./workflows/libraryWrites.js";
 
+export { commentCreate } from "./workflows/comments.js";
+
 export const ls = _ls;
 export const ss = _ss;
 export const ru = _ru;
@@ -163,6 +165,13 @@ export const CAPABILITIES: Capability[] = [
     mcpTool: "goodreads_year_in_books",
     readOnly: true,
     risk: "read",
+  },
+  {
+    key: "comments-create",
+    cli: "comments create",
+    mcpTool: "goodreads_comments_create",
+    readOnly: false,
+    risk: "write-mutate",
   },
   {
     key: "comments-list",
@@ -433,6 +442,7 @@ async function runWrite(
   emitLiveMutationWarning(route);
   const result = await executeLiveRequest(route, { ...options, execute: true, dryRun: false });
   return envelope({
+    mutationVerified: false,
     submitted: "requestAccepted" in result ? result.requestAccepted : false,
     result,
     verificationRequired,
@@ -889,9 +899,13 @@ export async function commentsList(options: {
       signedOut,
       parsed,
       writeBoundary:
-        "Comment writes are not part of notes/highlights visibility and remain disabled until separately captured and approved.",
+        "Comment creation is a separate exact-review operation. Transport acceptance is not verified persistence.",
     },
-    { warnings, confidence: parsed && !signedOut ? "high" : "low" },
+    {
+      warnings,
+      confidence:
+        parsed && !signedOut && parsed.countStatus === "observed_records" ? "high" : "low",
+    },
   );
 }
 
@@ -1186,6 +1200,7 @@ async function notesShareWrite(
   });
   return envelope({
     approval,
+    mutationVerified: false,
     submitted: "requestAccepted" in result ? result.requestAccepted : false,
     result,
     verificationRequired,

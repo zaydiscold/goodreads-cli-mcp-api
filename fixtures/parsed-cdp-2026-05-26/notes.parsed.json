@@ -110,7 +110,7 @@
       "label": "Quotes"
     },
     {
-      "href": "/user/edit_fav_genres?ref=nav_profile_favgenre&return_url=%2Fnotes%2F179929687-{user}-khan",
+      "href": "/user/edit_fav_genres?ref=nav_profile_favgenre&return_url=%2Fnotes%2F123456789-{user}-khan",
       "label": "Favorite genres"
     },
     {
@@ -174,7 +174,7 @@
       "label": "Quotes"
     },
     {
-      "href": "/user/edit_fav_genres?ref=nav_profile_favgenre&return_url=%2Fnotes%2F179929687-{user}-khan",
+      "href": "/user/edit_fav_genres?ref=nav_profile_favgenre&return_url=%2Fnotes%2F123456789-{user}-khan",
       "label": "Favorite genres"
     },
     {

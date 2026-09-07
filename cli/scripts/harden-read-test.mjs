@@ -3,8 +3,8 @@
 import { loadApiMapRoutes } from "../dist/lib.js";
 import { executeLiveRequest } from "../dist/client/live.js";
 
-const USER_ID = "179929687";
-const USER_SLUG = "179929687-zayd-khan";
+const USER_ID = "123456789";
+const USER_SLUG = "123456789-example-reader";
 
 // Known-good public/path-param values harvested from live pages.
 const PARAMS = {

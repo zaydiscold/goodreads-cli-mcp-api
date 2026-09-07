@@ -1,5 +1,7 @@
 # Goodreads CLI
 
+
+[Consolidation and verification report](./docs/consolidation-2026-09-07.md)
 An unofficial command-line client for Goodreads.
 
 It can search books, manage shelves, update reading status, ratings, and reviews, export reading data, and support Kindle notes workflows. The same core can also run as an optional MCP server for agent clients.

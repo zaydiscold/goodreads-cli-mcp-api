@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { commentsList } from "../engine.js";
+import { commentCreate, commentsList } from "../engine.js";
 import { printJson } from "../lib.js";
 
 export function commentsCommand(): Command {
@@ -17,5 +17,14 @@ export function commentsCommand(): Command {
       printJson(await commentsList({ userSlug: options.userSlug, fixture: options.fixture }));
     });
 
+  command
+    .command("create")
+    .description("Create a comment on an exact review, with a preview by default.")
+    .requiredOption("--review-id <id>")
+    .requiredOption("--text <text>")
+    .option("--approved-review-id <id>")
+    .option("--approved-text-sha256 <sha>")
+    .option("--execute", "Send the approved comment", false)
+    .action(async (options) => printJson(await commentCreate(options)));
   return command;
 }

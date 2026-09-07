@@ -53,7 +53,7 @@ The slug suffix is optional; the numeric user id is enough.
 Confirmed live:
 
 ```bash
-curl -I 'https://www.goodreads.com/review/list_rss/179929687?shelf=read'
+curl -I 'https://www.goodreads.com/review/list_rss/123456789?shelf=read'
 ```
 
 returned `200` and `content-type: application/xml`. A body sample exposed structured XML fields including:
@@ -89,8 +89,8 @@ Important local nuance:
 Observed with `curl`:
 
 ```text
-GET /review/list.xml?v=2&id=179929687&shelf=read&page=1&per_page=50&sort=position
-GET /shelf/list.xml?user_id=179929687&page=1
+GET /review/list.xml?v=2&id=123456789&shelf=read&page=1&per_page=50&sort=position
+GET /shelf/list.xml?user_id=123456789&page=1
 ```
 
 Both returned `401` and body text `Invalid API key.` without credentials.
@@ -140,7 +140,7 @@ to-read: declared 132, pages 1-5 parsed 132 unique review ids
 Batch shelf form:
 
 ```text
-POST /review/update_list/179929687
+POST /review/update_list/123456789
 ```
 
 Key fields:
