@@ -31,10 +31,11 @@ describe("authenticated library edit state", () => {
       </form>
     `;
     expect(parseLibraryEditState(html)).toEqual({
-      reviewId: "58169",
+      reviewId: null,
       status: "currently-reading",
       rating: 4,
       reviewText: "A & B",
+      reviewObserved: true,
     });
   });
 
@@ -49,6 +50,7 @@ describe("authenticated library edit state", () => {
       status: "to-read",
       rating: 0,
       reviewText: "",
+      reviewObserved: true,
     });
   });
 });
@@ -105,7 +107,7 @@ describe("library show account selection and evidence", () => {
       new Response(
         `<html>
           <a href="/user/sign_out">Sign Out</a>
-          <form action="/review/update/999">
+          <form action="/review/update/123"><a href="/review/show/999">Review</a>
             <script>{ chosen: ["read"], exclusive: ["to-read", "currently-reading", "read"] }</script>
             <div data-rating="5.0"></div>
             <textarea name="review[review]">Authenticated review</textarea>

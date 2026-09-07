@@ -1,3 +1,4 @@
+import * as cheerio from "cheerio";
 import { createHash } from "node:crypto";
 import {
   buildLiveRequestPlan,
@@ -115,6 +116,7 @@ export interface LibraryEditState {
   status: string | null;
   rating: number | null;
   reviewText: string;
+  reviewObserved: boolean;
 }
 
 function decodeHtmlEntities(value: string): string {
@@ -155,7 +157,7 @@ export function parseLibraryEditState(html: string): LibraryEditState {
     )?.[1] ??
     "";
   const reviewId =
-    html.match(/\/review\/(?:show|edit|update)\/(\d+)/i)?.[1] ??
+    html.match(/\/review\/show\/(\d+)/i)?.[1] ??
     html.match(/review[_-]id["']?\s*[:=]\s*["']?(\d+)/i)?.[1] ??
     null;
   return {
@@ -163,6 +165,10 @@ export function parseLibraryEditState(html: string): LibraryEditState {
     status: exclusive ?? shelfLink ?? null,
     rating: ratingRaw === undefined ? null : Number(ratingRaw),
     reviewText: canonicalReviewText(reviewRaw),
+    reviewObserved:
+      /<textarea[^>]*(?:name=["']review\[review\]["']|id=["']review_review_usertext["'])/i.test(
+        html,
+      ),
   };
 }
 
@@ -188,6 +194,8 @@ type LibraryObservation = {
   sourceResults: SourceResult[];
   warnings: string[];
   authenticatedSuccess: boolean;
+  ratingObserved: boolean;
+  reviewObserved: boolean;
   rssSuccessCount: number;
 };
 
@@ -201,6 +209,8 @@ function emptyObservation(): LibraryObservation {
     sourceResults: [],
     warnings: [],
     authenticatedSuccess: false,
+    ratingObserved: false,
+    reviewObserved: false,
     rssSuccessCount: 0,
   };
 }
@@ -228,7 +238,8 @@ async function observeRss(userId: string, bookId: string, state: LibraryObservat
         .split("<item>")
         .find(
           (part) =>
-            part.includes(`<book_id>${bookId}</book_id>`) || part.includes(`book/show/${bookId}`),
+            part.includes(`<book_id>${bookId}</book_id>`) ||
+            new RegExp(`book/show/${bookId}(?:[<.?/#-]|$)`).test(part),
         );
       if (item) {
         parseRssItem(item, shelf, state);
@@ -256,8 +267,29 @@ async function observeAuthenticated(bookId: string, state: LibraryObservation) {
       state.warnings.push("Authenticated library read resolved to the Goodreads sign-in page.");
       return;
     }
+    const $ = cheerio.load(result.html);
+    const form = $("form")
+      .filter((_, element) => {
+        const action = $(element).attr("action") ?? "";
+        try {
+          const url = new URL(action, "https://www.goodreads.com");
+          return (
+            url.origin === "https://www.goodreads.com" &&
+            url.pathname === `/review/update/${bookId}`
+          );
+        } catch {
+          return false;
+        }
+      })
+      .first();
+    if (!form.length) {
+      state.warnings.push("Exact book review form was not observed; state is indeterminate.");
+      return;
+    }
     state.authenticatedSuccess = true;
-    const parsed = parseLibraryEditState(result.html);
+    const parsed = parseLibraryEditState(form.html() ?? "");
+    state.ratingObserved = parsed.rating !== null;
+    state.reviewObserved = parsed.reviewObserved;
     state.reviewId = parsed.reviewId;
     if (parsed.status) state.status = parsed.status;
     if (parsed.rating !== null) state.rating = parsed.rating;
@@ -301,6 +333,8 @@ function observationData(
     sourceResults: state.sourceResults,
     evidence: {
       authenticatedSuccess: state.authenticatedSuccess,
+      ratingObserved: state.ratingObserved,
+      reviewObserved: state.reviewObserved,
       rssSuccessCount: state.rssSuccessCount,
       stateObserved: state.authenticatedSuccess || state.rssSuccessCount > 0,
     },
@@ -318,7 +352,7 @@ export async function ls(options: LSO): Promise<CommandEnvelope<unknown>> {
   }
   const state = emptyObservation();
   if (userId) await observeRss(userId, bookId, state);
-  if (authenticated) await observeAuthenticated(bookId, state);
+  if (authenticated && !options.userId) await observeAuthenticated(bookId, state);
   if (!state.authenticatedSuccess && state.rssSuccessCount === 0) {
     state.warnings.push("No library-state source succeeded; returned state is indeterminate.");
   }
@@ -369,7 +403,7 @@ export async function ss(options: SSO): Promise<CommandEnvelope<unknown>> {
   let verifiedStatus: string | null = null;
   if (execute && (write.data as { submitted?: boolean } | undefined)?.submitted) {
     await new Promise((resolve) => setTimeout(resolve, 800));
-    const again = await ls({ bookId, userId: options.userId });
+    const again = await ls({ bookId });
     verifiedStatus = (again.data as { status?: string }).status ?? null;
     mutationVerified = verifiedStatus === options.status;
   }
@@ -386,18 +420,22 @@ export async function ss(options: SSO): Promise<CommandEnvelope<unknown>> {
   });
 }
 
-export async function ru(options: RUO): Promise<CommandEnvelope<unknown>> {
-  const bookId = validateBookId(options.bookId);
-  const execute = Boolean(options.execute);
+function validateRatingIntent(options: RUO): CommandEnvelope<unknown> | undefined {
+  if (!["set", "clear"].includes(options.action)) throw new Error("action must be set or clear");
   if (options.action === "set") {
-    if (!options.rating || options.rating < 1 || options.rating > 5) {
+    if (
+      !Number.isInteger(options.rating) ||
+      !options.rating ||
+      options.rating < 1 ||
+      options.rating > 5
+    ) {
       return envelope({
         submitted: false,
         outcome: "blocked",
         blockers: ["rating 1-5 required for action=set"],
       });
     }
-    if (execute && options.rating !== options.approvedRating) {
+    if (options.execute && options.rating !== options.approvedRating) {
       return envelope({
         submitted: false,
         outcome: "blocked",
@@ -405,6 +443,14 @@ export async function ru(options: RUO): Promise<CommandEnvelope<unknown>> {
       });
     }
   }
+  return undefined;
+}
+
+export async function ru(options: RUO): Promise<CommandEnvelope<unknown>> {
+  const bookId = validateBookId(options.bookId);
+  const execute = Boolean(options.execute);
+  const invalid = validateRatingIntent(options);
+  if (invalid) return invalid;
   if (execute) {
     const result = checks(executionRequested(true), approvedBook(bookId, options.approvedBookId));
     if (!result.ok)
@@ -429,10 +475,11 @@ export async function ru(options: RUO): Promise<CommandEnvelope<unknown>> {
     await new Promise((resolve) => setTimeout(resolve, 800));
     const again = await ls({ bookId });
     verifiedRating = (again.data as { rating?: number | null }).rating ?? null;
+    const observed = (again.data as { evidence?: { ratingObserved?: boolean } }).evidence
+      ?.ratingObserved;
     mutationVerified =
-      options.action === "clear"
-        ? verifiedRating === null || verifiedRating === 0
-        : verifiedRating === options.rating;
+      Boolean(observed) &&
+      (options.action === "clear" ? verifiedRating === 0 : verifiedRating === options.rating);
   }
   return envelope({
     ok: execute ? mutationVerified : true,
@@ -468,25 +515,22 @@ function blockedReview(bookId: string, textLength: number, hash: string, blocker
   });
 }
 
-async function verifyReviewWrite(
-  bookId: string,
-  userId: string | undefined,
-  canonicalText: string,
-  hash: string,
-) {
+async function verifyReviewWrite(bookId: string, canonicalText: string, hash: string) {
   await new Promise((resolve) => setTimeout(resolve, 800));
-  const again = await ls({ bookId, userId });
+  const again = await ls({ bookId });
   const review = (
     again.data as {
       review?: { exists?: boolean; textSha256?: string };
     }
   ).review;
+  const observed = (again.data as { evidence?: { reviewObserved?: boolean } }).evidence
+    ?.reviewObserved;
   const exists = Boolean(review?.exists);
   const verifiedHash = review?.textSha256 ?? "";
   return {
-    mutationVerified: canonicalText
-      ? exists && verifiedHash === hash
-      : !exists && verifiedHash === "",
+    mutationVerified:
+      Boolean(observed) &&
+      (canonicalText ? exists && verifiedHash === hash : !exists && verifiedHash === ""),
     verifiedHash,
     exists,
   };
@@ -522,7 +566,7 @@ export async function rv(options: RVO): Promise<CommandEnvelope<unknown>> {
   const submitted = Boolean((write.data as { submitted?: boolean } | undefined)?.submitted);
   const verification =
     execute && submitted
-      ? await verifyReviewWrite(bookId, options.userId, canonicalText, hash)
+      ? await verifyReviewWrite(bookId, canonicalText, hash)
       : { mutationVerified: false, verifiedHash: "", exists: false };
   return envelope({
     ok: execute ? verification.mutationVerified : true,

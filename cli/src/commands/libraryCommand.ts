@@ -7,7 +7,7 @@ function out(data: unknown): void {
 
 function star(n: unknown): 1 | 2 | 3 | 4 | 5 | undefined {
   const v = n === undefined ? Number.NaN : Number(n);
-  if (!Number.isFinite(v) || v < 1 || v > 5) return undefined;
+  if (!Number.isInteger(v) || v < 1 || v > 5) return undefined;
   return v as 1 | 2 | 3 | 4 | 5;
 }
 
