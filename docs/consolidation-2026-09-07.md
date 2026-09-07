@@ -40,8 +40,12 @@ Packaging proof: CLI and MCP packed and installed into an empty directory. CLI h
 
 ## Privacy and remaining limits
 
-Replaced the operator's profile ID, private email, local machine labels, and profile slug with synthetic examples in current tracked research, fixtures, routes, and docs. Current exact-value checks found no remaining profile-ID/private-email hits. Gitleaks scanned all 133 historical commits without credential-pattern findings, but that does not remove previously committed personal identifiers. This development repository still contains historical research; current-file sanitation alone does not clear its history for promotion.
+Replaced the operator's profile ID, private email, local machine labels, and profile slug with synthetic examples in current tracked research, fixtures, routes, and docs. Current exact-value checks found no remaining profile-ID/private-email hits. Gitleaks scanned all 135 historical commits without credential-pattern findings, but that does not remove previously committed personal identifiers. This development repository still contains historical research; current-file sanitation alone does not clear its history for promotion.
 
 No live public comment, rating, shelf update, or review edit was submitted. Comment semantic readback and edit/delete contracts remain unverified. A proposed temporary public comment test still needs an approved exact text/target and a verified cleanup path. Missing evidence is labeled explicitly, not presented as a working verified mutation.
 
 No bulk test may post or modify other people's content. Account-specific pages and dropdown states need separate observations. The present evidence covers selected live workflows and fixtures, not every route in the map.
+
+## Installed local runtime proof
+
+The clean source checkout was fast-forwarded to dccdbb2 and rebuilt. Its installed `scripts/goodreads-mcp.sh` bootstrap loaded the existing mode-600 auth file and returned a high-confidence library result with ratingObserved, reviewObserved, authenticatedSuccess, and stateObserved all true, with no warnings. The doctor confirmed fresh build artifacts and discoverable tools; its only warnings were the expected local revisions not yet pushed to origin. The default profile exposes 28 read tools; the full profile exposes 41 tools.
