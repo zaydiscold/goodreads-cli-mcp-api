@@ -362,6 +362,13 @@ export async function ls(options: LSO): Promise<CommandEnvelope<unknown>> {
   });
 }
 
+function hasAuthenticatedEvidence(result: CommandEnvelope<unknown>): boolean {
+  return (
+    (result.data as { evidence?: { authenticatedSuccess?: boolean } }).evidence
+      ?.authenticatedSuccess === true
+  );
+}
+
 export async function ss(options: SSO): Promise<CommandEnvelope<unknown>> {
   const bookId = validateBookId(options.bookId);
   if (!EXCLUSIVE.has(options.status)) {
@@ -405,7 +412,7 @@ export async function ss(options: SSO): Promise<CommandEnvelope<unknown>> {
     await new Promise((resolve) => setTimeout(resolve, 800));
     const again = await ls({ bookId });
     verifiedStatus = (again.data as { status?: string }).status ?? null;
-    mutationVerified = verifiedStatus === options.status;
+    mutationVerified = hasAuthenticatedEvidence(again) && verifiedStatus === options.status;
   }
   return envelope({
     ok: execute ? mutationVerified : true,
