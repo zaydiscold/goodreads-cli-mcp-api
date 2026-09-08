@@ -54,6 +54,47 @@ function auth() {
 }
 
 describe("semantic mutation receipts", () => {
+  it("marks wrong-book form evidence as unsuccessful", async () => {
+    auth();
+    vi.mocked(fetchAuthenticatedText).mockResolvedValue({
+      signedOut: false,
+      html: '<form action="/review/update/999"><textarea name="review[review]"></textarea></form>',
+    });
+    expect((await ls({ bookId: "123" })).data).toMatchObject({
+      evidence: { authenticatedSuccess: false, stateObserved: false },
+      sourceResults: [expect.objectContaining({ source: "authenticated-edit", ok: false })],
+    });
+  });
+
+  it.each([
+    "failure",
+    "<html>unrelated page</html>",
+    '<form action="/review/update/999"><textarea name="review[review]"></textarea></form>',
+    '<form action="/review/update/123"><div data-rating="0"></div></form>',
+  ])("does not confirm a submitted review clear after failed readback: %s", async (html) => {
+    auth();
+    const read = vi.mocked(fetchAuthenticatedText).mockResolvedValueOnce({
+      signedOut: false,
+      html: '<form action="/review/update/123"><textarea name="review[review]">Existing review</textarea></form>',
+    });
+    if (html === "failure") read.mockRejectedValueOnce(new Error("offline"));
+    else read.mockResolvedValueOnce({ html, signedOut: false });
+    const result = await rv({
+      bookId: "123",
+      reviewText: "",
+      approvedBookId: ["123"],
+      approvedTextSha256: hash(""),
+      execute: true,
+    });
+    expect(executeLiveRequest).toHaveBeenCalledOnce();
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(result.data).toMatchObject({
+      ok: false,
+      outcome: "indeterminate",
+      mutationVerified: false,
+    });
+  });
+
   it.each([
     "failure",
     "<html>unrelated page</html>",

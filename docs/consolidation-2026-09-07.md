@@ -49,3 +49,18 @@ No bulk test may post or modify other people's content. Account-specific pages a
 ## Installed local runtime proof
 
 The clean source checkout was fast-forwarded to dccdbb2 and rebuilt. Its installed `scripts/goodreads-mcp.sh` bootstrap loaded the existing mode-600 auth file and returned a high-confidence library result with ratingObserved, reviewObserved, authenticatedSuccess, and stateObserved all true, with no warnings. The doctor confirmed fresh build artifacts and discoverable tools; its only warnings were the expected local revisions not yet pushed to origin. The default profile exposes 28 read tools; the full profile exposes 41 tools.
+
+## Follow-up regression check
+
+Rechecked local main at `f60e252` against the original cleanup `ef251a3` and freshly fetched origin. Both original cleanup commits are ancestors of local main. The newer exact-book checks, observed-field verification, review append, comment preview, and CLI-first documentation remain present. Local main was 72 commits ahead of origin before this repair, with no incoming origin commits.
+
+Two regressions were repaired:
+
+- Wrong-book HTML correctly prevented mutation verification but left `sourceResults[].ok` true. A new test reproduced the contradictory evidence record; the rejected source now reports false.
+- A clean build generated `cli/dist/index.js` without execute permission. The installed CLI symlink then failed with permission denied, despite Node-based checks passing. The CLI build now sets the executable mode. A temporary-directory test runs the real build-copy script against a fresh non-executable entry point and executes the resulting binary on POSIX.
+
+Added four further tests that allow review preflight and mocked submission to succeed, then fail the post-write read with an offline response, unrelated HTML, a wrong-book form, or a missing review field. All remain indeterminate. These complement the older tests, which now stop at preflight following the review-preservation changes.
+
+Verification: `corepack pnpm check` passed on Node 22.22.3 with 120 CLI tests, 14 MCP tests, and three runtime tests, plus audit, scanner, lint, formatting, type checking, integrity, and clean builds. The installed CLI returned its version and completed a live book search with the expected book present. The tracked MCP wrapper initialized and advertised 28 default read tools.
+
+Current live-account limitation: an MCP library lookup returned low confidence with no exact form observed. A subsequent authenticated shelf request timed out; retrying via the homepage explicitly returned a Goodreads anti-bot/WAF challenge. This run does not establish fresh authenticated account-read success, despite the earlier installed-runtime proof above. No authentication material was printed or replaced, and no live mutation was sent. Public search remained successful.

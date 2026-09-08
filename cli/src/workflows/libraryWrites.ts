@@ -285,6 +285,7 @@ async function observeAuthenticated(bookId: string, state: LibraryObservation) {
       })
       .first();
     if (!form.length) {
+      state.sourceResults[state.sourceResults.length - 1]!.ok = false;
       state.warnings.push("Exact book review form was not observed; state is indeterminate.");
       return;
     }

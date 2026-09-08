@@ -1,4 +1,4 @@
-import { cp, rm } from "node:fs/promises";
+import { chmod, cp, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,3 +10,4 @@ const target = join(cliRoot, "dist", "api-map");
 
 await rm(target, { recursive: true, force: true });
 await cp(source, target, { recursive: true });
+await chmod(join(cliRoot, "dist", "index.js"), 0o755);
