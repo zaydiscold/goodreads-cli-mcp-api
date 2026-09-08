@@ -42,6 +42,7 @@ function booksCommand(): Command {
     .description("List public annotated-book metadata without annotation text.")
     .requiredOption("--user-id <id>", "Goodreads numeric user id.")
     .option("--limit <n>", "Maximum books to return.", "100")
+    .option("--max-pages <n>", "Maximum cursor pages to inspect.", "20")
     .option("--asin <asin>", "Hydrate only this ASIN (repeatable).", appendValue, [])
     .option(
       "--details",
@@ -54,6 +55,7 @@ function booksCommand(): Command {
       async (options: {
         userId: string;
         limit: string;
+        maxPages: string;
         baseUrl?: string;
         details?: boolean;
         asin?: string[];
@@ -62,6 +64,7 @@ function booksCommand(): Command {
           await notesBooks({
             userId: options.userId,
             limit: Number(options.limit),
+            maxPages: Number(options.maxPages),
             baseUrl: options.baseUrl,
             details: Boolean(options.details),
             asins: options.asin ?? [],

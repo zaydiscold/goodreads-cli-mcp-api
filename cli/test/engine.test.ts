@@ -227,7 +227,7 @@ describe("Goodreads engine correctness", () => {
       ),
     );
     vi.stubGlobal("fetch", fetchMock);
-    const result = await notesBooks({ userId: "123456789", limit: 1 });
+    const result = await notesBooks({ userId: "123456789", limit: 1, maxPages: 1 });
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/notes/123456789/load_more");
     expect(
       dataOf<{
@@ -236,9 +236,95 @@ describe("Goodreads engine correctness", () => {
         nextTokenPresent: boolean;
         books: unknown[];
       }>(result),
-    ).toMatchObject({ totalAvailable: 2, returnedCount: 1, nextTokenPresent: true });
+    ).toMatchObject({
+      totalAvailable: null,
+      observedCount: 2,
+      returnedCount: 1,
+      nextTokenPresent: true,
+      complete: false,
+    });
     expect(dataOf<{ books: unknown[] }>(result).books).toHaveLength(1);
     expect(JSON.stringify(result)).not.toContain("opaque-secret");
+  });
+
+  it.each(["opaque-cursor", { cursor: "opaque-cursor" }, ["opaque-cursor"]])(
+    "follows the observed start_token contract across pages",
+    async (cursor) => {
+      const page = (books: unknown[], next: unknown = null) =>
+        new Response(JSON.stringify({ annotated_books_collection: books, next_token: next }));
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(page([{ asin: "A", title: "First" }], cursor))
+        .mockResolvedValueOnce(
+          page([
+            { asin: "A", title: "First" },
+            { asin: "B", title: "Later" },
+          ]),
+        );
+      vi.stubGlobal("fetch", fetchMock);
+      const result = await notesBooks({ userId: "123", asins: ["B"] });
+      expect(dataOf<Record<string, unknown>>(result)).toMatchObject({
+        complete: true,
+        pageCount: 2,
+        totalAvailable: 2,
+        matchedAvailable: 1,
+        books: [expect.objectContaining({ asin: "B" })],
+      });
+      const url = new URL(String(fetchMock.mock.calls[1]?.[0]));
+      expect([...url.searchParams.keys()]).toEqual([
+        typeof cursor === "string"
+          ? "start_token"
+          : Array.isArray(cursor)
+            ? "start_token[]"
+            : "start_token[cursor]",
+      ]);
+      expect([...url.searchParams.values()]).toEqual(["opaque-cursor"]);
+      expect(JSON.stringify(result)).not.toContain("opaque-cursor");
+    },
+  );
+
+  it("retains partial data and stops when a cursor repeats", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ annotated_books_collection: [{ asin: "A" }], next_token: "repeat" }),
+          ),
+      ),
+    );
+    const result = await notesBooks({ userId: "123" });
+    expect(dataOf<Record<string, unknown>>(result)).toMatchObject({
+      complete: false,
+      pageCount: 2,
+      totalAvailable: null,
+      observedCount: 1,
+    });
+    expect(result.warnings.join(" ")).toContain("cursor repeated");
+  });
+
+  it("does not claim a complete inventory after a later page fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              annotated_books_collection: [{ asin: "A" }],
+              next_token: "private-cursor",
+            }),
+          ),
+        )
+        .mockResolvedValueOnce(new Response("<html>Sign in</html>")),
+    );
+    const result = await notesBooks({ userId: "123" });
+    expect(dataOf<Record<string, unknown>>(result)).toMatchObject({
+      complete: false,
+      totalAvailable: null,
+      observedCount: 1,
+    });
+    expect(JSON.stringify(result)).not.toContain("private-cursor");
   });
 
   it("hydrates exact live annotation counts when details are requested", async () => {

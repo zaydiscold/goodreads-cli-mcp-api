@@ -479,13 +479,14 @@ registerTool(
     inputSchema: {
       userId: z.string(),
       limit: z.number().int().min(1).max(500).default(100),
+      maxPages: z.number().int().min(1).max(50).default(20),
       baseUrl: z.string().optional(),
       details: z.boolean().default(false),
       asins: z.array(z.string()).default([]),
     },
   },
-  async ({ userId, limit, baseUrl, details, asins }) =>
-    emit(await notesBooks({ userId, limit, baseUrl, details, asins })),
+  async ({ userId, limit, maxPages, baseUrl, details, asins }) =>
+    emit(await notesBooks({ userId, limit, maxPages, baseUrl, details, asins })),
 );
 
 registerTool(

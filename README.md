@@ -65,6 +65,14 @@ Run `node cli/dist/index.js <command> --help` for the current command contract.
 
 The CLI itself does not perform computer vision. A bookstore or bookshelf photo workflow uses an image-capable agent to identify candidate titles, then uses the CLI to search Goodreads and apply the selected shelf action.
 
+## Workflow commands
+
+- `notes books --user-id <id> --max-pages 20 --details --json` traverses the annotated-book inventory and optionally reads detail counts. `complete` describes pagination, `truncated` describes the output limit, and `totalAvailable: null` means the inventory is incomplete.
+- `library review --help` exposes review replacement and append workflows. Append requires approved previous/result hashes, preserves captured form controls, and checks normalized text afterward. This detects stale client state; Goodreads does not provide an atomic compare-and-swap guarantee.
+- `comments --help` exposes comment planning and creation with exact target/text approvals. Creation currently reports submitted but unverified. Comment edit/delete and automatic persistence verification are not implemented.
+
+Notes detail reads are metadata-oriented. Per-annotation thought writes remain plan-only, and visibility changes require independent readback. See the [browser coverage report](./docs/browser-coverage-2026-09-07.md) for observed pages and remaining gaps.
+
 ## Authentication
 
 Public discovery commands do not require an authenticated Goodreads session. Account reads and writes do.

@@ -81,6 +81,123 @@ components:
           schema:
             type: string
 paths:
+  /widgets/user_update_widget:
+    get:
+      tags:
+        - account
+      summary: Browser-observed widgets user_update_widget
+      parameters:
+        - name: height
+          in: query
+          schema:
+            type: string
+          description: Observed parameter name; value omitted from capture.
+        - name: num_updates
+          in: query
+          schema:
+            type: string
+          description: Observed parameter name; value omitted from capture.
+        - name: user
+          in: query
+          schema:
+            type: string
+          description: Observed parameter name; value omitted from capture.
+        - name: width
+          in: query
+          schema:
+            type: string
+          description: Observed parameter name; value omitted from capture.
+      x-observed:
+        artifacts:
+          - api-map/browser-coverage-2026-09-07.json
+        resourceType: Fetch/XHR
+        verification: captured
+        note: Observed during page navigation. This does not establish a supported
+          account mutation.
+      responses:
+        "200":
+          description: Browser response; response values are not retained.
+  /readingchallenges:
+    get:
+      tags:
+        - reading-challenges
+      summary: Browser-observed readingchallenges
+      parameters: []
+      x-observed:
+        artifacts:
+          - api-map/browser-coverage-2026-09-07.json
+        resourceType: Fetch/XHR
+        verification: captured
+        note: Observed during page navigation. This does not establish a supported
+          account mutation.
+      responses:
+        "200":
+          description: Browser response; response values are not retained.
+  /readingchallenges/quest:
+    get:
+      tags:
+        - reading-challenges
+      summary: Browser-observed readingchallenges quest
+      parameters: []
+      x-observed:
+        artifacts:
+          - api-map/browser-coverage-2026-09-07.json
+        resourceType: Fetch/XHR
+        verification: captured
+        note: Observed during page navigation. This does not establish a supported
+          account mutation.
+      responses:
+        "200":
+          description: Browser response; response values are not retained.
+  /readingchallenges/debug:
+    get:
+      tags:
+        - reading-challenges
+      summary: Browser-observed readingchallenges debug
+      parameters: []
+      x-observed:
+        artifacts:
+          - api-map/browser-coverage-2026-09-07.json
+        resourceType: Fetch/XHR
+        verification: captured
+        note: Observed during page navigation. This does not establish a supported
+          account mutation.
+      responses:
+        "200":
+          description: Browser response; response values are not retained.
+  /readingchallenges/goals/data:
+    get:
+      tags:
+        - reading-challenges
+      summary: Browser-observed readingchallenges goals data
+      parameters: []
+      x-observed:
+        artifacts:
+          - api-map/browser-coverage-2026-09-07.json
+        resourceType: Fetch/XHR
+        verification: captured
+        note: Observed during page navigation. This does not establish a supported
+          account mutation.
+      responses:
+        "200":
+          description: Browser response; response values are not retained.
+  /readingchallenges/getAchievementsCarouselData:
+    post:
+      tags:
+        - reading-challenges
+      summary: Browser-observed readingchallenges getAchievementsCarouselData
+      parameters: []
+      x-observed:
+        artifacts:
+          - api-map/browser-coverage-2026-09-07.json
+        resourceType: Fetch/XHR
+        verification: captured
+        note: Observed during page navigation. This does not establish a supported
+          account mutation.
+      responses:
+        "200":
+          description: Browser response; response values are not retained.
+
   /:
     get:
       tags: [profile]
@@ -1102,6 +1219,10 @@ paths:
           schema:
             type: integer
           example: 123456789
+        - name: start_token
+          in: query
+          description: Opaque next_token from the preceding response. Structured tokens use jQuery bracket encoding (start_token[field] or start_token[]). Do not expose token values in logs.
+          schema: {}
       x-observed:
         artifacts:
           - goodreads/proofs/user-pages-map-2026-05-22.json

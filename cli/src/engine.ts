@@ -1091,9 +1091,80 @@ async function hydrateNotesBooks(
   return hydrated;
 }
 
+function appendNotesCursor(params: URLSearchParams, key: string, value: unknown, depth = 0): void {
+  if (depth > 5) throw new Error("Unsupported notes pagination cursor");
+  if (Array.isArray(value)) {
+    for (const item of value) appendNotesCursor(params, `${key}[]`, item, depth + 1);
+  } else if (value && typeof value === "object") {
+    for (const [child, item] of Object.entries(value)) {
+      if (!/^[a-zA-Z0-9_]+$/.test(child)) throw new Error("Unsupported notes cursor field");
+      appendNotesCursor(params, `${key}[${child}]`, item, depth + 1);
+    }
+  } else if (typeof value === "string" || typeof value === "number") {
+    params.append(key, String(value));
+  } else throw new Error("Unsupported notes pagination cursor");
+  if (params.toString().length > 8192) throw new Error("Notes cursor exceeds size bound");
+}
+
+async function fetchNotesInventory(userId: string, maxPages: number, baseUrl: string) {
+  const inventory = new Map<string, NotesBook>();
+  const seenCursors = new Set<string>();
+  const warnings: string[] = [];
+  let cursor: unknown;
+  let complete = false;
+  let pageCount = 0;
+  let nextTokenPresent = false;
+  while (pageCount < maxPages) {
+    const url = new URL(goodreadsUrl(`/notes/${encodeURIComponent(userId)}/load_more`, baseUrl));
+    try {
+      if (cursor !== undefined) appendNotesCursor(url.searchParams, "start_token", cursor);
+    } catch {
+      warnings.push("Pagination cursor is unsupported; inventory is incomplete.");
+      break;
+    }
+    let payload: unknown;
+    try {
+      payload = JSON.parse(await fetchPublicText(url.href));
+    } catch {
+      warnings.push(
+        "Annotated-book page could not be read or returned non-JSON; inventory is incomplete.",
+      );
+      break;
+    }
+    pageCount++;
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      !Array.isArray((payload as Record<string, unknown>).annotated_books_collection)
+    ) {
+      warnings.push("Annotated-book response shape was not observed; inventory is incomplete.");
+      break;
+    }
+    const parsed = parseNotesBooksPayload(payload);
+    for (const book of parsed.books)
+      inventory.set(book.asin ?? book.notesPath ?? JSON.stringify([book.title, book.author]), book);
+    nextTokenPresent = parsed.nextTokenPresent;
+    if (!nextTokenPresent) {
+      complete = true;
+      break;
+    }
+    cursor = (payload as Record<string, unknown>).next_token;
+    const fingerprint = JSON.stringify(cursor);
+    if (seenCursors.has(fingerprint)) {
+      warnings.push("Pagination cursor repeated; inventory is incomplete.");
+      break;
+    }
+    seenCursors.add(fingerprint);
+  }
+  if (!complete && pageCount === maxPages)
+    warnings.push("Page limit reached; inventory is incomplete.");
+  return { allBooks: [...inventory.values()], complete, pageCount, nextTokenPresent, warnings };
+}
+
 export async function notesBooks(options: {
   userId: string;
   limit?: number;
+  maxPages?: number;
   baseUrl?: string;
   details?: boolean;
   asins?: string[];
@@ -1101,49 +1172,42 @@ export async function notesBooks(options: {
   const userId = options.userId.trim();
   if (!/^\d+$/.test(userId)) throw new Error("user-id must be numeric");
   const limit = options.limit ?? 100;
-  if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
+  const maxPages = options.maxPages ?? 20;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 500)
     throw new Error("limit must be an integer from 1 through 500");
-  }
-  const raw = await fetchPublicText(
-    goodreadsUrl(
-      `/notes/${encodeURIComponent(userId)}/load_more`,
-      options.baseUrl ?? DEFAULT_BASE_URL,
-    ),
+  if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 50)
+    throw new Error("maxPages must be an integer from 1 through 50");
+  const { allBooks, complete, pageCount, nextTokenPresent, warnings } = await fetchNotesInventory(
+    userId,
+    maxPages,
+    options.baseUrl ?? DEFAULT_BASE_URL,
   );
-  let payload: unknown;
-  try {
-    payload = JSON.parse(raw) as unknown;
-  } catch {
-    return envelope(
-      { kind: "notes_books", bookCount: 0, books: [], nextTokenPresent: false },
-      {
-        warnings: ["Goodreads returned non-JSON content instead of annotated-book metadata."],
-        confidence: "low",
-      },
-    );
-  }
-  const parsed = parseNotesBooksPayload(payload);
   const asinFilter = new Set(
     (options.asins ?? []).map((asin) => asin.trim().toUpperCase()).filter(Boolean),
   );
-  const matched =
-    asinFilter.size > 0
-      ? parsed.books.filter((book) => Boolean(book.asin && asinFilter.has(book.asin.toUpperCase())))
-      : parsed.books;
+  const matched = asinFilter.size
+    ? allBooks.filter((book) => Boolean(book.asin && asinFilter.has(book.asin.toUpperCase())))
+    : allBooks;
   const selected = matched.slice(0, limit);
   const books = options.details
     ? await hydrateNotesBooks(selected, options.baseUrl ?? DEFAULT_BASE_URL)
     : selected;
   return envelope(
     {
-      ...parsed,
-      totalAvailable: parsed.bookCount,
+      kind: "notes_books",
+      bookCount: allBooks.length,
+      nextTokenPresent,
+      complete,
+      pageCount,
+      totalAvailable: complete ? allBooks.length : null,
+      observedCount: allBooks.length,
       matchedAvailable: matched.length,
-      returnedCount: selected.length,
+      returnedCount: books.length,
+      truncated: matched.length > limit,
       detailsRequested: Boolean(options.details),
       books,
     },
-    { confidence: parsed.bookCount > 0 ? "high" : "medium" },
+    { confidence: complete ? (books.length ? "high" : "medium") : "low", warnings },
   );
 }
 

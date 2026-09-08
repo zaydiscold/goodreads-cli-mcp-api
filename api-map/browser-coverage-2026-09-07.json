@@ -1,0 +1,598 @@
+{
+  "date": "2026-09-07",
+  "method": "Authenticated Chrome CDP navigation; form control names only; no submissions",
+  "pages": [
+    {
+      "label": "notes-library",
+      "path": "/notes/{id}"
+    },
+    {
+      "label": "account-settings",
+      "path": "/user/edit"
+    },
+    {
+      "label": "reading-challenges",
+      "path": "/readingchallenges"
+    },
+    {
+      "label": "recommendations",
+      "path": "/recommendations"
+    },
+    {
+      "label": "saved-quotes",
+      "path": "/quotes/list"
+    },
+    {
+      "label": "own-library",
+      "path": "/review/list/{id}"
+    },
+    {
+      "label": "profile-comments",
+      "path": "/comment/list/{id}"
+    },
+    {
+      "label": "own-groups",
+      "path": "/group/list/{id}"
+    },
+    {
+      "label": "recommendations-to-me",
+      "path": "/recommendations/to_me"
+    },
+    {
+      "label": "existing-review-edit-form",
+      "path": "/review/edit/{id}"
+    },
+    {
+      "label": "existing-review-comments",
+      "path": "/review/show/{id}"
+    },
+    {
+      "label": "reading-statistics",
+      "path": "/review/stats/{id}"
+    },
+    {
+      "label": "review-drafts",
+      "path": "/review/drafts"
+    },
+    {
+      "label": "library-duplicates",
+      "path": "/review/duplicates"
+    },
+    {
+      "label": "import-export",
+      "path": "/review/import"
+    },
+    {
+      "label": "shelf-settings",
+      "path": "/shelf/edit"
+    }
+  ],
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/notes",
+      "queryKeys": [],
+      "seenOn": [
+        "notes-library"
+      ],
+      "status": null,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/notes/{id}",
+      "queryKeys": [],
+      "seenOn": [
+        "notes-library"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/sign_in_prompt",
+      "queryKeys": [
+        "countOverride"
+      ],
+      "seenOn": [
+        "shelf-settings"
+      ],
+      "status": 204,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/notes/{id}/load_more",
+      "queryKeys": [],
+      "seenOn": [
+        "notes-library"
+      ],
+      "status": 200,
+      "verification": "captured",
+      "responseBodySchema": {
+        "type": "object",
+        "properties": {
+          "annotated_books_collection": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "asin": {
+                  "type": "string"
+                },
+                "authorName": {
+                  "type": "string"
+                },
+                "highlightCount": {
+                  "type": "null"
+                },
+                "imageUrl": {
+                  "type": "string"
+                },
+                "knhCta": {
+                  "type": "string"
+                },
+                "noSharedAnnotations": {
+                  "type": "boolean"
+                },
+                "noteCount": {
+                  "type": "null"
+                },
+                "readingNotesUrl": {
+                  "type": "string"
+                },
+                "sharedCount": {
+                  "type": "integer"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "next_token": {
+            "type": "null"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/user/edit",
+      "queryKeys": [],
+      "seenOn": [
+        "account-settings"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/widgets/user_update_widget",
+      "queryKeys": [
+        "height",
+        "num_updates",
+        "user",
+        "width"
+      ],
+      "seenOn": [
+        "account-settings"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/readingchallenges",
+      "queryKeys": [],
+      "seenOn": [
+        "reading-challenges"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/readingchallenges/quest",
+      "queryKeys": [],
+      "seenOn": [
+        "reading-challenges"
+      ],
+      "status": 200,
+      "verification": "captured",
+      "responseBodySchema": {
+        "type": "object",
+        "properties": {
+          "locked": {
+            "type": "array",
+            "items": {}
+          },
+          "unlocked": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "achievementDisplayAttributes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "hasLevel": {
+                        "type": "boolean"
+                      },
+                      "imageURL": {
+                        "type": "string"
+                      },
+                      "isUnrevealedMysteryAchievement": {
+                        "type": "boolean"
+                      },
+                      "quantity": {
+                        "type": "integer"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "tokenUUID": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                },
+                "backgroundColor": {
+                  "type": "string"
+                },
+                "challengeTitle": {
+                  "type": "string"
+                },
+                "daysLeftInCurrentChallenge": {
+                  "type": "integer"
+                },
+                "subtitle2": {
+                  "type": "string"
+                },
+                "tokenGroupName": {
+                  "type": "string"
+                },
+                "tokenGroupUUID": {
+                  "type": "string"
+                },
+                "totalEarnedAchievements": {
+                  "type": "integer"
+                },
+                "totalNumberOfAchievements": {
+                  "type": "integer"
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/readingchallenges/debug",
+      "queryKeys": [],
+      "seenOn": [
+        "reading-challenges"
+      ],
+      "status": 200,
+      "verification": "captured",
+      "responseBodySchema": {
+        "type": "object",
+        "properties": {
+          "debugEnabled": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/readingchallenges/goals/data",
+      "queryKeys": [],
+      "seenOn": [
+        "reading-challenges"
+      ],
+      "status": 200,
+      "verification": "captured",
+      "responseBodySchema": {
+        "type": "object",
+        "properties": {
+          "booksRead": {
+            "type": "string"
+          },
+          "daysRemaining": {
+            "type": "integer"
+          },
+          "readingGoal": {
+            "type": "integer"
+          },
+          "readingProgress": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/readingchallenges/getAchievementsCarouselData",
+      "queryKeys": [],
+      "seenOn": [
+        "reading-challenges"
+      ],
+      "status": 404,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/recommendations",
+      "queryKeys": [],
+      "seenOn": [
+        "recommendations"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/quotes/list",
+      "queryKeys": [],
+      "seenOn": [
+        "saved-quotes"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/review/list/{id}",
+      "queryKeys": [],
+      "seenOn": [
+        "recommendations-to-me"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/tooltips",
+      "queryKeys": [
+        "resources[Book.58088499][id]",
+        "resources[Book.58088499][type]",
+        "use_wtr_tooltip"
+      ],
+      "seenOn": [
+        "recommendations-to-me"
+      ],
+      "status": 200,
+      "verification": "captured",
+      "responseBodySchema": {
+        "type": "object",
+        "properties": {
+          "tooltips": {
+            "type": "object",
+            "properties": {
+              "Book.58088499": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/comment/list/{id}",
+      "queryKeys": [],
+      "seenOn": [
+        "profile-comments"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/group/list/{id}",
+      "queryKeys": [],
+      "seenOn": [
+        "own-groups"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/recommendations/to_me",
+      "queryKeys": [],
+      "seenOn": [
+        "recommendations-to-me"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/review/edit/{id}",
+      "queryKeys": [
+        "redirect_edit"
+      ],
+      "seenOn": [
+        "existing-review-edit-form"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/review/show/{id}",
+      "queryKeys": [],
+      "seenOn": [
+        "existing-review-comments"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/review/stats/{id}",
+      "queryKeys": [],
+      "seenOn": [
+        "reading-statistics"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/review/drafts",
+      "queryKeys": [],
+      "seenOn": [
+        "review-drafts"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/review/duplicates",
+      "queryKeys": [],
+      "seenOn": [
+        "library-duplicates"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/review/import",
+      "queryKeys": [],
+      "seenOn": [
+        "import-export"
+      ],
+      "status": 200,
+      "verification": "captured"
+    },
+    {
+      "method": "HEAD",
+      "path": "/review_porter/export/{id}/goodreads_export.csv",
+      "queryKeys": [],
+      "seenOn": [
+        "import-export"
+      ],
+      "status": 404,
+      "verification": "captured"
+    },
+    {
+      "method": "GET",
+      "path": "/shelf/edit",
+      "queryKeys": [],
+      "seenOn": [
+        "shelf-settings"
+      ],
+      "status": 200,
+      "verification": "captured"
+    }
+  ],
+  "forms": [
+    {
+      "path": "/search",
+      "method": "GET",
+      "controls": [
+        "q",
+        "qid"
+      ]
+    },
+    {
+      "path": "/user/edit_fav_genres",
+      "method": "POST",
+      "controls": [
+        "favorites[Art]",
+        "favorites[Biography]",
+        "favorites[Business]",
+        "favorites[Children's]",
+        "favorites[Christian]",
+        "favorites[Classics]",
+        "favorites[Comics]",
+        "favorites[Cookbooks]",
+        "favorites[Ebooks]",
+        "favorites[Fantasy]",
+        "favorites[Fiction]",
+        "favorites[Graphic Novels]",
+        "favorites[Historical Fiction]",
+        "favorites[History]",
+        "favorites[Horror]",
+        "favorites[Memoir]",
+        "favorites[Music]",
+        "favorites[Mystery]",
+        "favorites[Nonfiction]",
+        "favorites[Poetry]",
+        "favorites[Psychology]",
+        "favorites[Romance]",
+        "favorites[Science]",
+        "favorites[Science Fiction]",
+        "favorites[Self Help]",
+        "favorites[Sports]",
+        "favorites[Thriller]",
+        "favorites[Travel]",
+        "favorites[Young Adult]"
+      ]
+    },
+    {
+      "path": "/review/update/{id}",
+      "method": "POST",
+      "controls": [
+        "utf8",
+        "authenticity_token",
+        "shelfChooser",
+        "review[review]",
+        "review[spoiler_flag]",
+        "readingEditsMade",
+        "readingSessionDatePicker{session}[session_id]",
+        "readingSessionDatePicker{session}[state]",
+        "readingSessionDatePicker{session}[delete]",
+        "readingSessionDatePicker{session}[merge]",
+        "readingSessionDatePicker{session}[merge_edition_id]",
+        "readingSessionDatePicker{session}[date_picker_id]",
+        "readingSessionDatePicker{session}[start][year]",
+        "readingSessionDatePicker{session}[start][month]",
+        "readingSessionDatePicker{session}[start][day]",
+        "readingSessionDatePicker{session}[end][year]",
+        "readingSessionDatePicker{session}[end][month]",
+        "readingSessionDatePicker{session}[end][day]",
+        "review[notes]",
+        "review[sell_flag]",
+        "next",
+        "add_to_blog",
+        "add_update",
+        "source"
+      ]
+    },
+    {
+      "path": "/book/mention_search",
+      "method": "POST",
+      "controls": [
+        "utf8",
+        "search[query]",
+        "commit"
+      ]
+    },
+    {
+      "path": "/author/mention_search",
+      "method": "POST",
+      "controls": [
+        "utf8",
+        "quote[author_name]",
+        "commit"
+      ]
+    }
+  ]
+}
