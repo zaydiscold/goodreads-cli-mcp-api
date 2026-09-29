@@ -227,8 +227,8 @@ describe("Goodreads engine correctness", () => {
       ),
     );
     vi.stubGlobal("fetch", fetchMock);
-    const result = await notesBooks({ userId: "179929687", limit: 1 });
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/notes/179929687/load_more");
+    const result = await notesBooks({ userId: "123456789", limit: 1 });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/notes/123456789/load_more");
     expect(
       dataOf<{
         totalAvailable: number;
@@ -255,7 +255,7 @@ describe("Goodreads engine correctness", () => {
                 authorName: "Shirtaloon",
                 sharedCount: 2,
                 readingNotesUrl:
-                  "https://www.goodreads.com/notes/57456018-he-who-fights-with-monsters-2/179929687-zayd-khan?ref=abp",
+                  "https://www.goodreads.com/notes/57456018-he-who-fights-with-monsters-2/123456789-example-user?ref=abp",
               },
             ],
           }),
@@ -281,10 +281,10 @@ describe("Goodreads engine correctness", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await notesBooks({ userId: "179929687", details: true });
+    const result = await notesBooks({ userId: "123456789", details: true });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain(
-      "/notes/57456018-he-who-fights-with-monsters-2/179929687-zayd-khan",
+      "/notes/57456018-he-who-fights-with-monsters-2/123456789-example-user",
     );
     expect(dataOf<{ books: Array<Record<string, unknown>> }>(result).books[0]).toMatchObject({
       annotationCount: 3,
@@ -334,7 +334,7 @@ describe("Goodreads engine correctness", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await notesBooks({
-      userId: "179929687",
+      userId: "123456789",
       asins: ["b08xvt2fkw"],
       details: true,
     });
@@ -369,7 +369,7 @@ describe("Goodreads engine correctness", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const pending = notesBooks({ userId: "179929687", details: true });
+    const pending = notesBooks({ userId: "123456789", details: true });
     await new Promise((resolve) => setTimeout(resolve, 20));
     const callsBeforeSlowRelease = fetchMock.mock.calls.length;
     releaseSlow(new Response(detailHtml, { status: 200 }));
@@ -384,7 +384,7 @@ describe("Goodreads engine correctness", () => {
       "fetch",
       vi.fn().mockResolvedValue(new Response("<html>Sign in</html>", { status: 200 })),
     );
-    const result = await notesBooks({ userId: "179929687" });
+    const result = await notesBooks({ userId: "123456789" });
     expect(result.confidence).toBe("low");
     expect(result.warnings).toEqual(expect.arrayContaining([expect.stringContaining("non-JSON")]));
   });
