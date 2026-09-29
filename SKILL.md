@@ -31,7 +31,7 @@ A local EPUB/PDF belongs to `amazon-kindle-cli kindle send`, not Goodreads. An A
 
 Drive your Goodreads account from the terminal. Amazon killed the public API in December 2020 — this CLI drives the undocumented web surface via a hand-mapped OpenAPI spec, CDP-captured routes, and live-verified write endpoints.
 
-**Repo:** `zaydiscold/goodreads-cli-mcp-api` at `~/Desktop/clis and apis/goodreads-cli` (mothership) / `~/Desktop/CLIs/goodreads-cli` (frostbyte)
+**Repo:** `zaydiscold/goodreads-cli-mcp-api` at `~/Desktop/clis and apis/goodreads-cli` (or wherever you cloned it)
 **Auth:** `~/.goodreads/auth.sh` (chmod 600, source before use) — **one cookie for every function**
 **MCP:** `full`, `core`, and `notes` profiles over one shared engine (live truth: `tools/list`)
 **Dev runbook:** [`AGENTS.md`](./AGENTS.md) — repo layout, build/test, the shared-engine + parity invariant
@@ -78,7 +78,7 @@ chmod 600 ~/.goodreads/auth.sh
 source ~/.goodreads/auth.sh
 sed "s/^export /set \"/" ~/.goodreads/auth.sh | sed "s/='\(.*\)'/=\1\"/" > /tmp/auth.bat
 echo "@echo off" | cat - /tmp/auth.bat > /tmp/t && mv /tmp/t /tmp/auth.bat
-scp /tmp/auth.bat mothership:C:/Users/ZaydK/.goodreads/auth.bat
+scp /tmp/auth.bat <other-host>:"C:/Users/<you>/.goodreads/auth.bat"
 ```
 
 ## 2. MCP Wiring
@@ -140,7 +140,7 @@ Verify:
 
 ```bash
 curl -s -b "$GOODREADS_COOKIE" \
-  "https://www.goodreads.com/review/list_rss/179929687?shelf=to-read" \
+  "https://www.goodreads.com/review/list_rss/<user-id>?shelf=to-read" \
   | grep book_id
 ```
 
@@ -170,7 +170,7 @@ goodreads-cli notes hide --book-id <id> --approved-book-id <id> --execute --json
 ```bash
 source ~/.goodreads/auth.sh
 curl -s -H "Cookie: $GOODREADS_COOKIE" \
-  "https://www.goodreads.com/notes/<book_slug>/179929687-zayd-khan" \
+  "https://www.goodreads.com/notes/<book_slug>/<user-id>-<user-slug>" \
   | grep -o "data-visible-count='[0-9]*'"
 ```
 
@@ -193,11 +193,11 @@ goodreads-cli author show --author-slug 4273.Roald_Dahl --limit 20 --json
 # Want-to-read / exclusive shelves
 goodreads-cli shelves add --book-id <id> --name to-read --execute
 goodreads-cli shelves remove --book-id <id> --name to-read --execute
-goodreads-cli shelves discover --user 179929687 --json
+goodreads-cli shelves discover --user <user-id> --json
 
 # Notes workflow
-goodreads-cli notes books --user-id 179929687 --limit 100 --json
-goodreads-cli stats year-in-books --user-id 179929687 --year 2025 --json
+goodreads-cli notes books --user-id <user-id> --limit 100 --json
+goodreads-cli stats year-in-books --user-id <user-id> --year 2025 --json
 goodreads-cli recent-reading publicize-plan --fixture-dir <dir> --json
 goodreads-cli notes publicize-plan --book-id <id> --details --json
 goodreads-cli notes publicize --book-id <id> --approved-book-id <id> --execute --json
@@ -221,7 +221,7 @@ Goodreads loads shelf/notes data dynamically via XHR. Static HTML dumps are empt
 
 **Key selectors:** `tr[id^="review_"]`, `a[href*="/book/show/"]`, `.field.author a`
 
-**User ID:** `179929687` (Zayd). User slug: `179929687-zayd-khan`.
+**User ID:** `<user-id>` (your account). User slug: `<user-id>-<user-slug>`.
 
 ## 7. Known Gaps
 
@@ -241,15 +241,11 @@ Goodreads loads shelf/notes data dynamically via XHR. Static HTML dumps are empt
 
 The "Make all N visible" button opens a shelving modal when the browser session is NOT properly authenticated. If the page shows "Read" but the modal says "first add this book to a shelf", the debug Chrome's cookies are stale. Re-copy fresh cookies **once** — that same cookie unlocks notes + shelves.
 
-## 9. Cross-Machine (mothership)
+## 9. Cross-Machine
 
 ```bash
-# Dispatch Claude headless on mothership
-ssh mothership "claude --dangerously-skip-permissions -p '...'"
-
-# Mothership known issues: VRM overheat under sustained load (Z370-P + i7-9700K + RTX 2080 Ti)
-# Python: python (not python3), v3.10.7 at C:\Python310\
-# Node: v24+, pnpm via npx / corepack
+# Dispatch Claude headless on another host over SSH
+ssh <other-host> "claude --dangerously-skip-permissions -p '...'"
 ```
 
 ## 10. Safety

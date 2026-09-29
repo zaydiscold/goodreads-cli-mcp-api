@@ -121,6 +121,6 @@ describe("library show account selection", () => {
     });
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://www.goodreads.com/review/edit/123");
-    expect(JSON.stringify(result)).not.toContain("179929687");
+    expect(JSON.stringify(result)).not.toContain("123456789");
   });
 });
