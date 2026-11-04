@@ -5,6 +5,7 @@ import {
   type LiveExecuteOptions,
 } from "../client/live.js";
 import { fetchAuthenticatedText, fetchPublicText } from "../client/http.js";
+import { parseShelfWidget, shelfWidgetPath } from "../parsers/widget.js";
 import { envelope, cleanText, loadApiMapRoutes, type GoodreadsRoute } from "../lib.js";
 import { emitLiveMutationWarning, riskLevelForRoute } from "../risk.js";
 import type { CommandEnvelope } from "../types/index.js";
@@ -141,13 +142,12 @@ export function parseLibraryEditState(html: string): LibraryEditState {
   };
 }
 
-// eslint-disable-next-line complexity -- multi-shelf RSS + optional HTML enrichment
 export async function ls(o: LSO): Promise<CommandEnvelope<unknown>> {
   const uid = o.userId?.trim() || process.env.GOODREADS_USER_ID?.trim() || null;
   const hasAuthenticatedSession = Boolean(process.env.GOODREADS_COOKIE?.trim());
   if (!uid && !hasAuthenticatedSession) {
     throw new Error(
-      "library show requires userId/GOODREADS_USER_ID for public RSS or GOODREADS_COOKIE for an authenticated read",
+      "library show requires userId/GOODREADS_USER_ID for the public shelf widget or GOODREADS_COOKIE for an authenticated read",
     );
   }
 
@@ -158,36 +158,25 @@ export async function ls(o: LSO): Promise<CommandEnvelope<unknown>> {
   let textLength = 0;
   let textSha256 = "";
 
+  const notes: string[] = [];
+  // Public path: Goodreads retired shelf RSS in 2026-10, so scan the public
+  // shelf widgets. They carry status and star rating but no review text, and
+  // stop at 100 books per shelf; a signed-in read below fills in the rest.
   if (uid) {
     for (const shelf of ["currently-reading", "read", "to-read"] as const) {
-      const url = `https://www.goodreads.com/review/list_rss/${encodeURIComponent(uid)}?shelf=${shelf}`;
-      sources.push(url);
+      const url = `https://www.goodreads.com${shelfWidgetPath(uid, shelf)}`;
+      sources.push(url.replace(/&widget_id=\d+/, ""));
       try {
-        const xml = await fetchPublicText(url);
-        const parts = xml.split("<item>");
-        for (const part of parts) {
-          if (!(
-            part.includes(`<book_id>${o.bookId}</book_id>`) ||
-            part.includes(`book/show/${o.bookId}`)
-          )) {
-            continue;
-          }
+        const widget = parseShelfWidget(await fetchPublicText(url), { user: uid, shelf });
+        const hit = widget.items.find((item) => item.bookId === o.bookId);
+        if (hit) {
           status = shelf;
-          const rm = part.match(/<user_rating>(\d+)<\/user_rating>/i);
-          if (rm?.[1]) rating = parseInt(rm[1], 10);
-          const rev =
-            part.match(/<user_review><!\[CDATA\[([\s\S]*?)\]\]><\/user_review>/i) ||
-            part.match(/<user_review>([\s\S]*?)<\/user_review>/i);
-          const revBody = rev?.[1];
-          if (revBody && cleanText(revBody)) {
-            const text = cleanText(revBody);
-            reviewExists = true;
-            textLength = text.length;
-            textSha256 = createHash("sha256").update(text, "utf8").digest("hex");
-          }
+          rating = hit.userRating;
           break;
         }
-        if (status !== "unknown") break;
+        if (widget.signals.widgetMayCapAt100) {
+          notes.push(`${shelf} widget is capped at 100 books; the book may be further down`);
+        }
       } catch {
         // continue other shelves
       }
@@ -225,6 +214,7 @@ export async function ls(o: LSO): Promise<CommandEnvelope<unknown>> {
     rating,
     review: { exists: reviewExists, textLength, textSha256 },
     sources,
+    ...(notes.length ? { notes } : {}),
   });
 }
 
@@ -251,7 +241,7 @@ export async function ss(o: SSO): Promise<CommandEnvelope<unknown>> {
     route,
     { form: { book_id: o.bookId, name: o.status } },
     execute,
-    `Confirm book ${o.bookId} is on exclusive shelf "${o.status}" via RSS/list.`,
+    `Confirm book ${o.bookId} is on exclusive shelf "${o.status}" via the shelf list.`,
   );
 
   let mutationVerified = false;

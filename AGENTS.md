@@ -23,7 +23,7 @@ cli/            @zaydiscold/goodreads-cli — the TypeScript CLI + the shared en
     index.ts        commander entrypoint; wires the command groups
     commands/*.ts   thin commander wrappers — each just parses args and calls engine.ts
     client/         live.ts (request plan/execute) + http.ts (GET helper)
-    parsers/        one parser per page type (shelf, book, notes, messages, comments, rss)
+    parsers/        one parser per page type (shelf, book, notes, messages, comments, widget, legacy rss)
     shelf.ts        shared shelf-page read/summarize helpers (books + recent-reading)
     workflows/      recent-reading join + notes-publicize workflow plans
     risk.ts         route -> risk level + the live-mutation stderr warning

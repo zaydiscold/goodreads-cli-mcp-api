@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — 2026-11-03 (shelf RSS retired)
+
+- Goodreads retired public shelf RSS around 2026-10-28; `books list --source rss`, the default unauthenticated path, and `library show --user-id` all 404ed.
+- Added the public shelf widget source (`--source widget`, `parsers/widget.ts`): anonymous, newest 100 books, fresh `widget_id` per request because Goodreads caches widgets per id, and the response is checked against the requested user and shelf.
+- `books list` now defaults to signed-in HTML when `GOODREADS_COOKIE` is set and the widget otherwise; `--source rss` is kept as an alias for the widget with a warning. The MCP `goodreads_books_list` schema accepts `widget`.
+- `library show --user-id` scans the three exclusive shelf widgets for status and rating.
+- `scripts/goodreads-daily-sync.sh` reads the shelf signed in (cookie from `~/.goodreads/auth.sh`) and refuses signed-out or incomplete reads instead of writing an empty snapshot.
+
 ## Unreleased — 2026-08-28 (exact annotation counts + publication regression)
 
 - Added live detail hydration to `notes books` / `goodreads_notes_books`, including exact highlight, attached-note, visible, hidden, and total annotation counts without raw text.
@@ -7,7 +15,6 @@
 - Added bounded-worker, parser, privacy, engine, CLI, and MCP regression coverage.
 - Documented the Goodreads cron publication-order regression that left 15 highlights unpublished across HWFWM1/2; restoring the proven idempotent publish-all-first contract verified all 34 books at 407 shared of 407 total annotations.
 - Raised the arbitrary production function-line ceiling from 80 to 140 while retaining complexity, typecheck, lint, format, integrity, and behavior gates.
-
 
 ## Unreleased — 2026-08-23 (HTTP origin hardening)
 

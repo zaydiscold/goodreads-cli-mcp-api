@@ -25,7 +25,7 @@ For `add this book to Goodreads / want-to-read`:
 1. Resolve one numeric Goodreads book ID; do not silently choose fuzzy duplicates.
 2. `goodreads-cli shelves add --book-id ID --name to-read` (dry-run)
 3. `goodreads-cli shelves add --book-id ID --name to-read --execute` (only when the user asked)
-4. Verify membership with live authenticated My Books HTML or RSS; HTTP 200 alone is not proof.
+4. Verify membership with live authenticated My Books HTML (`books list --source html`); HTTP 200 alone is not proof. Shelf RSS is gone (404 since 2026-10-28).
 
 A local EPUB/PDF belongs to `amazon-kindle-cli kindle send`, not Goodreads. An Amazon wishlist request belongs to `amazon-kindle-cli wishlist add`; wishlist membership is not Kindle ownership. Use CLI first and load browser/CDP only when ID resolution or persisted auth actually fails.
 
@@ -134,14 +134,15 @@ MCP:
 
 Route: `POST /shelf/add_to_shelf` with `book_id`, `name`, optional `a=remove`.
 
-**Photo / natural language flow:** identify title+author → resolve numeric Goodreads book id → `shelf_add` with `shelf: "to-read"`. If `/book/show/{id}` is bot-walled (202), use editions pages (`/work/editions/{work_id}`) or RSS verification. Wrong id → 404 body `Sorry, we couldn't find that book.` (not auth).
+**Photo / natural language flow:** identify title+author → resolve numeric Goodreads book id → `shelf_add` with `shelf: "to-read"`. If `/book/show/{id}` is bot-walled (202), use editions pages (`/work/editions/{work_id}`) or shelf verification below. Wrong id → 404 body `Sorry, we couldn't find that book.` (not auth).
 
 Verify:
 
 ```bash
-curl -s -b "$GOODREADS_COOKIE" \
-  "https://www.goodreads.com/review/list_rss/<user-id>?shelf=to-read" \
-  | grep book_id
+# signed-in, full shelf (GOODREADS_COOKIE exported)
+goodreads-cli books list --shelf to-read --source html --user <user-id> | grep '"bookId"'
+# no login: public widget, newest 100 books only
+goodreads-cli books list --shelf to-read --source widget --user <numeric-user-id> | grep '"bookId"'
 ```
 
 Live-verified 2026-07-27: Catching the Big Fish (`58169`), Fantastic Mr. Fox (`6693`), Edison's Alley (`20875669`).

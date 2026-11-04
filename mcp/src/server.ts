@@ -182,12 +182,12 @@ registerTool(
   {
     title: "Goodreads Books List",
     description:
-      "List one shelf from authenticated HTML fixtures (fixtureDir), live authenticated HTML (user + GOODREADS_COOKIE), or public RSS (user). Dedup + pagination summary.",
+      "List one shelf from authenticated HTML fixtures (fixtureDir), live authenticated HTML (user + GOODREADS_COOKIE), or the public shelf widget (numeric user, max 100 books). Goodreads retired shelf RSS in 2026-10; source rss is an alias for widget. Dedup + pagination summary.",
     annotations: toolAnnotations(true, "read"),
     inputSchema: {
       shelf: z.string(),
       fixtureDir: z.string().optional(),
-      source: z.enum(["html", "rss"]).optional(),
+      source: z.enum(["html", "widget", "rss"]).optional(),
       user: z.string().optional(),
       baseUrl: z.string().optional(),
     },

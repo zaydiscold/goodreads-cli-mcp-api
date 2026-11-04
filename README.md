@@ -18,7 +18,7 @@ Snap a photo of a stack at a bookstore, hand it to your agent, and it can land t
 
 **This is an independent, unofficial project. It is NOT affiliated with, endorsed by, or approved by Goodreads or Amazon.**
 
-- **Unofficial surface.** Amazon closed the public Goodreads API to new keys in December 2020. This tool drives the _logged-in web surface_ (HTML pages, RSS, CSV exports, Rails-UJS form POSTs, and the newer AppSync GraphQL ops) mapped by hand. Goodreads can rename or rotate any of it without notice — trust live reads over memory.
+- **Unofficial surface.** Amazon closed the public Goodreads API to new keys in December 2020. This tool drives the _logged-in web surface_ (HTML pages, the public shelf widget, CSV exports, Rails-UJS form POSTs, and the newer AppSync GraphQL ops; public shelf RSS was retired by Goodreads around 2026-10-28) mapped by hand. Goodreads can rename or rotate any of it without notice — trust live reads over memory.
 - **Your own account, at your own risk.** It acts on the account you're already logged into, using your own browser cookie + CSRF token. Automated/non-browser access may be against Goodreads' Terms of Service. Use it on your own account and understand the risk.
 - **Writes can change your account.** Publicizing/hiding notes, moving shelves, and quote edits mutate your real account. Every write defaults to a dry-run; the notes workflow is gated three ways (below).
 - **No warranty.** Provided "as is". See [LICENSE](LICENSE).
@@ -48,7 +48,7 @@ Use `core` for normal agent work, `notes` for highlight automation, and `full` f
 
 Full read **and** write across Goodreads:
 
-- **Want to Read / shelves** — add or remove books on `to-read`, `currently-reading`, `read`, or custom shelves (live `POST /shelf/add_to_shelf`); discover inventory + counts; list and export (HTML pagination or RSS).
+- **Want to Read / shelves** — add or remove books on `to-read`, `currently-reading`, `read`, or custom shelves (live `POST /shelf/add_to_shelf`); discover inventory + counts; list and export (HTML pagination, or the public shelf widget without a login).
 - **Bookstore → shelf** — agent takes a photo (or title/author), resolves the numeric book id, and shelves it. Built so you can snap stacks in a shop and clear the backlog without opening the site.
 - **One authenticated session, surface-specific cookie routing** — account reads and writes share `GOODREADS_COOKIE`, but public discovery reads deliberately strip account/SSO cookies. Rails mutations mint CSRF from the signed-in `/review/list` page and use the request shape each endpoint actually expects.
 - **Books** — parse any public book page (JSON-LD + Next.js metadata) and list public Readers-also-enjoyed candidates from Goodreads' server-rendered React props.
@@ -70,7 +70,7 @@ That invariant is enforced by code, not vigilance: a `CAPABILITIES` registry in 
 
 Live tool truth is always `tools/list`; the tested `full` profile currently exposes 40 unique tools.
 
-For cron-based automation on WSL, use [`scripts/goodreads-daily-sync.sh`](./scripts/goodreads-daily-sync.sh). It atomically snapshots the live currently-reading RSS result to a dated JSON file and records an explicit success/failure receipt; notes/highlight publicization remains separately gated and must be verified after every write.
+For cron-based automation on WSL, use [`scripts/goodreads-daily-sync.sh`](./scripts/goodreads-daily-sync.sh). It atomically snapshots the signed-in currently-reading shelf (cookie from `~/.goodreads/auth.sh`) to a dated JSON file and records an explicit success/failure receipt; notes/highlight publicization remains separately gated and must be verified after every write.
 
 ## Command tour — what answers what
 
@@ -82,7 +82,7 @@ Live-capable reads send real requests when their required inputs/auth are presen
 | `api-map browser-routes`                               | "What did the authenticated CDP capture see?" — sanitized route templates                                                |
 | `shelves discover`                                     | "What shelves do I have, and how many books in each?"                                                                    |
 | `shelves add` / `shelves remove`                       | "Add/remove a book on want-to-read (`to-read`), currently-reading, read, or a custom shelf" (dry-run unless `--execute`) |
-| `books list --shelf <s>`                               | "List one shelf" — from authenticated HTML fixtures or public RSS                                                        |
+| `books list --shelf <s>`                               | "List one shelf" — authenticated HTML (fixtures or cookie) or the public widget                                                        |
 | `books export --fixture-dir <d>`                       | "Export my shelves" — deduped by book, with per-shelf membership + completeness flags                                    |
 | `book show <slug-or-id>`                               | "Parse this book page" — JSON-LD + Next.js metadata                                                                      |
 | `book similar <work-slug>`                             | "What did readers also enjoy?" — public metadata only; descriptions and images are omitted                               |
