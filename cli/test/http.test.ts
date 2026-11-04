@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchAuthenticatedText, fetchPublicText, fetchText } from "../src/client/http.js";
+import {
+  fetchAuthenticatedText,
+  fetchPublicText,
+  fetchText,
+  mergeRedirectCookies,
+} from "../src/client/http.js";
 
 const originalCookie = process.env.GOODREADS_COOKIE;
 
@@ -106,5 +111,38 @@ describe("Goodreads HTTP origin boundary", () => {
       "redirect with embedded credentials",
     );
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+});
+
+describe("redirect cookie carry-over", () => {
+  it("resends cookies set by a same-origin redirect, like a browser", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 302,
+          headers: [
+            ["location", "https://www.goodreads.com/search?q=x"],
+            ["set-cookie", "_session_id2=abc; path=/; HttpOnly"],
+            ["set-cookie", "locale=en; path=/"],
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(new Response("<html>results</html>", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchText("https://www.goodreads.com/search?q=x")).resolves.toContain("results");
+    const first = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const second = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(first.headers).not.toHaveProperty("cookie");
+    expect((second.headers as Record<string, string>).cookie).toBe("_session_id2=abc; locale=en");
+  });
+
+  it("merges redirect cookies into an existing jar and honours deletions", () => {
+    expect(
+      mergeRedirectCookies("a=1; b=2", ["b=3; path=/", "a=; Max-Age=0", "c=4", "bad name=5"]),
+    ).toBe("b=3; c=4");
+    expect(mergeRedirectCookies("a=1", [])).toBe("a=1");
+    expect(mergeRedirectCookies(undefined, ["a=; max-age=0"])).toBeUndefined();
   });
 });

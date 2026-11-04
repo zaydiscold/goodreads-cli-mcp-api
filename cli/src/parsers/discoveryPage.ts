@@ -68,7 +68,26 @@ export function parseSearchResultsPage(html: string): {
   books: DiscoveryBook[];
 } {
   const $ = cheerio.load(html);
-  const books = $("a.bookTitle[href*='/book/show/']")
+  // Goodreads serves two search layouts: the classic table (a.bookTitle) and,
+  // since about 2026-11 for browser-like requests, a React list whose cards are
+  // marked with data-testid="book-item-...". Read whichever is present.
+  const modern = $("[data-testid='book-item-title'] a[href*='/book/show/']")
+    .map((_, element) => {
+      const link = $(element);
+      const bookId = bookIdFromHref(link.attr("href"));
+      if (!bookId) return null;
+      const card = link.closest("[data-testid='book-item-content']");
+      const book: DiscoveryBook = {
+        bookId,
+        title: cleanText(link.text()) || null,
+        author: firstText(card, "[data-testid='book-item-contributors'] [data-testid='name']"),
+        ratingSummary: firstText(card, "[data-testid='book-item-stats'] .u-sr-only"),
+      };
+      return book;
+    })
+    .get()
+    .filter((book): book is DiscoveryBook => book !== null);
+  const classic = $("a.bookTitle[href*='/book/show/']")
     .map((_, element) => {
       const link = $(element);
       const bookId = bookIdFromHref(link.attr("href"));
@@ -82,9 +101,18 @@ export function parseSearchResultsPage(html: string): {
     })
     .get()
     .filter((book): book is DiscoveryBook => book !== null);
+  const modernCount = $(".u-sr-only")
+    .filter((_, element) => /^Showing\b.*\bresults$/.test(cleanText($(element).text())))
+    .first();
   const resultCountLabel =
-    cleanText($(".searchSubNavContainer, .searchSubNav").first().text()) || null;
-  return { kind: "search_results", resultCountLabel, books: dedupeBooks(books) };
+    cleanText($(".searchSubNavContainer, .searchSubNav").first().text()) ||
+    cleanText(modernCount.text()) ||
+    null;
+  return {
+    kind: "search_results",
+    resultCountLabel,
+    books: dedupeBooks([...modern, ...classic]),
+  };
 }
 
 /** Parses personalized recommendation cards into book identity only. */

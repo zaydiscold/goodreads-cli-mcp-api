@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseSearchResultsPage, parseSimilarBooksPage } from "../src/parsers/discoveryPage.js";
 import { parseShelfRss } from "../src/parsers/rss.js";
@@ -171,5 +172,24 @@ describe("parser normalization edges", () => {
       userRating: 4,
     });
     expect(JSON.stringify(parsed)).not.toContain("@_isPermaLink");
+  });
+});
+
+describe("search results, redesigned layout", () => {
+  it("reads the data-testid book list Goodreads serves to browser-like requests", () => {
+    // Trimmed live capture (2026-11-04) of /search?q=project hail mary andy weir.
+    const html = readFileSync(
+      new URL("./samples/search-results-2026-11.html", import.meta.url),
+      "utf8",
+    );
+    const parsed = parseSearchResultsPage(html);
+    expect(parsed.books).toHaveLength(3);
+    expect(parsed.books[0]).toEqual({
+      bookId: "58007522",
+      title: "SUMMARY AND ANALYSIS OF PROJECT HAIL MARY BY ANDY WEIR",
+      author: "Good Reads Publishing",
+      ratingSummary: "Average rating of 4.04 stars, 25 ratings, 4 reviews",
+    });
+    expect(parsed.resultCountLabel).toMatch(/^Showing 1 to \d+ of over \d+ results$/);
   });
 });

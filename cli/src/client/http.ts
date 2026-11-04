@@ -88,13 +88,56 @@ export async function readBoundedResponseText(
   return Buffer.concat(chunks).toString("utf8");
 }
 
+/**
+ * Fold a hop's Set-Cookie values into the Cookie header for the next hop.
+ * Goodreads answers some anonymous pages (search, since 2026-11) with a 302
+ * back to the same URL that only succeeds once its fresh session cookies are
+ * sent, the way a browser would. Redirects are already pinned to the trusted
+ * origin, so these cookies never leave goodreads.com.
+ */
+export function mergeRedirectCookies(
+  cookieHeader: string | undefined,
+  setCookies: readonly string[],
+): string | undefined {
+  if (setCookies.length === 0) return cookieHeader;
+  const jar = new Map<string, string>();
+  for (const part of (cookieHeader ?? "").split(";")) {
+    const eq = part.indexOf("=");
+    if (eq > 0) jar.set(part.slice(0, eq).trim(), part.slice(eq + 1).trim());
+  }
+  for (const line of setCookies) {
+    const pair = line.split(";")[0] ?? "";
+    const eq = pair.indexOf("=");
+    if (eq <= 0) continue;
+    const name = pair.slice(0, eq).trim();
+    const value = pair.slice(eq + 1).trim();
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name)) continue;
+    if (/;\s*max-age=0\b/i.test(line) || value === "") jar.delete(name);
+    else jar.set(name, value);
+  }
+  return jar.size ? [...jar].map(([name, value]) => `${name}=${value}`).join("; ") : undefined;
+}
+
+function headerRecord(headers: RequestInit["headers"]): Record<string, string> {
+  if (!headers) return {};
+  if (headers instanceof Headers || Array.isArray(headers)) {
+    return Object.fromEntries(new Headers(headers).entries());
+  }
+  return { ...(headers as Record<string, string>) };
+}
+
 async function fetchGoodreadsResponse(url: string, init: RequestInit): Promise<Response> {
   let currentUrl = assertTrustedGoodreadsUrl(url).toString();
+  const baseHeaders = headerRecord(init.headers);
+  const cookieKey = Object.keys(baseHeaders).find((key) => key.toLowerCase() === "cookie");
+  let cookie = cookieKey ? baseHeaders[cookieKey] : undefined;
+  if (cookieKey) delete baseHeaders[cookieKey];
 
   for (let redirectCount = 0; ; redirectCount += 1) {
     let response: Response;
+    const headers = cookie ? { ...baseHeaders, cookie } : { ...baseHeaders };
     try {
-      response = await fetch(currentUrl, { ...init, redirect: "manual" });
+      response = await fetch(currentUrl, { ...init, headers, redirect: "manual" });
     } catch (error) {
       throw explainFetchFailure(error, currentUrl);
     }
@@ -102,6 +145,7 @@ async function fetchGoodreadsResponse(url: string, init: RequestInit): Promise<R
     if (!REDIRECT_STATUSES.has(response.status)) return response;
     const location = response.headers.get("location");
     if (!location) return response;
+    cookie = mergeRedirectCookies(cookie, response.headers.getSetCookie?.() ?? []);
     if (redirectCount >= MAX_GOODREADS_REDIRECTS) {
       throw new Error(`GET ${url} failed: too many Goodreads redirects`);
     }
