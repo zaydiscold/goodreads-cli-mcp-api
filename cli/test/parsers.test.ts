@@ -30,7 +30,7 @@ import { buildRecentReadingNotes, checkPublicizeApproval } from "../src/workflow
 describe("Goodreads parsers", () => {
   it("discovers account shelf inventory and rows from shelf HTML", () => {
     const html = `
-      <html><head><title>Zayd Khan's 'to-read' books on Goodreads (132 books)</title></head>
+      <html><head><title>Example User's 'to-read' books on Goodreads (132 books)</title></head>
       <body>
         <a href="/review/list/123456?shelf=%23ALL%23">All (28)</a>
         <a href="/review/list/reader-user?shelf=to-read">Want to Read (132)</a>
@@ -65,7 +65,7 @@ describe("Goodreads parsers", () => {
 
   it("parses RSS without emitting raw descriptions or reviews", () => {
     const xml = `
-      <rss><channel><title>Zayd's bookshelf: read</title>
+      <rss><channel><title>Example User's bookshelf: read</title>
         <item>
           <title>Example Book</title>
           <book_id>123</book_id>

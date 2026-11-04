@@ -36,6 +36,11 @@ function shelfHtml(options: { shelf: string; bookId?: string; title?: string }):
   `;
 }
 
+const widgetBody = (shelf: string, items: string) =>
+  `  var widget_code = '  <div class=\\"gr_custom_container_1\\">\\n<h2 class=\\"gr_custom_header_1\\"><a href=\\"https:\\/\\/www.goodreads.com\\/review\\/list\\/42-reader?shelf=${shelf}&amp;utm_medium=api\\">R<\\/a><\\/h2>${items}<\\/div>'\n`;
+const widgetItem = (bookId: string, title: string, stars = 0) =>
+  `<div class=\\"gr_custom_each_container_1\\"><div class=\\"gr_custom_book_container_1\\"><a title=\\"${title}\\" href=\\"https:\\/\\/www.goodreads.com\\/review\\/show\\/9${bookId}\\"><img src=\\"https:\\/\\/i.gr-assets.com\\/books\\/1l\\/${bookId}._SX50_.jpg\\" \\/><\\/a><\\/div><div class=\\"gr_custom_rating_1\\">${Array.from({ length: 5 }, (_, i) => `<img src=\\"star_${i < stars ? "active" : "inactive"}.png\\" \\/>`).join("")}<\\/div><div class=\\"gr_custom_author_1\\">by <a href=\\"https:\\/\\/www.goodreads.com\\/author\\/show\\/1.A\\">An Author<\\/a><\\/div><\\/div>`;
+
 function dataOf<T>(result: { data: unknown }): T {
   return result.data as T;
 }
@@ -55,25 +60,35 @@ describe("Goodreads engine correctness", () => {
       rows: [{ bookId: "123" }],
     });
 
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          "<rss><channel><title>read</title><item><title>RSS Book</title><book_id>456</book_id></item></channel></rss>",
-          { status: 200, headers: { "content-type": "application/xml" } },
-        ),
-      );
+    delete process.env.GOODREADS_COOKIE;
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(widgetBody("read", widgetItem("456", "Widget Book", 4)), {
+          status: 200,
+          headers: { "content-type": "application/javascript" },
+        }),
+    );
     vi.stubGlobal("fetch", fetchMock);
-    const rss = await booksList({
-      shelf: "read",
-      source: "rss",
-      fixtureDir: dir,
-      user: "reader",
-    });
+    const widget = await booksList({ shelf: "read", source: "widget", user: "42-reader" });
     expect(
-      dataOf<{ source: string; rss: { items: Array<{ bookId: string }> } }>(rss),
-    ).toMatchObject({ source: "rss", rss: { items: [{ bookId: "456" }] } });
-    expect(fetchMock).toHaveBeenCalledOnce();
+      dataOf<{ source: string; widget: { items: Array<{ bookId: string; userRating: number }> } }>(
+        widget,
+      ),
+    ).toMatchObject({ source: "widget", widget: { items: [{ bookId: "456", userRating: 4 }] } });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/review/custom_widget/42.shelf?");
+
+    // Without a cookie or fixtures the default is the public widget, and the
+    // retired rss source is served by it with a warning instead of a 404.
+    const byDefault = await booksList({ shelf: "read", user: "42" });
+    expect(dataOf<{ source: string }>(byDefault).source).toBe("widget");
+    const legacy = await booksList({ shelf: "read", source: "rss", user: "42" });
+    expect(dataOf<{ source: string; requestedSource: string }>(legacy)).toMatchObject({
+      source: "widget",
+      requestedSource: "rss",
+    });
+    expect(JSON.stringify(legacy)).toContain("retired public shelf RSS");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls.every(([url]) => !String(url).includes("list_rss"))).toBe(true);
 
     await expect(booksList({ shelf: "read", source: "html" })).rejects.toThrow(
       "fixture-dir or user is required when source is html",
@@ -81,9 +96,12 @@ describe("Goodreads engine correctness", () => {
     await expect(booksList({ shelf: "read", source: "rss" })).rejects.toThrow(
       "user is required when source is rss",
     );
+    await expect(booksList({ shelf: "read", source: "widget" })).rejects.toThrow(
+      "user is required when source is widget",
+    );
     await expect(
       booksList({ shelf: "read", source: "atom" as "html", fixtureDir: dir }),
-    ).rejects.toThrow("source must be one of html, rss");
+    ).rejects.toThrow("source must be one of html, widget, rss");
   });
 
   it("derives message folders from a fixture instead of claiming hardcoded provenance", async () => {

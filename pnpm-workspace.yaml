@@ -14,3 +14,5 @@ overrides:
   "postcss": ">=8.5.23"
   "undici": ">=7.29.0"
   "nanoid": ">=3.3.17"
+  # globparts DoS below 11.0.1 (dev-only, via eslint); eslint and typescript-estree run fine on 11.x
+  "minimatch@<11.0.1": "^11.0.1"

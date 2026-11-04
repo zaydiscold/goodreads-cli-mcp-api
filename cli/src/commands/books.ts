@@ -7,7 +7,7 @@ interface BooksListOptions {
   user?: string;
   baseUrl?: string;
   fixtureDir?: string;
-  source?: "html" | "rss";
+  source?: "html" | "widget" | "rss";
   json?: boolean;
 }
 
@@ -21,7 +21,7 @@ export function booksCommand(): Command {
   command
     .command("list")
     .description(
-      "List one shelf from authenticated HTML fixtures, live authenticated HTML, or public RSS.",
+      "List one shelf from authenticated HTML fixtures, live authenticated HTML, or the public shelf widget.",
     )
     .requiredOption("--shelf <slug>", "Shelf slug, discovered with shelves discover.")
     .option(
@@ -30,9 +30,12 @@ export function booksCommand(): Command {
     )
     .option(
       "--source <source>",
-      "html or rss. Defaults to html when --fixture-dir is set, rss otherwise.",
+      "html, widget, or rss (retired by Goodreads; alias for widget). Defaults to html with --fixture-dir or GOODREADS_COOKIE, widget otherwise.",
     )
-    .option("--user <user>", "Goodreads numeric id or slug. Required for live/RSS fetches.")
+    .option(
+      "--user <user>",
+      "Goodreads numeric id or slug. Required for live fetches (the widget needs the numeric id).",
+    )
     .option("--base-url <url>", "Goodreads base URL.", "https://www.goodreads.com")
     .option("--json", "Emit JSON.", true)
     .action(async (options: BooksListOptions) => {

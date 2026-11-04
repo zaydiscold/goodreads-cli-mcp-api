@@ -1,0 +1,3 @@
+
+# Verbatim Goodreads responses; reformatting would change what the parser tests see.
+cli/test/samples/

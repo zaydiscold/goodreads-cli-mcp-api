@@ -46,7 +46,7 @@ import {
   summarizeShelfPages,
 } from "./shelf.js";
 import type { CommandEnvelope, ShelfBookRow } from "./types/index.js";
-import { parseShelfRss } from "./parsers/rss.js";
+import { parseShelfWidget, shelfWidgetPath } from "./parsers/widget.js";
 import {
   buildNotesPublicizeWorkflowPlan,
   buildRecentReadingList,
@@ -538,16 +538,28 @@ export async function shelvesDiscover(options: {
 export async function booksList(options: {
   shelf: string;
   fixtureDir?: string;
-  source?: "html" | "rss";
+  source?: "html" | "widget" | "rss";
   user?: string;
   baseUrl?: string;
 }): Promise<Envelope> {
   const shelf = options.shelf;
   const requestedSource = options.source as string | undefined;
-  if (requestedSource !== undefined && requestedSource !== "html" && requestedSource !== "rss") {
-    throw new Error(`source must be one of html, rss (got ${requestedSource})`);
+  if (
+    requestedSource !== undefined &&
+    requestedSource !== "html" &&
+    requestedSource !== "widget" &&
+    requestedSource !== "rss"
+  ) {
+    throw new Error(`source must be one of html, widget, rss (got ${requestedSource})`);
   }
-  const source = requestedSource ?? (options.fixtureDir ? "html" : "rss");
+  // Fixtures and a signed-in session read the full shelf page; otherwise use
+  // the public widget. "rss" is kept as an alias: Goodreads retired list_rss
+  // around 2026-10-28, so it is served by the widget with a warning.
+  const source =
+    requestedSource === "rss"
+      ? "widget"
+      : (requestedSource ??
+        (options.fixtureDir || process.env.GOODREADS_COOKIE?.trim() ? "html" : "widget"));
 
   if (source === "html") {
     if (options.fixtureDir) {
@@ -559,20 +571,26 @@ export async function booksList(options: {
     return booksListLiveHtml(shelf, options.user, options.baseUrl);
   }
 
-  if (!options.user) throw new Error("user is required when source is rss");
-  const xml = await fetchPublicText(
-    goodreadsUrl(
-      `/review/list_rss/${options.user}?shelf=${encodeURIComponent(shelf)}`,
-      options.baseUrl ?? DEFAULT_BASE_URL,
-    ),
+  if (!options.user)
+    throw new Error(`user is required when source is ${requestedSource ?? source}`);
+  const js = await fetchPublicText(
+    goodreadsUrl(shelfWidgetPath(options.user, shelf), options.baseUrl ?? DEFAULT_BASE_URL),
   );
-  const rss = parseShelfRss(xml);
-  const warnings = rss.signals.rssMayCapAt100
-    ? ["RSS returned exactly 100 items; this may be capped."]
-    : [];
+  const widget = parseShelfWidget(js, { user: options.user, shelf });
+  const warnings: string[] = [];
+  if (requestedSource === "rss") {
+    warnings.push(
+      "Goodreads retired public shelf RSS (list_rss 404s since about 2026-10-28); served from the public shelf widget instead.",
+    );
+  }
+  if (widget.signals.widgetMayCapAt100) {
+    warnings.push(
+      "The public shelf widget returns at most 100 books; this shelf may be longer. Use source html with GOODREADS_COOKIE for the full shelf.",
+    );
+  }
   return envelope(
-    { shelf, source, rss },
-    { warnings, confidence: rss.signals.rssMayCapAt100 ? "medium" : "high" },
+    { shelf, source: "widget" as const, requestedSource: requestedSource ?? null, widget },
+    { warnings, confidence: widget.signals.widgetMayCapAt100 ? "medium" : "high" },
   );
 }
 

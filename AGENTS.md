@@ -59,7 +59,7 @@ These rules are non-negotiable:
 2. A live write requires explicit execution and exact approval values where applicable.
 3. HTTP acceptance is not account-state verification.
 4. Every supported live mutation needs an independent readback or a clearly documented verification limit.
-   Library status, rating, and review writes require successful authenticated edit-form evidence. A failed read, unrelated HTML, public RSS fallback, or null rating must never confirm a cleared value. Keep `cli/test/libraryVerification.test.ts` covering this distinction.
+   Library status, rating, and review writes require successful authenticated edit-form evidence. A failed read, unrelated HTML, a public shelf-widget fallback, or null rating must never confirm a cleared value. Keep `cli/test/libraryVerification.test.ts` covering this distinction.
 5. Credentialed traffic is restricted to the exact trusted Goodreads origin.
 6. Redirects carrying credentials must remain on that origin.
 7. Responses and fixture inputs remain bounded.

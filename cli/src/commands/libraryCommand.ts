@@ -19,7 +19,7 @@ export function libraryCommand(): Command {
     .requiredOption("--book-id <id>")
     .option(
       "--user-id <id>",
-      "Goodreads user id for public RSS fallback; otherwise GOODREADS_USER_ID or GOODREADS_COOKIE is required.",
+      "Goodreads user id for the public shelf widget fallback; otherwise GOODREADS_USER_ID or GOODREADS_COOKIE is required.",
     )
     .option("--include-review-id")
     .action(async (o) => out(await ls(o)));

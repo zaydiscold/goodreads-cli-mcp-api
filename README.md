@@ -58,6 +58,7 @@ Run `node cli/dist/index.js <command> --help` for the current command contract.
 
 - Book search, book metadata, similar books, authors, and recommendations
 - Shelf discovery, shelf membership, reading status, ratings, and reviews
+- Shelf listing without a login through Goodreads' public shelf widget (newest 100 books per shelf; Goodreads retired shelf RSS in October 2026)
 - Reading exports and Year in Books data
 - Notes, annotations, quotes, and recent-reading workflows
 - Stable JSON output for scripts and scheduled jobs

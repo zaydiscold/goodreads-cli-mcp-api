@@ -10,6 +10,7 @@ import {
   fetchAuthenticatedText,
   fetchPublicText,
 } from "../client/http.js";
+import { parseShelfWidget, shelfWidgetPath } from "../parsers/widget.js";
 import { envelope, cleanText, loadApiMapRoutes, type GoodreadsRoute } from "../lib.js";
 import { emitLiveMutationWarning, riskLevelForRoute } from "../risk.js";
 import type { CommandEnvelope, Confidence } from "../types/index.js";
@@ -181,7 +182,7 @@ function validateBookId(bookId: string): string {
 }
 
 type SourceResult = {
-  source: "rss" | "authenticated-edit";
+  source: "widget" | "authenticated-edit";
   target: string;
   ok: boolean;
   signedOut?: boolean;
@@ -198,7 +199,7 @@ type LibraryObservation = {
   authenticatedSuccess: boolean;
   ratingObserved: boolean;
   reviewObserved: boolean;
-  rssSuccessCount: number;
+  publicSuccessCount: number;
 };
 
 function emptyObservation(): LibraryObservation {
@@ -213,43 +214,35 @@ function emptyObservation(): LibraryObservation {
     authenticatedSuccess: false,
     ratingObserved: false,
     reviewObserved: false,
-    rssSuccessCount: 0,
+    publicSuccessCount: 0,
   };
 }
 
-function parseRssItem(item: string, shelf: string, state: LibraryObservation): void {
-  state.status = shelf;
-  const ratingMatch = item.match(/<user_rating>(\d+(?:\.\d+)?)<\/user_rating>/i);
-  if (ratingMatch?.[1]) state.rating = Number(ratingMatch[1]);
-  const reviewMatch =
-    item.match(/<user_review><!\[CDATA\[([\s\S]*?)\]\]><\/user_review>/i) ||
-    item.match(/<user_review>([\s\S]*?)<\/user_review>/i);
-  state.reviewText = canonicalReviewText(reviewMatch?.[1] ?? "");
-}
-
-async function observeRss(userId: string, bookId: string, state: LibraryObservation) {
-  const encodedUser = encodeGoodreadsPathSegment(userId, "userId");
+// Public path: Goodreads retired shelf RSS around 2026-10-28, so scan the
+// public shelf widgets. They carry shelf status and star rating but never
+// review text, and stop at the newest 100 books per shelf.
+async function observeWidget(userId: string, bookId: string, state: LibraryObservation) {
   for (const shelf of ["currently-reading", "read", "to-read"] as const) {
-    const url = `https://www.goodreads.com/review/list_rss/${encodedUser}?shelf=${shelf}`;
-    state.sources.push(url);
+    const url = `https://www.goodreads.com${shelfWidgetPath(userId, shelf)}`;
+    state.sources.push(url.replace(/&widget_id=\d+/, ""));
     try {
-      const xml = await fetchPublicText(url);
-      state.rssSuccessCount += 1;
-      state.sourceResults.push({ source: "rss", target: shelf, ok: true });
-      const item = xml
-        .split("<item>")
-        .find(
-          (part) =>
-            part.includes(`<book_id>${bookId}</book_id>`) ||
-            new RegExp(`book/show/${bookId}(?:[<.?/#-]|$)`).test(part),
-        );
-      if (item) {
-        parseRssItem(item, shelf, state);
+      const widget = parseShelfWidget(await fetchPublicText(url), { user: userId, shelf });
+      state.publicSuccessCount += 1;
+      state.sourceResults.push({ source: "widget", target: shelf, ok: true });
+      const hit = widget.items.find((item) => item.bookId === bookId);
+      if (hit) {
+        state.status = shelf;
+        state.rating = hit.userRating;
         return;
       }
+      if (widget.signals.widgetMayCapAt100) {
+        state.warnings.push(
+          `Public '${shelf}' widget is capped at 100 books; the book may be further down.`,
+        );
+      }
     } catch {
-      state.sourceResults.push({ source: "rss", target: shelf, ok: false });
-      state.warnings.push(`RSS lookup for shelf '${shelf}' failed.`);
+      state.sourceResults.push({ source: "widget", target: shelf, ok: false });
+      state.warnings.push(`Public shelf widget lookup for '${shelf}' failed.`);
     }
   }
 }
@@ -309,7 +302,7 @@ async function observeAuthenticated(bookId: string, state: LibraryObservation) {
 
 function observationConfidence(state: LibraryObservation): Confidence {
   if (state.authenticatedSuccess) return "high";
-  if (state.rssSuccessCount === 0) return "low";
+  if (state.publicSuccessCount === 0) return "low";
   return state.status === "unknown" ? "medium" : "high";
 }
 
@@ -338,8 +331,8 @@ function observationData(
       authenticatedSuccess: state.authenticatedSuccess,
       ratingObserved: state.ratingObserved,
       reviewObserved: state.reviewObserved,
-      rssSuccessCount: state.rssSuccessCount,
-      stateObserved: state.authenticatedSuccess || state.rssSuccessCount > 0,
+      publicSuccessCount: state.publicSuccessCount,
+      stateObserved: state.authenticatedSuccess || state.publicSuccessCount > 0,
     },
   };
 }
@@ -350,13 +343,13 @@ export async function ls(options: LSO): Promise<CommandEnvelope<unknown>> {
   const authenticated = Boolean(process.env.GOODREADS_COOKIE?.trim());
   if (!userId && !authenticated) {
     throw new Error(
-      "library show requires userId/GOODREADS_USER_ID for public RSS or GOODREADS_COOKIE for an authenticated read",
+      "library show requires userId/GOODREADS_USER_ID for the public shelf widget or GOODREADS_COOKIE for an authenticated read",
     );
   }
   const state = emptyObservation();
-  if (userId) await observeRss(userId, bookId, state);
+  if (userId) await observeWidget(userId, bookId, state);
   if (authenticated && !options.userId) await observeAuthenticated(bookId, state);
-  if (!state.authenticatedSuccess && state.rssSuccessCount === 0) {
+  if (!state.authenticatedSuccess && state.publicSuccessCount === 0) {
     state.warnings.push("No library-state source succeeded; returned state is indeterminate.");
   }
   return envelope(observationData(bookId, userId, Boolean(options.includeReviewId), state), {

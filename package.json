@@ -26,13 +26,13 @@
     "prebuild": "node scripts/source-integrity.mjs && node scripts/clean-dist.mjs"
   },
   "devDependencies": {
-    "@types/node": "^25.9.5",
-    "@typescript-eslint/eslint-plugin": "^8.64.0",
-    "@typescript-eslint/parser": "^8.64.0",
-    "eslint": "^10.7.0",
-    "prettier": "^3.9.5",
+    "@types/node": "^25.9.9",
+    "@typescript-eslint/eslint-plugin": "^8.72.1",
+    "@typescript-eslint/parser": "^8.72.1",
+    "eslint": "^10.14.0",
+    "prettier": "^3.9.10",
     "typescript": "^5.9.3",
-    "vite": "^8.1.4",
-    "vitest": "^4.1.10"
+    "vite": "^8.3.5",
+    "vitest": "^4.1.12"
   }
 }

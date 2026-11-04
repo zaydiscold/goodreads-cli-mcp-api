@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased - 2026-11-03 (shelf RSS retired)
+
+- Goodreads retired public shelf RSS around 2026-10-28; `books list --source rss`, the default unauthenticated shelf read, `library show --user-id`, and the daily WSL sync all failed with 404.
+- Added the public shelf widget source (`--source widget`, `parsers/widget.ts`): anonymous, newest 100 books, a fresh `widget_id` per request because Goodreads caches widgets per id, and every response is checked against the requested user and shelf.
+- `books list` defaults to signed-in HTML when `GOODREADS_COOKIE` is set and the widget otherwise; `--source rss` remains as an alias for the widget with a warning. The MCP `goodreads_books_list` schema accepts `widget`.
+- `library show --user-id` observes the three exclusive shelf widgets (status and rating only). Its evidence field is now `publicSuccessCount` and source results report `widget`.
+- `scripts/goodreads-daily-sync.sh` reads the shelf signed in from `~/.goodreads/auth.sh` and refuses signed-out or incomplete reads instead of writing an empty snapshot.
+- Merged this Mac release-hardening line (PR #60 head plus later September fixes) with `main` (#62, #64, #65 and the widget fix).
+
 ## Unreleased — 2026-08-28 (exact annotation counts + publication regression)
 
 - Added live detail hydration to `notes books` / `goodreads_notes_books`, including exact highlight, attached-note, visible, hidden, and total annotation counts without raw text.
