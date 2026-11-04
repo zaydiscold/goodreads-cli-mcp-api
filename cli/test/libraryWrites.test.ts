@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ls, parseLibraryEditState, rv, ss } from "../src/workflows/libraryWrites.js";
+import {
+  ls,
+  parseLibraryEditFlight,
+  parseLibraryEditState,
+  rv,
+  ss,
+} from "../src/workflows/libraryWrites.js";
 
 const originalCookie = process.env.GOODREADS_COOKIE;
 const originalUserId = process.env.GOODREADS_USER_ID;
@@ -201,5 +207,52 @@ describe("library write intent binding", () => {
       outcome: "blocked",
       blockers: ["approvedTextSha256 mismatch"],
     });
+  });
+});
+
+describe("redesigned review edit page", () => {
+  // Shape copied from the live Next.js /review/edit/{id} flight payload
+  // (2026-11-04), with ids anonymized.
+  function flightPage(options: { legacyId: number; shelf: string; review: unknown }): string {
+    const payload =
+      `"viewerShelvings":[{"review":null,"book":{"id":"kca://book/amzn1.gr.book.v3.AAA","legacyId":${options.legacyId},"__typename":"Book"},` +
+      `"shelf":{"id":null,"name":"${options.shelf}","__typename":"Shelf"},"__typename":"Shelving"}],"viewerOwnedEditions":[]},` +
+      `"viewerShelving":{"id":"kca://review:goodreads/x","book":{"id":"kca://book/amzn1.gr.book.v3.AAA","__typename":"Book"},` +
+      `"shelf":{"id":"kca://user_shelf/s","name":"${options.shelf}","__typename":"Shelf"},"taggings":[],` +
+      `"review":${JSON.stringify(options.review)},"__typename":"Shelving"}`;
+    const half = Math.floor(payload.length / 2);
+    const chunk = (text: string) =>
+      `<script>self.__next_f.push([1,${JSON.stringify(text)}])</script>`;
+    return `<html><body><form action="https://www.goodreads.com/search"></form>${chunk(payload.slice(0, half))}${chunk(payload.slice(half))}</body></html>`;
+  }
+
+  it("reads shelf, rating and review text across split flight chunks", () => {
+    const html = flightPage({
+      legacyId: 123,
+      shelf: "read",
+      review: { rating: 4, preciseRating: 4, text: "Loved &amp;  it", spoilerStatus: false },
+    });
+    expect(parseLibraryEditFlight(html, "123")).toEqual({
+      reviewId: null,
+      status: "read",
+      rating: 4,
+      reviewText: "Loved & it",
+      reviewObserved: true,
+    });
+  });
+
+  it("treats a missing review as unrated with no text", () => {
+    const html = flightPage({ legacyId: 123, shelf: "currently-reading", review: null });
+    expect(parseLibraryEditFlight(html, "123")).toMatchObject({
+      status: "currently-reading",
+      rating: 0,
+      reviewText: "",
+    });
+  });
+
+  it("refuses a shelving for any other book and pages without the payload", () => {
+    const html = flightPage({ legacyId: 999, shelf: "read", review: { rating: 5, text: null } });
+    expect(parseLibraryEditFlight(html, "123")).toBeNull();
+    expect(parseLibraryEditFlight("<html><body>sign in</body></html>", "123")).toBeNull();
   });
 });

@@ -175,6 +175,82 @@ export function parseLibraryEditState(html: string): LibraryEditState {
   };
 }
 
+/** Concatenate the React Server Components payload Next.js inlines as self.__next_f.push chunks. */
+function nextFlightText(html: string): string {
+  return [...html.matchAll(/self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)/g)]
+    .map((match) => {
+      try {
+        return JSON.parse(`"${match[1] ?? ""}"`) as string;
+      } catch {
+        return "";
+      }
+    })
+    .join("");
+}
+
+/** Parse the JSON object that starts at `start` (a "{"), honouring strings and escapes. */
+function jsonObjectAt(text: string, start: number): unknown {
+  let depth = 0;
+  let inString = false;
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (ch === "\\") i += 1;
+      else if (ch === '"') inString = false;
+    } else if (ch === '"') inString = true;
+    else if (ch === "{" || ch === "[") depth += 1;
+    else if (ch === "}" || ch === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          return JSON.parse(text.slice(start, i + 1));
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+type FlightShelving = {
+  book?: { id?: string; legacyId?: number };
+  shelf?: { name?: string } | null;
+  review?: { rating?: number; text?: string | null } | null;
+};
+
+/**
+ * Read library state from the redesigned edit page (Next.js app router, since
+ * about 2026-11). The old Rails form is gone; the viewer's shelving for the
+ * book ships in the inlined flight payload instead. The shelving is only
+ * trusted when its book is the exact requested book id. The numeric review id
+ * is not present in this layout.
+ */
+export function parseLibraryEditFlight(html: string, bookId: string): LibraryEditState | null {
+  const flight = nextFlightText(html);
+  const listAt = flight.indexOf('"viewerShelvings":[');
+  const oneAt = flight.indexOf('"viewerShelving":{');
+  if (listAt < 0 || oneAt < 0) return null;
+  const list = jsonObjectAt(flight, flight.indexOf("[", listAt));
+  const shelving = jsonObjectAt(flight, flight.indexOf("{", oneAt)) as FlightShelving | null;
+  if (!Array.isArray(list) || !shelving) return null;
+  const match = (list as FlightShelving[]).find(
+    (entry) => String(entry?.book?.legacyId ?? "") === bookId,
+  );
+  const kcaId = match?.book?.id;
+  if (!kcaId || shelving.book?.id !== kcaId) return null;
+  const shelf = shelving.shelf?.name ?? null;
+  const review = shelving.review ?? null;
+  const rating = review && typeof review.rating === "number" ? review.rating : 0;
+  return {
+    reviewId: null,
+    status: shelf && EXCLUSIVE.has(shelf) ? shelf : null,
+    rating,
+    reviewText: canonicalReviewText(review?.text ?? ""),
+    reviewObserved: true,
+  };
+}
+
 function validateBookId(bookId: string): string {
   const value = bookId.trim();
   if (!/^\d+$/.test(value)) throw new Error("bookId must be numeric");
@@ -277,13 +353,15 @@ async function observeAuthenticated(bookId: string, state: LibraryObservation) {
         }
       })
       .first();
-    if (!form.length) {
+    const parsed = form.length
+      ? parseLibraryEditState(form.html() ?? "")
+      : parseLibraryEditFlight(result.html, bookId);
+    if (!parsed) {
       state.sourceResults[state.sourceResults.length - 1]!.ok = false;
-      state.warnings.push("Exact book review form was not observed; state is indeterminate.");
+      state.warnings.push("Exact book review state was not observed; state is indeterminate.");
       return;
     }
     state.authenticatedSuccess = true;
-    const parsed = parseLibraryEditState(form.html() ?? "");
     state.ratingObserved = parsed.rating !== null;
     state.reviewObserved = parsed.reviewObserved;
     state.reviewId = parsed.reviewId;

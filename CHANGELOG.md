@@ -7,6 +7,8 @@
 - `books list` defaults to signed-in HTML when `GOODREADS_COOKIE` is set and the widget otherwise; `--source rss` remains as an alias for the widget with a warning. The MCP `goodreads_books_list` schema accepts `widget`.
 - `library show --user-id` observes the three exclusive shelf widgets (status and rating only). Its evidence field is now `publicSuccessCount` and source results report `widget`.
 - `scripts/goodreads-daily-sync.sh` reads the shelf signed in from `~/.goodreads/auth.sh` and refuses signed-out or incomplete reads instead of writing an empty snapshot.
+- Anonymous `search books` works again: redirect hops now carry Goodreads' session cookies (anonymous /search 302s to itself until they are sent), and the parser reads the redesigned `data-testid="book-item-*"` result list as well as the classic table.
+- `library show` with a cookie reads the redesigned Next.js `/review/edit/{id}` page (the Rails form is gone) from its inlined `viewerShelving` payload, bound to the exact requested book id. The numeric review id is not exposed by that page, so `--include-review-id` returns null there.
 - Merged this Mac release-hardening line (PR #60 head plus later September fixes) with `main` (#62, #64, #65 and the widget fix).
 
 ## Unreleased — 2026-08-28 (exact annotation counts + publication regression)
